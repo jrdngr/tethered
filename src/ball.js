@@ -32,6 +32,13 @@ window.Swangin = window.Swangin || {};
     b.vx *= decay;
     b.vy *= decay;
 
+    // Speed cap (upgradable stat).
+    const speed = S.ballSpeed(b);
+    if (speed > game.stats.maxSpeed) {
+      b.vx *= game.stats.maxSpeed / speed;
+      b.vy *= game.stats.maxSpeed / speed;
+    }
+
     b.x += b.vx * dt;
     b.y += b.vy * dt;
 

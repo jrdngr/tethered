@@ -4,7 +4,10 @@ window.Swangin = window.Swangin || {};
 (function (S) {
   S.spawnEnemy = function (game) {
     const T = S.TUNING;
-    const r = T.ENEMY_RADIUS;
+    // Tanks (slower, armored, two base-damage hits) join the spawn mix after
+    // TANK_SPAWN_DELAY of survival.
+    const tank = game.time >= T.TANK_SPAWN_DELAY && Math.random() < T.TANK_CHANCE;
+    const r = tank ? T.TANK_RADIUS : T.ENEMY_RADIUS;
     let x = 0;
     let y = 0;
     // Pick an edge point; re-roll a few times if it's right on top of the ball.
@@ -17,7 +20,14 @@ window.Swangin = window.Swangin || {};
       else { x = game.width - r; y = t * game.height; }
       if (Math.hypot(x - game.ball.x, y - game.ball.y) > 150) break;
     }
-    game.enemies.push({ x, y, r, kx: 0, ky: 0 });
+    game.enemies.push({
+      x, y, r,
+      kx: 0, ky: 0,
+      tank,
+      hp: tank ? T.TANK_HP : T.ENEMY_HP,
+      speed: tank ? T.TANK_SPEED : T.ENEMY_SPEED,
+      flash: 0, // hit-feedback timer when a smash doesn't kill
+    });
   };
 
   S.updateEnemies = function (game, dt) {
@@ -43,6 +53,8 @@ window.Swangin = window.Swangin || {};
     for (let i = game.enemies.length - 1; i >= 0; i--) {
       const e = game.enemies[i];
 
+      if (e.flash > 0) e.flash -= dt;
+
       // Seek the ball, plus decaying knockback.
       const toBallX = b.x - e.x;
       const toBallY = b.y - e.y;
@@ -50,8 +62,8 @@ window.Swangin = window.Swangin || {};
       const decay = Math.exp(-4 * dt);
       e.kx *= decay;
       e.ky *= decay;
-      e.x += ((toBallX / dist) * T.ENEMY_SPEED + e.kx) * dt;
-      e.y += ((toBallY / dist) * T.ENEMY_SPEED + e.ky) * dt;
+      e.x += ((toBallX / dist) * e.speed + e.kx) * dt;
+      e.y += ((toBallY / dist) * e.speed + e.ky) * dt;
 
       // Collision with the ball.
       const gap = Math.hypot(b.x - e.x, b.y - e.y);
@@ -65,13 +77,26 @@ window.Swangin = window.Swangin || {};
       if (game.tether.active) S.releaseTether(game);
 
       if (invincible) {
-        // Smash: enemy dies, ball bounces off along the normal (same shape as
-        // the damage knockback) keeping most of its speed.
-        game.enemies.splice(i, 1);
-        game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
-        // Coin drop scales with the combo at the moment of the kill.
-        S.spawnCoinBurst(game, e.x, e.y);
-        S.bumpCombo(game);
+        // Smash: the enemy takes the player's damage stat; the ball bounces
+        // off along the normal (same shape as the damage knockback) keeping
+        // most of its speed either way.
+        e.hp -= game.stats.damage;
+        if (e.hp <= 0) {
+          game.enemies.splice(i, 1);
+          game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+          // Coin drop scales with the combo at the moment of the kill.
+          S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
+          S.bumpCombo(game);
+        } else {
+          // Armor absorbed the hit: flash, knock the enemy back, and separate
+          // so the next physics step doesn't land a second hit. No combo —
+          // that only counts kills.
+          e.flash = T.HIT_FLASH_DURATION;
+          e.kx = -nx * T.KNOCKBACK_SPEED;
+          e.ky = -ny * T.KNOCKBACK_SPEED;
+          e.x = b.x - nx * (b.r + e.r);
+          e.y = b.y - ny * (b.r + e.r);
+        }
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
         b.vx = nx * speed;
         b.vy = ny * speed;

@@ -32,6 +32,9 @@ window.Swangin = window.Swangin || {};
       combo: 1,
       level: 1,
       coinProgress: 0, // coins collected toward the next level
+      stats: S.createStats(), // per-run stats raised by level-up upgrades
+      pendingLevelUps: 0, // level-ups awaiting an upgrade pick
+      upgradeChoices: null, // the three cards on offer while state is 'levelup'
       time: 0,
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: 'playing',
@@ -49,6 +52,10 @@ window.Swangin = window.Swangin || {};
     updateMouse(e);
     if (game.state === 'gameover') {
       reset();
+      return;
+    }
+    if (game.state === 'levelup') {
+      S.pickUpgradeAt(game, game.mouse.x, game.mouse.y);
       return;
     }
     S.tryGrab(game);

@@ -51,12 +51,21 @@ window.Swangin = window.Swangin || {};
     }
     ctx.globalAlpha = 1;
 
-    // Enemies.
-    ctx.fillStyle = '#e5484d';
+    // Enemies: chasers red, tanks purple; flash white when a hit doesn't
+    // kill. Tanks at full HP wear an armor ring that breaks off with the
+    // first hit.
     for (const e of game.enemies) {
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.tank ? '#b558f6' : '#e5484d';
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
+      if (e.tank && e.hp > 1) {
+        ctx.strokeStyle = '#d8b4fe';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     // Death pops: an expanding, fading ring where an enemy was smashed.
@@ -97,6 +106,7 @@ window.Swangin = window.Swangin || {};
     ctx.restore();
 
     drawHud(ctx, game);
+    if (game.state === 'levelup') drawLevelUp(ctx, game);
     if (game.state === 'gameover') drawGameOver(ctx, game);
   };
 
@@ -118,7 +128,7 @@ window.Swangin = window.Swangin || {};
     ctx.fillText(`COMBO x${game.combo}`, 16, 14);
 
     // HP pips below.
-    for (let i = 0; i < T.MAX_HP; i++) {
+    for (let i = 0; i < game.stats.maxHp; i++) {
       ctx.fillStyle = i < b.hp ? '#e5484d' : '#33212a';
       ctx.beginPath();
       ctx.arc(24 + i * 22, 48, 7, 0, Math.PI * 2);
@@ -167,6 +177,41 @@ window.Swangin = window.Swangin || {};
     const tx = mx + meterW * (T.SPEED_THRESHOLD / maxShown);
     ctx.fillStyle = '#e8e8f0';
     ctx.fillRect(tx - 1, my - 3, 2, meterH + 6);
+  }
+
+  // Level-up pause: three upgrade cards, hover to highlight, click to pick.
+  function drawLevelUp(ctx, game) {
+    ctx.fillStyle = 'rgba(13, 14, 20, 0.8)';
+    ctx.fillRect(0, 0, game.width, game.height);
+
+    const cx = game.width / 2;
+    const cy = game.height / 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffc53d';
+    ctx.font = 'bold 36px monospace';
+    ctx.fillText(`LEVEL ${game.level}`, cx, cy - 130);
+    ctx.fillStyle = '#e8e8f0';
+    ctx.font = '16px monospace';
+    ctx.fillText('choose an upgrade', cx, cy - 95);
+
+    const rects = S.upgradeCardRects(game);
+    game.upgradeChoices.forEach((u, i) => {
+      const r = rects[i];
+      const hover = game.mouse.x >= r.x && game.mouse.x <= r.x + r.w &&
+        game.mouse.y >= r.y && game.mouse.y <= r.y + r.h;
+      ctx.fillStyle = hover ? '#242838' : '#1c1f2a';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = hover ? '#ffc53d' : '#2a2d3a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = '#ffc53d';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(u.name, r.x + r.w / 2, r.y + 42);
+      ctx.fillStyle = '#9aa0b4';
+      ctx.font = '13px monospace';
+      ctx.fillText(u.desc(), r.x + r.w / 2, r.y + 76);
+    });
   }
 
   function drawGameOver(ctx, game) {

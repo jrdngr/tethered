@@ -8,12 +8,13 @@ window.Swangin = window.Swangin || {};
     return Math.round(T.LEVEL_COINS_BASE * Math.pow(T.LEVEL_COINS_GROWTH, level - 1));
   };
 
-  // Scatter a burst of coins where an enemy was popped, × the current combo.
-  S.spawnCoinBurst = function (game, x, y) {
+  // Scatter a burst of coins where an enemy was popped, × the current combo
+  // (and × an optional per-enemy multiplier — tanks pay out more).
+  S.spawnCoinBurst = function (game, x, y, mult) {
     const T = S.TUNING;
     const base = T.COINS_PER_KILL_MIN +
       Math.floor(Math.random() * (T.COINS_PER_KILL_MAX - T.COINS_PER_KILL_MIN + 1));
-    const count = base * game.combo;
+    const count = base * game.combo * (mult || 1);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = T.COIN_BURST_SPEED * (0.3 + 0.7 * Math.random());
@@ -51,14 +52,19 @@ window.Swangin = window.Swangin || {};
         game.coinProgress += 1;
         while (game.coinProgress >= S.coinsForLevel(game.level)) {
           game.coinProgress -= S.coinsForLevel(game.level);
-          game.level += 1; // leveling up does nothing yet
+          game.level += 1;
+          game.pendingLevelUps += 1; // each level pauses for an upgrade pick
+        }
+        if (game.pendingLevelUps > 0 && game.state === 'playing') {
+          S.startLevelUp(game);
         }
         continue;
       }
 
-      // Gentle magnetism toward the ball — radius matches the grab handle.
-      if (dist < T.COIN_MAGNET_RADIUS) {
-        const pull = T.COIN_MAGNET_ACCEL * (1 - dist / T.COIN_MAGNET_RADIUS);
+      // Gentle magnetism toward the ball — radius starts at the grab handle
+      // and grows with upgrades.
+      if (dist < game.stats.magnetRadius) {
+        const pull = game.stats.magnetAccel * (1 - dist / game.stats.magnetRadius);
         c.vx += (dx / dist) * pull * dt;
         c.vy += (dy / dist) * pull * dt;
       }
