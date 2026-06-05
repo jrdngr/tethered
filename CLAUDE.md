@@ -8,6 +8,8 @@ Physics-based arcade game: swing a ball on an elastic rope to smash enemies. Bro
 
 No build, no server, no Python. Open `index.html` directly in a browser (`file://` works).
 
+Don't test with the Chrome DevTools plugin/MCP — the developer always tests manually. `node --check` for syntax is fine.
+
 ## Source control
 
 This repo uses [jj](https://github.com/jj-vcs/jj), not git.
