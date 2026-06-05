@@ -75,7 +75,7 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 | `ROPE_MAX_REST` | 120 px | Max rest length at grab |
 | `SPEED_THRESHOLD` | 420 px/s | Invincibility / combo-active speed |
 | `SPEED_COLOR_MAX` | 700 px/s | Ball color/glow gradient reaches full brightness |
-| `SPEED_FLASH_WINDOW` | 60 px/s | Above threshold, ball flashes a vulnerability warning |
+| `SPEED_FLASH_WINDOW` | 120 px/s | Above threshold, ball flashes a vulnerability warning |
 | `MAX_HP` | 3 | |
 | `IFRAME_DURATION` | 1.0 s | Post-hit invulnerability |
 | `ENEMY_RADIUS` | 14 px | |
