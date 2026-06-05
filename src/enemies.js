@@ -25,6 +25,7 @@ window.Swangin = window.Swangin || {};
       kx: 0, ky: 0,
       tank,
       hp: tank ? T.TANK_HP : T.ENEMY_HP,
+      damage: tank ? T.TANK_DAMAGE : T.ENEMY_DAMAGE,
       speed: tank ? T.TANK_SPEED : T.ENEMY_SPEED,
       flash: 0, // hit-feedback timer when a smash doesn't kill
     });

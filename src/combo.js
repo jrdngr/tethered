@@ -12,7 +12,7 @@ window.Swangin = window.Swangin || {};
   S.damageBall = function (game, enemy, nx, ny) {
     const T = S.TUNING;
     const b = game.ball;
-    b.hp -= 1;
+    b.hp -= enemy.damage;
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
     // Knock both apart.

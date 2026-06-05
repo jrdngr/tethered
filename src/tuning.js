@@ -20,7 +20,7 @@ Swangin.TUNING = {
   SPEED_FLASH_WINDOW: 120, // px/s above threshold where the ball flashes a vulnerability warning
 
   // Health
-  MAX_HP: 3,
+  MAX_HP: 100,
   IFRAME_DURATION: 1.0,   // s of post-hit invulnerability
   KNOCKBACK_SPEED: 320,   // px/s applied to ball and enemy on a hit
 
@@ -28,12 +28,14 @@ Swangin.TUNING = {
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
   ENEMY_HP: 1,            // basic enemies die to one base-damage hit
+  ENEMY_DAMAGE: 10,       // HP the ball loses to a basic enemy touch
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
   PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
   HIT_FLASH_DURATION: 0.15, // s — enemy flashes white when a hit doesn't kill
 
   // Tanks: rarer armored enemies that take two base-damage hits
   TANK_HP: 2,
+  TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
   TANK_SPEED: 80,         // px/s — slower than chasers
   TANK_CHANCE: 0.2,       // fraction of spawns that are tanks, once unlocked
@@ -61,7 +63,8 @@ Swangin.TUNING = {
   LEVEL_COINS_BASE: 50,    // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
-  // Level-up upgrades (gain per pick; HP and damage upgrades are +1 each)
+  // Level-up upgrades (gain per pick; the damage upgrade is +1)
+  UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick
   UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius
   UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin magnet pull
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap

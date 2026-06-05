@@ -127,13 +127,16 @@ window.Swangin = window.Swangin || {};
     ctx.fillStyle = game.combo > 1 ? '#56e8ff' : '#6b6f80';
     ctx.fillText(`COMBO x${game.combo}`, 16, 14);
 
-    // HP pips below.
-    for (let i = 0; i < game.stats.maxHp; i++) {
-      ctx.fillStyle = i < b.hp ? '#e5484d' : '#33212a';
-      ctx.beginPath();
-      ctx.arc(24 + i * 22, 48, 7, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // HP bar below.
+    const hpW = 160;
+    const hpH = 10;
+    ctx.fillStyle = '#33212a';
+    ctx.fillRect(16, 42, hpW, hpH);
+    ctx.fillStyle = '#e5484d';
+    ctx.fillRect(16, 42, hpW * Math.max(b.hp / game.stats.maxHp, 0), hpH);
+    ctx.strokeStyle = '#2a2d3a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(15.5, 41.5, hpW + 1, hpH + 1);
 
     // Level + coin progress bar, top center.
     const barW = 260;

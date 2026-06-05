@@ -31,10 +31,10 @@ window.Swangin = window.Swangin || {};
     },
     {
       name: 'VITALITY',
-      desc: () => '+1 max HP, heal 1',
+      desc: () => `+${S.TUNING.UPGRADE_MAX_HP} max HP, heal ${S.TUNING.UPGRADE_MAX_HP}`,
       apply: (game) => {
-        game.stats.maxHp += 1;
-        game.ball.hp += 1;
+        game.stats.maxHp += S.TUNING.UPGRADE_MAX_HP;
+        game.ball.hp += S.TUNING.UPGRADE_MAX_HP;
       },
     },
     {
