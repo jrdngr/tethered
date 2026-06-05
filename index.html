@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Swangin</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0e14; }
+    canvas { display: block; cursor: crosshair; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <!-- Plain script tags sharing the Swangin global so file:// loading works (no ES modules). -->
+  <script src="src/tuning.js"></script>
+  <script src="src/score.js"></script>
+  <script src="src/ball.js"></script>
+  <script src="src/tether.js"></script>
+  <script src="src/enemies.js"></script>
+  <script src="src/render.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
