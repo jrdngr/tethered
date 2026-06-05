@@ -15,6 +15,8 @@ Swangin.TUNING = {
 
   // Invincibility
   SPEED_THRESHOLD: 420,   // px/s — invincible above this, when untethered
+  SPEED_COLOR_MAX: 700,   // px/s — ball color/glow gradient reaches full brightness
+  SPEED_FLASH_WINDOW: 60, // px/s above threshold where the ball flashes a vulnerability warning
 
   // Health
   MAX_HP: 3,

@@ -59,16 +59,26 @@ window.Swangin = window.Swangin || {};
       ctx.stroke();
     }
 
-    // Ball: glow when invincible, flash during i-frames.
-    const invincible = S.ballInvincible(game);
+    // Ball color tracks speed: dark blue while vulnerable, a gradient that
+    // brightens (with growing glow) toward SPEED_COLOR_MAX while invincible.
+    // Just above the threshold it flashes the vulnerable dark blue as an
+    // "about to drop out" warning. Tethered keeps its own color (never
+    // invincible while held). Flash during i-frames.
+    const speed = S.ballSpeed(b);
+    const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
+    const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
     ctx.save();
     if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
-    if (invincible) {
+    if (game.tether.active) {
+      ctx.fillStyle = '#ffd76a';
+    } else if (S.ballInvincible(game) && !flashDark) {
+      const f = Math.min(
+        (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
+      ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
       ctx.shadowColor = '#56e8ff';
-      ctx.shadowBlur = 28;
-      ctx.fillStyle = '#aef4ff';
+      ctx.shadowBlur = 10 + 22 * f;
     } else {
-      ctx.fillStyle = game.tether.active ? '#ffd76a' : '#e8e8f0';
+      ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
     }
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
@@ -78,6 +88,11 @@ window.Swangin = window.Swangin || {};
     drawHud(ctx, game);
     if (game.state === 'gameover') drawGameOver(ctx, game);
   };
+
+  function lerpColor(a, b, t) {
+    const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  }
 
   function drawHud(ctx, game) {
     const T = S.TUNING;

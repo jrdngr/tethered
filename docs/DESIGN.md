@@ -34,7 +34,7 @@ The tension: holding the rope is how you build speed, but the ball is never safe
 invincible = speed > SPEED_THRESHOLD && !tethered
 ```
 
-- Visual cue: the ball glows while invincible, and the HUD shows a speed meter relative to the threshold.
+- Visual cue: the ball's color tracks speed — dark blue while vulnerable, then a gradient that brightens (with a growing glow) to bright blue at `SPEED_COLOR_MAX` while invincible. Within `SPEED_FLASH_WINDOW` above the threshold, the ball flashes the vulnerable dark blue as a warning that invincibility is about to drop. The HUD also shows a speed meter relative to the threshold.
 - This is the central skill check of the game — players must learn to release at speed, not drag the ball into enemies.
 
 ### Combo multiplier
@@ -74,6 +74,8 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 | `ROPE_DAMPING` | 1.2 /s | Along-rope damping |
 | `ROPE_MAX_REST` | 120 px | Max rest length at grab |
 | `SPEED_THRESHOLD` | 420 px/s | Invincibility / combo-active speed |
+| `SPEED_COLOR_MAX` | 700 px/s | Ball color/glow gradient reaches full brightness |
+| `SPEED_FLASH_WINDOW` | 60 px/s | Above threshold, ball flashes a vulnerability warning |
 | `MAX_HP` | 3 | |
 | `IFRAME_DURATION` | 1.0 s | Post-hit invulnerability |
 | `ENEMY_RADIUS` | 14 px | |
