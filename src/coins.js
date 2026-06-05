@@ -1,4 +1,5 @@
-// Coins dropped by popped enemies, gentle magnetism toward the ball, leveling.
+// Coins and health pickups dropped by popped enemies, gentle magnetism
+// toward the ball, leveling.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -29,6 +30,24 @@ window.Tethered = window.Tethered || {};
     }
   };
 
+  // Rare health drop where an enemy was popped. It lives in the coins array
+  // and shares the same physics and magnetism, but heals on pickup instead
+  // of counting toward the level.
+  S.spawnHealthPickup = function (game, x, y) {
+    const T = S.TUNING;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = T.COIN_BURST_SPEED * (0.3 + 0.7 * Math.random());
+    game.coins.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: T.HEALTH_RADIUS,
+      age: 0,
+      spin: 0, // unused — health pickups don't spin
+      heal: T.HEALTH_HEAL,
+    });
+  };
+
   S.updateCoins = function (game, dt) {
     const T = S.TUNING;
     const b = game.ball;
@@ -49,6 +68,10 @@ window.Tethered = window.Tethered || {};
       // Scooped up on contact with the ball.
       if (dist < b.r + c.r) {
         game.coins.splice(i, 1);
+        if (c.heal) {
+          b.hp = Math.min(b.hp + c.heal, game.stats.maxHp);
+          continue;
+        }
         game.coinProgress += 1;
         while (game.coinProgress >= S.coinsForLevel(game.level)) {
           game.coinProgress -= S.coinsForLevel(game.level);

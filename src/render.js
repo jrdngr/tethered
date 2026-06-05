@@ -41,13 +41,26 @@ window.Tethered = window.Tethered || {};
     }
 
     // Coins: spinning gold discs, fading out at the end of their life.
+    // Health pickups share the array: a green disc with a white cross.
     for (const c of game.coins) {
-      const wobble = Math.abs(Math.sin(c.spin + game.time * 6)); // fake 3D spin
       ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
-      ctx.fillStyle = '#ffc53d';
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, c.r * (0.25 + 0.75 * wobble), c.r, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (c.heal) {
+        ctx.fillStyle = '#46a758';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e8f5ec';
+        const arm = c.r * 0.55; // cross half-length
+        const thick = c.r * 0.3;
+        ctx.fillRect(c.x - thick / 2, c.y - arm, thick, arm * 2);
+        ctx.fillRect(c.x - arm, c.y - thick / 2, arm * 2, thick);
+      } else {
+        const wobble = Math.abs(Math.sin(c.spin + game.time * 6)); // fake 3D spin
+        ctx.fillStyle = '#ffc53d';
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, c.r * (0.25 + 0.75 * wobble), c.r, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
 

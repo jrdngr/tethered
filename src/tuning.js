@@ -63,6 +63,12 @@ Tethered.TUNING = {
   LEVEL_COINS_BASE: 50,    // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
+  // Health pickups: occasional heart drops from dead enemies. They use the
+  // same physics/magnetism as coins but heal instead of leveling.
+  HEALTH_DROP_CHANCE: 0.1, // fraction of enemy deaths that drop one
+  HEALTH_HEAL: 20,         // HP restored on pickup (capped at max HP)
+  HEALTH_RADIUS: 15,       // px — 3× coin radius
+
   // Level-up upgrades (gain per pick; the damage upgrade is +1)
   UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick
   UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius

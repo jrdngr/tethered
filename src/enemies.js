@@ -90,6 +90,7 @@ window.Tethered = window.Tethered || {};
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
           // Coin drop scales with the combo at the moment of the kill.
           S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
+          if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
           if (!tethered) S.bumpCombo(game);
         } else {
           // Armor absorbed the hit: flash, knock the enemy back, and separate
