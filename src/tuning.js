@@ -58,7 +58,7 @@ Swangin.TUNING = {
   COIN_MAGNET_RADIUS: 64,  // px from ball center — matches grab handle (BALL_RADIUS + GRAB_RADIUS)
   COIN_MAGNET_ACCEL: 900,  // px/s^2 pull at point-blank, fading to 0 at the magnet radius
   COIN_LIFETIME: 30,       // s before an uncollected coin fades away
-  LEVEL_COINS_BASE: 200,   // coins to clear level 1
+  LEVEL_COINS_BASE: 100,   // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
   // Level-up upgrades (gain per pick; HP and damage upgrades are +1 each)
