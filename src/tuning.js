@@ -26,7 +26,6 @@ Swangin.TUNING = {
   // Enemies
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
-  ENEMY_BASE_POINTS: 100, // × combo on kill
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
 
   // Enemy death pop animation
@@ -37,6 +36,18 @@ Swangin.TUNING = {
   SPAWN_INTERVAL_START: 2.5, // s
   SPAWN_INTERVAL_MIN: 0.6,   // s
   SPAWN_RAMP_TIME: 120,      // s of survival to reach min interval
+
+  // Coins & leveling
+  COIN_RADIUS: 5,          // px
+  COINS_PER_KILL_MIN: 6,   // base coins dropped per popped enemy...
+  COINS_PER_KILL_MAX: 10,  // ...rolled in this range, then × combo
+  COIN_BURST_SPEED: 220,   // px/s — max scatter speed on drop
+  COIN_DRAG: 3,            // 1/s — coins settle quickly
+  COIN_MAGNET_RADIUS: 56,  // px from ball center — keep below grab handle (BALL_RADIUS + GRAB_RADIUS)
+  COIN_MAGNET_ACCEL: 900,  // px/s^2 pull at point-blank, fading to 0 at the magnet radius
+  COIN_LIFETIME: 10,       // s before an uncollected coin fades away
+  LEVEL_COINS_BASE: 20,    // coins to clear level 1
+  LEVEL_COINS_GROWTH: 1.2, // × per level
 
   // Loop
   PHYSICS_HZ: 120,

@@ -69,7 +69,9 @@ window.Swangin = window.Swangin || {};
         // the damage knockback) keeping most of its speed.
         game.enemies.splice(i, 1);
         game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
-        S.registerKill(game);
+        // Coin drop scales with the combo at the moment of the kill.
+        S.spawnCoinBurst(game, e.x, e.y);
+        S.bumpCombo(game);
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
         b.vx = nx * speed;
         b.vy = ny * speed;

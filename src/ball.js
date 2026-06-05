@@ -57,6 +57,6 @@ window.Swangin = window.Swangin || {};
     }
 
     // Combo only counts for fast bounces — no farming with slow dribbles.
-    if (bounced && preSpeed > T.SPEED_THRESHOLD) S.registerBounce(game);
+    if (bounced && preSpeed > T.SPEED_THRESHOLD) S.bumpCombo(game);
   };
 })(Swangin);

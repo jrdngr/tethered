@@ -10,7 +10,7 @@ A ball sits in a walled arena, viewed top-down (no gravity). Click and hold **on
 
 - The ball is **invincible while moving fast — but only when untethered**. A fast ball smashes enemies on contact.
 - A slow ball, or a tethered ball at any speed, is **vulnerable**. Enemies that touch it deal damage.
-- Enemies continually spawn and chase the ball. Survive as long as possible and rack up score.
+- Enemies continually spawn and chase the ball. Popped enemies burst into coins; scoop them up to level.
 
 ### Core loop
 
@@ -43,22 +43,26 @@ invincible = speed > SPEED_THRESHOLD && !tethered
 - +1 combo for each **wall bounce** and each **enemy kill** — but only while the ball is above `SPEED_THRESHOLD` (no combo farming with slow dribbles).
 - Combo **resets** when the ball's speed drops below the threshold or the ball takes a hit.
 - Grabbing the rope does not reset the combo by itself — keeping a rally alive across re-grabs is the high-skill play.
+- The combo multiplies the **number of coins** an enemy drops (there is no score).
 
-### Scoring
+### Coins & leveling
 
-- Enemy kill: `ENEMY_BASE_POINTS × current combo`.
-- Survival time is tracked and shown, but score comes from kills.
+- A popped enemy bursts into `COINS_PER_KILL_MIN`–`COINS_PER_KILL_MAX` coins **× the combo at the moment of the kill** — big rallies rain coins. They scatter, settle quickly, and fade away after `COIN_LIFETIME` if uncollected.
+- Coins are gently magnetized toward the ball within `COIN_MAGNET_RADIUS` — deliberately **smaller than the grab handle** (`BALL_RADIUS + GRAB_RADIUS`), so scooping still takes aiming the ball, not just being nearby. Collected on contact with the ball.
+- Collecting `coinsForLevel(level)` coins (base `LEVEL_COINS_BASE`, growing `LEVEL_COINS_GROWTH`× per level) levels the player up. **Leveling up does nothing yet** — it's the progression hook for future upgrades.
+- HUD: a coin-progress bar at the top center of the screen with the current level (`LV n`) beside it.
+- Survival time is tracked and shown, but progression comes from coins.
 
 ### Health
 
 - The ball has `MAX_HP` hit points. A vulnerable ball touched by an enemy loses 1 HP, takes knockback, flashes, and gets `IFRAME_DURATION` of invulnerability.
-- Game over at 0 HP → overlay with final score + survival time, click to restart.
+- Game over at 0 HP → overlay with level reached + survival time, click to restart.
 
 ### Enemies (POC: one type)
 
 - **Chaser** — spawns at the arena edge, seeks the ball at constant speed.
 - Spawn interval starts at `SPAWN_INTERVAL_START` and ramps down toward `SPAWN_INTERVAL_MIN` as survival time increases.
-- Invincible ball vs enemy: enemy dies with a pop animation (expanding, fading ring), ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, score + combo increase.
+- Invincible ball vs enemy: enemy dies with a pop animation (expanding, fading ring) and a coin burst, ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, combo increases.
 - Vulnerable ball vs enemy: ball takes damage (see Health), both get knocked back, combo resets, and the tether snaps if held.
 
 ## Tuning parameters
@@ -81,11 +85,20 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 | `IFRAME_DURATION` | 1.0 s | Post-hit invulnerability |
 | `ENEMY_RADIUS` | 14 px | |
 | `ENEMY_SPEED` | 110 px/s | Chaser seek speed |
-| `ENEMY_BASE_POINTS` | 100 | × combo on kill |
 | `POP_DURATION` | 0.25 s | Enemy death pop animation length |
 | `POP_SCALE` | 2.4 | Final pop ring radius, × enemy radius |
 | `SPAWN_INTERVAL_START` | 2.5 s | |
 | `SPAWN_INTERVAL_MIN` | 0.6 s | Reached gradually over ~2 min |
+| `COIN_RADIUS` | 5 px | |
+| `COINS_PER_KILL_MIN` | 6 | Base coins per popped enemy… |
+| `COINS_PER_KILL_MAX` | 10 | …rolled in this range, then × combo |
+| `COIN_BURST_SPEED` | 220 px/s | Max scatter speed on drop |
+| `COIN_DRAG` | 3 /s | Coins settle quickly |
+| `COIN_MAGNET_RADIUS` | 56 px | From ball center; keep < `BALL_RADIUS + GRAB_RADIUS` |
+| `COIN_MAGNET_ACCEL` | 900 px/s² | Pull at point-blank, fading to 0 at the magnet radius |
+| `COIN_LIFETIME` | 10 s | Uncollected coins fade away |
+| `LEVEL_COINS_BASE` | 20 | Coins to clear level 1 |
+| `LEVEL_COINS_GROWTH` | 1.2 | × per level |
 
 ## POC scope
 
@@ -93,8 +106,8 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 
 - One arena (full-window canvas with walls), one ball, one enemy type
 - Elastic spring tether to cursor, release-to-fling
-- Invincibility rule, combo, scoring, HP + i-frames
-- HUD: score, combo, HP pips, survival time, speed meter vs threshold
+- Invincibility rule, combo, coins + leveling, HP + i-frames
+- HUD: combo, HP pips, level + coin-progress bar, survival time, speed meter vs threshold
 - Game over overlay + click-to-restart (no page reload)
 - Flat-color shapes drawn on canvas (no sprites)
 
@@ -119,4 +132,5 @@ One-liners only — not designed yet:
 - Power-ups: longer rope, multi-ball, temporary slow-mo
 - Rope upgrades / alternate tether types (rigid chain, bungee)
 - Juice: screen shake, particles, hit-stop, trails, audio
-- Wave structure, score multipliers for style, leaderboards
+- Wave structure, coin bonuses for style, leaderboards
+- Level-up rewards (currently leveling does nothing): upgrades, heals, rope perks

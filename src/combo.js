@@ -1,14 +1,10 @@
-// Score, combo multiplier, survival time, health outcomes.
+// Combo multiplier, survival time, health outcomes.
 window.Swangin = window.Swangin || {};
 
 (function (S) {
-  // Combo is a multiplier: baseline ×1, +1 per wall bounce / enemy kill while fast.
-  S.registerBounce = function (game) {
-    game.combo += 1;
-  };
-
-  S.registerKill = function (game) {
-    game.score += S.TUNING.ENEMY_BASE_POINTS * game.combo;
+  // Combo is a multiplier on coins dropped per kill: baseline ×1,
+  // +1 per wall bounce / enemy kill while fast.
+  S.bumpCombo = function (game) {
     game.combo += 1;
   };
 
@@ -32,8 +28,7 @@ window.Swangin = window.Swangin || {};
     game.tether.active = false;
   };
 
-  S.updateScore = function (game, dt) {
-    game.time += dt;
+  S.updateCombo = function (game) {
     // Combo only survives while the ball stays fast.
     if (S.ballSpeed(game.ball) < S.TUNING.SPEED_THRESHOLD) game.combo = 1;
   };

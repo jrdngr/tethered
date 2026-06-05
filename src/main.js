@@ -26,10 +26,12 @@ window.Swangin = window.Swangin || {};
       tether: { active: false, restLength: 0, stretch: 0 },
       enemies: [],
       pops: [], // enemy death pop animations
+      coins: [], // dropped by popped enemies
 
       mouse: { x: canvas.width / 2, y: canvas.height / 2 },
-      score: 0,
       combo: 1,
+      level: 1,
+      coinProgress: 0, // coins collected toward the next level
       time: 0,
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: 'playing',
@@ -55,10 +57,12 @@ window.Swangin = window.Swangin || {};
   window.addEventListener('blur', () => S.releaseTether(game));
 
   function update(dt) {
+    game.time += dt;
     S.updateTether(game, dt);
     S.updateBall(game, dt);
     S.updateEnemies(game, dt);
-    S.updateScore(game, dt);
+    S.updateCoins(game, dt);
+    S.updateCombo(game);
   }
 
   // Fixed-timestep physics accumulated from rAF; render every frame.

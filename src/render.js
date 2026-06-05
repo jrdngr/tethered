@@ -1,4 +1,4 @@
-// All canvas drawing: arena, rope, ball, enemies, HUD, game-over overlay.
+// All canvas drawing: arena, rope, ball, enemies, coins, HUD, game-over overlay.
 window.Swangin = window.Swangin || {};
 
 (function (S) {
@@ -39,6 +39,17 @@ window.Swangin = window.Swangin || {};
         ctx.stroke();
       }
     }
+
+    // Coins: spinning gold discs, fading out at the end of their life.
+    for (const c of game.coins) {
+      const wobble = Math.abs(Math.sin(c.spin + game.time * 6)); // fake 3D spin
+      ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
+      ctx.fillStyle = '#ffc53d';
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, c.r * (0.25 + 0.75 * wobble), c.r, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
     // Enemies.
     ctx.fillStyle = '#e5484d';
@@ -101,20 +112,35 @@ window.Swangin = window.Swangin || {};
     ctx.font = '16px monospace';
     ctx.textBaseline = 'top';
 
-    // Score + combo, top-left.
+    // Combo, top-left.
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`SCORE ${game.score}`, 16, 14);
     ctx.fillStyle = game.combo > 1 ? '#56e8ff' : '#6b6f80';
-    ctx.fillText(`COMBO x${game.combo}`, 16, 36);
+    ctx.fillText(`COMBO x${game.combo}`, 16, 14);
 
     // HP pips below.
     for (let i = 0; i < T.MAX_HP; i++) {
       ctx.fillStyle = i < b.hp ? '#e5484d' : '#33212a';
       ctx.beginPath();
-      ctx.arc(24 + i * 22, 70, 7, 0, Math.PI * 2);
+      ctx.arc(24 + i * 22, 48, 7, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Level + coin progress bar, top center.
+    const barW = 260;
+    const barH = 8;
+    const bx = (game.width - barW) / 2;
+    const by = 18;
+    const need = S.coinsForLevel(game.level);
+    ctx.fillStyle = '#1c1f2a';
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = '#ffc53d';
+    ctx.fillRect(bx, by, barW * Math.min(game.coinProgress / need, 1), barH);
+    ctx.strokeStyle = '#2a2d3a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 0.5, by - 0.5, barW + 1, barH + 1);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffc53d';
+    ctx.fillText(`LV ${game.level}`, bx - 10, 14);
 
     // Survival time, top-right.
     const secs = Math.floor(game.time);
@@ -160,7 +186,7 @@ window.Swangin = window.Swangin || {};
     const ss = String(secs % 60).padStart(2, '0');
     ctx.fillStyle = '#e8e8f0';
     ctx.font = '20px monospace';
-    ctx.fillText(`SCORE ${game.score}`, cx, cy);
+    ctx.fillText(`LEVEL ${game.level}`, cx, cy);
     ctx.fillText(`SURVIVED ${mm}:${ss}`, cx, cy + 32);
 
     ctx.fillStyle = '#6b6f80';
