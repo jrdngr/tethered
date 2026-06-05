@@ -68,6 +68,13 @@ Tethered.TUNING = {
   HEALTH_DROP_CHANCE: 0.3, // fraction of enemy deaths that drop one
   HEALTH_HEAL: 20,         // HP restored on pickup (capped at max HP)
   HEALTH_RADIUS: 15,       // px — 3× coin radius
+  HEALTH_FLING_SPEED: 500, // px/s — flung away from the pop harder than coins
+  HEALTH_GRACE: 0.4,       // s before a fresh pickup can be magnetized/scooped
+
+  // Heal burst: green particles when a health pickup is grabbed
+  HEAL_PARTICLES: 14,        // particles per burst
+  HEAL_PARTICLE_SPEED: 260,  // px/s — max scatter speed
+  HEAL_PARTICLE_LIFE: 0.5,   // s — max particle lifetime
 
   // Level-up upgrades (gain per pick; the damage upgrade is +1)
   UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick

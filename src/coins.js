@@ -32,11 +32,12 @@ window.Tethered = window.Tethered || {};
 
   // Rare health drop where an enemy was popped. It lives in the coins array
   // and shares the same physics and magnetism, but heals on pickup instead
-  // of counting toward the level.
+  // of counting toward the level. Flung well clear of the pop, and immune to
+  // scoop/magnetism for a grace period so the grab is a deliberate move.
   S.spawnHealthPickup = function (game, x, y) {
     const T = S.TUNING;
     const angle = Math.random() * Math.PI * 2;
-    const speed = T.COIN_BURST_SPEED * (0.3 + 0.7 * Math.random());
+    const speed = T.HEALTH_FLING_SPEED * (0.7 + 0.3 * Math.random());
     game.coins.push({
       x, y,
       vx: Math.cos(angle) * speed,
@@ -48,10 +49,40 @@ window.Tethered = window.Tethered || {};
     });
   };
 
+  // Green spark burst where a health pickup was grabbed.
+  function spawnHealParticles(game, x, y) {
+    const T = S.TUNING;
+    for (let i = 0; i < T.HEAL_PARTICLES; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = T.HEAL_PARTICLE_SPEED * (0.3 + 0.7 * Math.random());
+      game.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        age: 0,
+        life: T.HEAL_PARTICLE_LIFE * (0.6 + 0.4 * Math.random()),
+      });
+    }
+  }
+
   S.updateCoins = function (game, dt) {
     const T = S.TUNING;
     const b = game.ball;
     const decay = Math.exp(-T.COIN_DRAG * dt);
+
+    // Advance heal-burst particles (same drag as coins).
+    for (let i = game.particles.length - 1; i >= 0; i--) {
+      const p = game.particles[i];
+      p.age += dt;
+      if (p.age >= p.life) {
+        game.particles.splice(i, 1);
+        continue;
+      }
+      p.vx *= decay;
+      p.vy *= decay;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
 
     for (let i = game.coins.length - 1; i >= 0; i--) {
       const c = game.coins[i];
@@ -65,11 +96,16 @@ window.Tethered = window.Tethered || {};
       const dy = b.y - c.y;
       const dist = Math.hypot(dx, dy) || 1;
 
+      // Fresh health pickups fly free for a grace period so they visibly
+      // scatter instead of being scooped the instant they spawn.
+      const settled = !c.heal || c.age >= T.HEALTH_GRACE;
+
       // Scooped up on contact with the ball.
-      if (dist < b.r + c.r) {
+      if (settled && dist < b.r + c.r) {
         game.coins.splice(i, 1);
         if (c.heal) {
           b.hp = Math.min(b.hp + c.heal, game.stats.maxHp);
+          spawnHealParticles(game, c.x, c.y);
           continue;
         }
         game.coinProgress += 1;
@@ -86,7 +122,7 @@ window.Tethered = window.Tethered || {};
 
       // Gentle magnetism toward the ball — radius starts at the grab handle
       // and grows with upgrades.
-      if (dist < game.stats.magnetRadius) {
+      if (settled && dist < game.stats.magnetRadius) {
         const pull = game.stats.magnetAccel * (1 - dist / game.stats.magnetRadius);
         c.vx += (dx / dist) * pull * dt;
         c.vy += (dy / dist) * pull * dt;

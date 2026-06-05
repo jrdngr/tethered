@@ -26,7 +26,8 @@ window.Tethered = window.Tethered || {};
       tether: { active: false, restLength: 0, stretch: 0 },
       enemies: [],
       pops: [], // enemy death pop animations
-      coins: [], // dropped by popped enemies
+      coins: [], // dropped by popped enemies (includes health pickups)
+      particles: [], // green sparks from grabbed health pickups
 
       mouse: { x: canvas.width / 2, y: canvas.height / 2 },
       combo: 1,

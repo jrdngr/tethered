@@ -64,6 +64,18 @@ window.Tethered = window.Tethered || {};
     }
     ctx.globalAlpha = 1;
 
+    // Heal burst: green sparks scattering from a grabbed health pickup,
+    // shrinking and fading as they die.
+    for (const p of game.particles) {
+      const t = p.age / p.life;
+      ctx.globalAlpha = 1 - t;
+      ctx.fillStyle = '#6fdc8c';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1 + 2.5 * (1 - t), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
     // Enemies: chasers red, tanks purple; flash white when a hit doesn't
     // kill. Tanks at full HP wear an armor ring that breaks off with the
     // first hit.
