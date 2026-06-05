@@ -1,5 +1,5 @@
 // Elastic spring tether: anchor is the cursor while the mouse is held.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   S.tryGrab = function (game) {
@@ -46,4 +46,4 @@ window.Swangin = window.Swangin || {};
     b.vx += accel * nx * dt;
     b.vy += accel * ny * dt;
   };
-})(Swangin);
+})(Tethered);

@@ -1,5 +1,5 @@
 // All canvas drawing: arena, rope, ball, enemies, coins, HUD, game-over overlay.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   S.drawGame = function (ctx, game) {
@@ -240,4 +240,4 @@ window.Swangin = window.Swangin || {};
     ctx.font = '16px monospace';
     ctx.fillText('click to restart', cx, cy + 80);
   }
-})(Swangin);
+})(Tethered);

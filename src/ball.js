@@ -1,5 +1,5 @@
 // Ball state, drag, wall bounces, invincibility rule.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   S.createBall = function (w, h) {
@@ -61,4 +61,4 @@ window.Swangin = window.Swangin || {};
     // Combo only counts for fast bounces — no farming with slow dribbles.
     if (bounced && preSpeed > T.SPEED_THRESHOLD) S.bumpCombo(game);
   };
-})(Swangin);
+})(Tethered);

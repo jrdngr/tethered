@@ -1,5 +1,5 @@
 // Entry point: canvas setup, input, game state, fixed-timestep loop.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   const canvas = document.getElementById('game');
@@ -18,7 +18,7 @@ window.Swangin = window.Swangin || {};
   resize();
 
   function reset() {
-    // Exposed as Swangin.game for debugging and tuning from the console.
+    // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
       width: canvas.width,
       height: canvas.height,
@@ -98,4 +98,4 @@ window.Swangin = window.Swangin || {};
 
   reset();
   requestAnimationFrame(frame);
-})(Swangin);
+})(Tethered);

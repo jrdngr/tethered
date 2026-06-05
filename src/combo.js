@@ -1,5 +1,5 @@
 // Combo multiplier, survival time, health outcomes.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Combo is a multiplier on coins dropped per kill: baseline ×1,
@@ -32,4 +32,4 @@ window.Swangin = window.Swangin || {};
     // Combo only survives while the ball stays fast.
     if (S.ballSpeed(game.ball) < S.TUNING.SPEED_THRESHOLD) game.combo = 1;
   };
-})(Swangin);
+})(Tethered);

@@ -1,5 +1,5 @@
 // Coins dropped by popped enemies, gentle magnetism toward the ball, leveling.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Coins needed to clear the given level.
@@ -81,4 +81,4 @@ window.Swangin = window.Swangin || {};
       else if (c.y + c.r > game.height) { c.y = game.height - c.r; c.vy = -c.vy * 0.6; }
     }
   };
-})(Swangin);
+})(Tethered);

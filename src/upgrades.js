@@ -1,6 +1,6 @@
 // Level-up rewards: the game pauses and the player picks one of three
 // upgrades rolled from the pool. Upgrades modify per-run stats, never TUNING.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Per-run stats that upgrades raise. Gameplay code reads these instead of
@@ -96,4 +96,4 @@ window.Swangin = window.Swangin || {};
       }
     }
   };
-})(Swangin);
+})(Tethered);

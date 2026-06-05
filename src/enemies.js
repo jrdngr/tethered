@@ -1,5 +1,5 @@
 // Chaser enemies: edge spawning with a ramping rate, seek the ball, collision outcomes.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
 (function (S) {
   S.spawnEnemy = function (game) {
@@ -114,4 +114,4 @@ window.Swangin = window.Swangin || {};
       }
     }
   };
-})(Swangin);
+})(Tethered);

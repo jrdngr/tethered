@@ -1,7 +1,7 @@
 // All gameplay constants live here. See docs/DESIGN.md for the tuning table.
-window.Swangin = window.Swangin || {};
+window.Tethered = window.Tethered || {};
 
-Swangin.TUNING = {
+Tethered.TUNING = {
   // Ball
   BALL_RADIUS: 16,        // px
   BALL_DRAG: 0.4,         // 1/s — exponential velocity decay (top-down friction)

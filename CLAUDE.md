@@ -1,4 +1,4 @@
-# Swangin
+# Tethered
 
 Physics-based arcade game: swing a ball on an elastic rope to smash enemies. Browser prototype, built iteratively.
 
@@ -23,6 +23,6 @@ The code is the documentation. Do not create or maintain separate design files.
 ## Code conventions
 
 - Vanilla JS, HTML5 Canvas, hand-rolled physics. No dependencies, no bundler.
-- Plain `<script>` tags (not ES modules) sharing a single `Swangin` global namespace, so `file://` loading works.
-- All gameplay constants live in `Swangin.TUNING` — never scatter magic numbers; they're iterated constantly.
+- Plain `<script>` tags (not ES modules) sharing a single `Tethered` global namespace, so `file://` loading works.
+- All gameplay constants live in `Tethered.TUNING` — never scatter magic numbers; they're iterated constantly.
 - Fixed-timestep physics (120 Hz) with rendering every animation frame.
