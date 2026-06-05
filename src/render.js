@@ -79,23 +79,22 @@ window.Swangin = window.Swangin || {};
       ctx.stroke();
     }
 
-    // Ball color tracks speed: dark blue while vulnerable, a gradient that
-    // brightens (with growing glow) toward SPEED_COLOR_MAX while invincible.
-    // Just above the threshold it flashes the vulnerable dark blue as an
-    // "about to drop out" warning. Tethered keeps its own color (never
-    // invincible while held). Flash during i-frames.
+    // Ball color tracks speed (tethered or not): dark blue while slow, a
+    // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
+    // while fast. Just above the threshold it flashes the vulnerable dark
+    // blue as an "about to drop out" warning. The glow is cyan when free
+    // and tether-red while held (a smash still works but costs the combo).
+    // Flash during i-frames.
     const speed = S.ballSpeed(b);
     const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
     const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
     ctx.save();
     if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
-    if (game.tether.active) {
-      ctx.fillStyle = '#ffd76a';
-    } else if (S.ballInvincible(game) && !flashDark) {
+    if (speed > T.SPEED_THRESHOLD && !flashDark) {
       const f = Math.min(
         (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
       ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
-      ctx.shadowColor = '#56e8ff';
+      ctx.shadowColor = game.tether.active ? '#ff641e' : '#56e8ff';
       ctx.shadowBlur = 10 + 22 * f;
     } else {
       ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
@@ -174,7 +173,7 @@ window.Swangin = window.Swangin || {};
     ctx.fillStyle = '#1c1f2a';
     ctx.fillRect(mx, my, meterW, meterH);
     const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
-    ctx.fillStyle = !fast ? '#6b6f80' : game.tether.active ? '#ffd76a' : '#56e8ff';
+    ctx.fillStyle = !fast ? '#6b6f80' : game.tether.active ? '#ff641e' : '#56e8ff';
     ctx.fillRect(mx, my, meterW * frac, meterH);
     // Threshold marker.
     const tx = mx + meterW * (T.SPEED_THRESHOLD / maxShown);
