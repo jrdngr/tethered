@@ -48,7 +48,7 @@ invincible = speed > SPEED_THRESHOLD && !tethered
 ### Coins & leveling
 
 - A popped enemy bursts into `COINS_PER_KILL_MIN`–`COINS_PER_KILL_MAX` coins **× the combo at the moment of the kill** — big rallies rain coins. They scatter, settle quickly, and fade away after `COIN_LIFETIME` if uncollected.
-- Coins are gently magnetized toward the ball within `COIN_MAGNET_RADIUS` — deliberately **smaller than the grab handle** (`BALL_RADIUS + GRAB_RADIUS`), so scooping still takes aiming the ball, not just being nearby. Collected on contact with the ball.
+- Coins are gently magnetized toward the ball within `COIN_MAGNET_RADIUS` — sized to **match the grab handle** (`BALL_RADIUS + GRAB_RADIUS`). Collected on contact with the ball.
 - Collecting `coinsForLevel(level)` coins (base `LEVEL_COINS_BASE`, growing `LEVEL_COINS_GROWTH`× per level) levels the player up. **Leveling up does nothing yet** — it's the progression hook for future upgrades.
 - HUD: a coin-progress bar at the top center of the screen with the current level (`LV n`) beside it.
 - Survival time is tracked and shown, but progression comes from coins.
@@ -94,7 +94,7 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 | `COINS_PER_KILL_MAX` | 10 | …rolled in this range, then × combo |
 | `COIN_BURST_SPEED` | 220 px/s | Max scatter speed on drop |
 | `COIN_DRAG` | 3 /s | Coins settle quickly |
-| `COIN_MAGNET_RADIUS` | 56 px | From ball center; keep < `BALL_RADIUS + GRAB_RADIUS` |
+| `COIN_MAGNET_RADIUS` | 64 px | From ball center; matches `BALL_RADIUS + GRAB_RADIUS` |
 | `COIN_MAGNET_ACCEL` | 900 px/s² | Pull at point-blank, fading to 0 at the magnet radius |
 | `COIN_LIFETIME` | 10 s | Uncollected coins fade away |
 | `LEVEL_COINS_BASE` | 20 | Coins to clear level 1 |

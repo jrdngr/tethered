@@ -56,7 +56,7 @@ window.Swangin = window.Swangin || {};
         continue;
       }
 
-      // Gentle magnetism toward the ball — radius is smaller than the grab handle.
+      // Gentle magnetism toward the ball — radius matches the grab handle.
       if (dist < T.COIN_MAGNET_RADIUS) {
         const pull = T.COIN_MAGNET_ACCEL * (1 - dist / T.COIN_MAGNET_RADIUS);
         c.vx += (dx / dist) * pull * dt;
