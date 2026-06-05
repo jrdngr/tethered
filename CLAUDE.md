@@ -8,6 +8,14 @@ Physics-based arcade game: swing a ball on an elastic rope to smash enemies. Bro
 
 No build, no server, no Python. Open `index.html` directly in a browser (`file://` works).
 
+## Source control
+
+This repo uses [jj](https://github.com/jj-vcs/jj), not git.
+
+- Commit work with `jj commit -m "<msg>"`. Create a new commit for each logical unit of work.
+- Never use git directly.
+- Don't use other jj commands that mutate the commit graph (no `rebase`, `squash`, `abandon`, `undo`, etc.). Read-only commands like `jj log`, `jj status`, and `jj diff` are fine.
+
 ## Code conventions
 
 - Vanilla JS, HTML5 Canvas, hand-rolled physics. No dependencies, no bundler.
