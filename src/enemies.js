@@ -53,16 +53,13 @@ window.Swangin = window.Swangin || {};
       const ny = (b.y - e.y) / (gap || 1);
 
       if (S.ballInvincible(game)) {
-        // Smash: enemy dies, ball bounces off keeping most of its speed.
+        // Smash: enemy dies, ball bounces off along the normal (same shape as
+        // the damage knockback) keeping most of its speed.
         game.enemies.splice(i, 1);
         S.registerKill(game);
-        const vDotN = b.vx * nx + b.vy * ny;
-        if (vDotN < 0) { // moving into the enemy — reflect the normal component
-          b.vx -= 2 * vDotN * nx;
-          b.vy -= 2 * vDotN * ny;
-        }
-        b.vx *= T.KILL_SPEED_KEEP;
-        b.vy *= T.KILL_SPEED_KEEP;
+        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
+        b.vx = nx * speed;
+        b.vy = ny * speed;
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== 'playing') return;

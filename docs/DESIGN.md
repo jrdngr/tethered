@@ -57,7 +57,7 @@ invincible = speed > SPEED_THRESHOLD && !tethered
 
 - **Chaser** — spawns at the arena edge, seeks the ball at constant speed.
 - Spawn interval starts at `SPAWN_INTERVAL_START` and ramps down toward `SPAWN_INTERVAL_MIN` as survival time increases.
-- Invincible ball vs enemy: enemy dies, ball keeps most of its speed (slight bounce), score + combo increase.
+- Invincible ball vs enemy: enemy dies, ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, score + combo increase.
 - Vulnerable ball vs enemy: ball takes damage (see Health), both get knocked back, combo resets.
 
 ## Tuning parameters
