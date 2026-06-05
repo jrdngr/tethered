@@ -15,7 +15,7 @@ Swangin.TUNING = {
   ROPE_MAX_REST: 120,     // px — max rest length at grab time
 
   // Invincibility
-  SPEED_THRESHOLD: 420,   // px/s — invincible above this, when untethered
+  SPEED_THRESHOLD: 420,   // px/s — smash without taking damage above this; tethered bumps reset the combo
   SPEED_COLOR_MAX: 700,   // px/s — ball color/glow gradient reaches full brightness
   SPEED_FLASH_WINDOW: 120, // px/s above threshold where the ball flashes a vulnerability warning
 

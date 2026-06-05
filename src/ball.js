@@ -18,7 +18,8 @@ window.Swangin = window.Swangin || {};
     return Math.hypot(ball.vx, ball.vy);
   };
 
-  // The core rule: fast AND untethered.
+  // Full invincibility (used for the glow): fast AND untethered. A fast
+  // tethered ball also smashes without damage, but loses its combo.
   S.ballInvincible = function (game) {
     return !game.tether.active && S.ballSpeed(game.ball) > S.TUNING.SPEED_THRESHOLD;
   };

@@ -72,12 +72,15 @@ window.Swangin = window.Swangin || {};
       const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball
       const ny = (b.y - e.y) / (gap || 1);
 
-      // Bumping an enemy snaps the tether. Resolve the collision with the
-      // pre-bump state so a fast tethered ball is still vulnerable on contact.
-      const invincible = S.ballInvincible(game);
-      if (game.tether.active) S.releaseTether(game);
+      // Bumping an enemy snaps the tether. A fast ball smashes whether or
+      // not it was tethered, but a tethered bump costs the combo: it resets
+      // to ×1 (before the coins drop, so they pay out at ×1).
+      const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
+      const tethered = game.tether.active;
+      if (tethered) S.releaseTether(game);
 
-      if (invincible) {
+      if (fast) {
+        if (tethered) game.combo = 1;
         // Smash: the enemy takes the player's damage stat; the ball bounces
         // off along the normal (same shape as the damage knockback) keeping
         // most of its speed either way.
@@ -87,7 +90,7 @@ window.Swangin = window.Swangin || {};
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
           // Coin drop scales with the combo at the moment of the kill.
           S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
-          S.bumpCombo(game);
+          if (!tethered) S.bumpCombo(game);
         } else {
           // Armor absorbed the hit: flash, knock the enemy back, and separate
           // so the next physics step doesn't land a second hit. No combo —
