@@ -27,6 +27,10 @@ Swangin.TUNING = {
   ENEMY_BASE_POINTS: 100, // × combo on kill
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
 
+  // Enemy death pop animation
+  POP_DURATION: 0.25,     // s — how long the pop ring lasts
+  POP_SCALE: 2.4,         // final pop ring radius, × enemy radius
+
   // Spawning
   SPAWN_INTERVAL_START: 2.5, // s
   SPAWN_INTERVAL_MIN: 0.6,   // s

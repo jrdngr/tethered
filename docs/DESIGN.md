@@ -57,7 +57,7 @@ invincible = speed > SPEED_THRESHOLD && !tethered
 
 - **Chaser** — spawns at the arena edge, seeks the ball at constant speed.
 - Spawn interval starts at `SPAWN_INTERVAL_START` and ramps down toward `SPAWN_INTERVAL_MIN` as survival time increases.
-- Invincible ball vs enemy: enemy dies, ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, score + combo increase.
+- Invincible ball vs enemy: enemy dies with a pop animation (expanding, fading ring), ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, score + combo increase.
 - Vulnerable ball vs enemy: ball takes damage (see Health), both get knocked back, combo resets.
 
 ## Tuning parameters
@@ -79,6 +79,8 @@ All constants live in one place in code (`Swangin.TUNING`) and are expected to b
 | `ENEMY_RADIUS` | 14 px | |
 | `ENEMY_SPEED` | 110 px/s | Chaser seek speed |
 | `ENEMY_BASE_POINTS` | 100 | × combo on kill |
+| `POP_DURATION` | 0.25 s | Enemy death pop animation length |
+| `POP_SCALE` | 2.4 | Final pop ring radius, × enemy radius |
 | `SPAWN_INTERVAL_START` | 2.5 s | |
 | `SPAWN_INTERVAL_MIN` | 0.6 s | Reached gradually over ~2 min |
 

@@ -25,6 +25,8 @@ window.Swangin = window.Swangin || {};
       ball: S.createBall(canvas.width, canvas.height),
       tether: { active: false, restLength: 0, stretch: 0 },
       enemies: [],
+      pops: [], // enemy death pop animations
+
       mouse: { x: canvas.width / 2, y: canvas.height / 2 },
       score: 0,
       combo: 1,

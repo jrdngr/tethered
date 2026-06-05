@@ -23,6 +23,13 @@ window.Swangin = window.Swangin || {};
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
+    // Advance death-pop animations.
+    for (let i = game.pops.length - 1; i >= 0; i--) {
+      const p = game.pops[i];
+      p.t += dt;
+      if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
+    }
+
     // Spawn rate ramps from START down to MIN over SPAWN_RAMP_TIME of survival.
     const ramp = Math.min(game.time / T.SPAWN_RAMP_TIME, 1);
     const interval = T.SPAWN_INTERVAL_START + (T.SPAWN_INTERVAL_MIN - T.SPAWN_INTERVAL_START) * ramp;
@@ -56,6 +63,7 @@ window.Swangin = window.Swangin || {};
         // Smash: enemy dies, ball bounces off along the normal (same shape as
         // the damage knockback) keeping most of its speed.
         game.enemies.splice(i, 1);
+        game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
         S.registerKill(game);
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
         b.vx = nx * speed;

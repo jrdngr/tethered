@@ -48,6 +48,17 @@ window.Swangin = window.Swangin || {};
       ctx.fill();
     }
 
+    // Death pops: an expanding, fading ring where an enemy was smashed.
+    for (const p of game.pops) {
+      const t = p.t / T.POP_DURATION;
+      const ease = 1 - (1 - t) * (1 - t); // ease-out: fast burst, slow settle
+      ctx.strokeStyle = `rgba(229, 72, 77, ${1 - t})`;
+      ctx.lineWidth = 1 + 3 * (1 - t);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE - 1) * ease), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     // Ball: glow when invincible, flash during i-frames.
     const invincible = S.ballInvincible(game);
     ctx.save();
