@@ -59,7 +59,12 @@ window.Swangin = window.Swangin || {};
       const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball
       const ny = (b.y - e.y) / (gap || 1);
 
-      if (S.ballInvincible(game)) {
+      // Bumping an enemy snaps the tether. Resolve the collision with the
+      // pre-bump state so a fast tethered ball is still vulnerable on contact.
+      const invincible = S.ballInvincible(game);
+      if (game.tether.active) S.releaseTether(game);
+
+      if (invincible) {
         // Smash: enemy dies, ball bounces off along the normal (same shape as
         // the damage knockback) keeping most of its speed.
         game.enemies.splice(i, 1);

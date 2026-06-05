@@ -27,6 +27,7 @@ The tension: holding the rope is how you build speed, but the ball is never safe
 - Spring force applies **only when stretched** (a rope can't push):
   `F = -k · (dist − restLength) · dir − c · velAlongRope`
 - Release the mouse to detach and fling the ball with whatever velocity it has.
+- Bumping an enemy while tethered **snaps the rope**. The collision still resolves with the tethered (vulnerable) state — the snap is a consequence of the bump, not an escape into invincibility. Re-grab requires a fresh click.
 
 ### Invincibility
 
@@ -58,7 +59,7 @@ invincible = speed > SPEED_THRESHOLD && !tethered
 - **Chaser** — spawns at the arena edge, seeks the ball at constant speed.
 - Spawn interval starts at `SPAWN_INTERVAL_START` and ramps down toward `SPAWN_INTERVAL_MIN` as survival time increases.
 - Invincible ball vs enemy: enemy dies with a pop animation (expanding, fading ring), ball bounces off along the collision normal (same direction rule as the damage knockback) keeping most of its speed, score + combo increase.
-- Vulnerable ball vs enemy: ball takes damage (see Health), both get knocked back, combo resets.
+- Vulnerable ball vs enemy: ball takes damage (see Health), both get knocked back, combo resets, and the tether snaps if held.
 
 ## Tuning parameters
 
