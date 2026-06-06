@@ -36,6 +36,7 @@ window.Tethered = window.Tethered || {};
       kx: 0, ky: 0,
       r: stats.r,
       hp: stats.hp,
+      maxHp: stats.hp,
       damage: stats.damage,
       speed: stats.speed,
       coinMult: stats.coinMult,
@@ -236,10 +237,10 @@ window.Tethered = window.Tethered || {};
         // Smash: the enemy takes the player's damage (speed-scaled once
         // MOMENTUM is picked); the ball bounces off along the normal (same
         // shape as the damage knockback) keeping most of its speed either way.
-        // Overkill — damage past OVERKILL_HP_FACTOR × remaining HP — plows
-        // straight through instead and pops with OVERKILL_POP_PUSH × force.
+        // Bashing — damage past BASH_HP_FACTOR × max HP — plows
+        // straight through instead and pops with BASH_POP_PUSH × force.
         const dmg = S.smashDamage(game);
-        const overkill = dmg > e.hp * T.OVERKILL_HP_FACTOR;
+        const bash = dmg > e.maxHp * T.BASH_HP_FACTOR;
         e.hp -= dmg;
         const killed = e.hp <= 0;
         if (killed) {
@@ -247,7 +248,7 @@ window.Tethered = window.Tethered || {};
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
           // The pop shoves nearby enemies and pickups away (before this
           // kill's own coins drop, so they only get their burst scatter).
-          const push = T.ENEMY_POP_PUSH * (overkill ? T.OVERKILL_POP_PUSH : 1);
+          const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
           S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
           S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
           // Splitters break in two after the shockwave, so the children only
@@ -268,10 +269,10 @@ window.Tethered = window.Tethered || {};
           e.y = b.y - ny * (b.r + e.r);
         }
         // KILL SURGE: pops feed speed back into the ball (capped next step).
-        // An overkill keeps the ball's heading; otherwise it bounces off
+        // A bash keeps the ball's heading; otherwise it bounces off
         // along the normal.
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + (killed ? game.stats.killBoost : 0);
-        if (overkill) {
+        if (bash) {
           const cur = S.ballSpeed(b) || 1;
           b.vx = (b.vx / cur) * speed;
           b.vy = (b.vy / cur) * speed;
