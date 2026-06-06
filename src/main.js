@@ -30,7 +30,7 @@ window.Tethered = window.Tethered || {};
       width: canvas.width,
       height: playHeight(),
       ball: S.createBall(canvas.width, playHeight()),
-      tether: { active: false, restLength: 0, stretch: 0 },
+      tether: { active: false, restLength: 0, stretch: 0, wraps: [], pmx: 0, pmy: 0, pbx: 0, pby: 0 },
       enemies: [],
       pops: [], // enemy death pop animations
       playerPop: null, // the (much bigger) player death pop, set on death

@@ -34,13 +34,15 @@ window.Tethered = window.Tethered || {};
     ctx.lineWidth = 4;
     ctx.strokeRect(2, 2, w - 4, h - 4);
 
-    // Rope (cursor anchor -> ball), brighter the more it's stretched.
+    // Rope (cursor anchor -> wrap pivots -> ball), brighter the more it's
+    // stretched; it bends at each enemy it has wrapped around.
     if (game.tether.active) {
       const tension = Math.min(game.tether.stretch / 200, 1);
       ctx.strokeStyle = `rgba(255, ${Math.round(230 - 130 * tension)}, ${Math.round(230 - 200 * tension)}, 0.9)`;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(game.mouse.x, game.mouse.y);
+      for (const w of game.tether.wraps) ctx.lineTo(w.e.x, w.e.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
       // Anchor ring at the cursor.

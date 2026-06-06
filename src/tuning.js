@@ -17,6 +17,9 @@ Tethered.TUNING = {
   ROPE_K: 18,             // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
   ROPE_MAX_REST: 120,     // px — max rest length at grab time
+  ROPE_MAX_WRAPS: 6,      // max simultaneous wrap pivots (enemies the rope bends around)
+  ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
+  WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
 
   // Invincibility
   SPEED_THRESHOLD: 420,   // px/s — smash without taking damage above this; tethered bumps reset the combo

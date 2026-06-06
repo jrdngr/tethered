@@ -43,7 +43,7 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     const b = game.ball;
     game.state = 'dying';
-    game.tether.active = false;
+    S.releaseTether(game);
     game.playerPop = { x: b.x, y: b.y, t: 0 };
     // White-hot debris flung from the popped ball.
     for (let i = 0; i < T.PLAYER_POP_PARTICLES; i++) {
