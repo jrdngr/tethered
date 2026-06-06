@@ -12,6 +12,7 @@ window.Tethered = window.Tethered || {};
       hp: S.TUNING.MAX_HP,
       iframes: 0,
       shield: false, // one-hit shield from the VITALITY special
+      shieldCooldown: 0, // s left before a broken shield can be re-granted
     };
   };
 
@@ -59,6 +60,7 @@ window.Tethered = window.Tethered || {};
     b.y += b.vy * dt;
 
     if (b.iframes > 0) b.iframes -= dt;
+    if (b.shieldCooldown > 0) b.shieldCooldown -= dt;
 
     // Walls: clamp position, reflect velocity with restitution.
     // Velocity-direction guards prevent re-bouncing while still overlapping.

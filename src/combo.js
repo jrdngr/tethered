@@ -7,9 +7,10 @@ window.Tethered = window.Tethered || {};
   S.bumpCombo = function (game) {
     game.combo += 1;
     // VITALITY special: crossing the threshold grants a one-hit shield
-    // (max 1 held — losing it means rebuilding the combo for another).
+    // (max 1 held — losing it means rebuilding the combo for another, and
+    // a broken shield keeps a fresh one away for the cooldown).
     if (game.stats.comboShield && game.combo >= S.TUNING.COMBO_SHIELD_THRESHOLD &&
-        !game.ball.shield) {
+        !game.ball.shield && game.ball.shieldCooldown <= 0) {
       game.ball.shield = true;
     }
   };
@@ -20,8 +21,12 @@ window.Tethered = window.Tethered || {};
   S.damageBall = function (game, enemy, nx, ny) {
     const T = S.TUNING;
     const b = game.ball;
-    if (b.shield) b.shield = false;
-    else b.hp -= enemy.damage;
+    if (b.shield) {
+      b.shield = false;
+      b.shieldCooldown = T.COMBO_SHIELD_COOLDOWN;
+    } else {
+      b.hp -= enemy.damage;
+    }
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
     // Knock both apart.

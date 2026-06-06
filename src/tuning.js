@@ -164,6 +164,7 @@ Tethered.TUNING = {
   // Level-5 specials
   POP_EXPLODE_DAMAGE: 1,         // DAMAGE — splash dmg inside the pop push radius
   COMBO_SHIELD_THRESHOLD: 20,    // VITALITY — combo crossing this grants a shield
+  COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
   MOMENTUM_BASH_HP_FACTOR: 4,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
