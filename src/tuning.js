@@ -1,4 +1,4 @@
-// All gameplay constants live here. See docs/DESIGN.md for the tuning table.
+// All gameplay constants live here.
 window.Tethered = window.Tethered || {};
 
 Tethered.TUNING = {
@@ -124,6 +124,7 @@ Tethered.TUNING = {
   // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
   SPAWN_INTERVAL_START: 5.0,  // s
   SPAWN_DOUBLE_TIME: 600,     // s of survival for the spawn rate to double
+  SPAWN_MIN_BALL_DIST: 150,   // px — edge spawns re-roll if closer to the ball
 
   // Combo
   COMBO_TIMEOUT: 10,       // s without a combo change before it resets to ×1
@@ -137,6 +138,7 @@ Tethered.TUNING = {
   COIN_MAGNET_RADIUS: 128, // px from ball center — 2× the grab handle (BALL_RADIUS + GRAB_RADIUS)
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
   COIN_LIFETIME: 30,       // s before an uncollected coin fades away
+  PICKUP_RESTITUTION: 0.6, // wall-bounce energy retention for coins/pickups
   LEVEL_COINS_BASE: 25,    // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
@@ -192,3 +194,11 @@ Tethered.TUNING = {
   // Loop
   PHYSICS_HZ: 120,
 };
+
+// Game states, compared all over — the enum keeps a typo from failing silently.
+Tethered.STATE = Object.freeze({
+  PLAYING: 'playing',
+  DYING: 'dying',
+  LEVELUP: 'levelup',
+  GAMEOVER: 'gameover',
+});

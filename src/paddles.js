@@ -73,7 +73,7 @@ window.Tethered = window.Tethered || {};
     }
 
     // Ball contact: reflect off the paddle face and launch at the speed cap.
-    if (game.state !== 'playing') return;
+    if (game.state !== S.STATE.PLAYING) return;
     const b = game.ball;
     for (const p of game.paddles) {
       const r = S.paddleRect(game, p);

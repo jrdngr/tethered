@@ -30,7 +30,7 @@ window.Tethered = window.Tethered || {};
       width: canvas.width,
       height: playHeight(),
       ball: S.createBall(canvas.width, playHeight()),
-      tether: { active: false, restLength: 0, stretch: 0, wraps: [], pmx: 0, pmy: 0, pbx: 0, pby: 0 },
+      tether: S.createTether(),
       enemies: [],
       pops: [], // enemy death pop animations
       playerPop: null, // the (much bigger) player death pop, set on death
@@ -49,7 +49,7 @@ window.Tethered = window.Tethered || {};
       upgradeChoices: null, // the cards on offer while state is 'levelup'
       time: 0,
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
-      state: 'playing',
+      state: S.STATE.PLAYING,
     };
   }
 
@@ -64,15 +64,15 @@ window.Tethered = window.Tethered || {};
   canvas.addEventListener('mousemove', updateMouse);
   canvas.addEventListener('mousedown', (e) => {
     updateMouse(e);
-    if (game.state === 'gameover') {
+    if (game.state === S.STATE.GAMEOVER) {
       reset();
       return;
     }
-    if (game.state === 'levelup') {
+    if (game.state === S.STATE.LEVELUP) {
       S.pickUpgradeAt(game, game.mouse.x, game.mouse.y);
       return;
     }
-    if (game.state !== 'playing') return; // no grabbing the popped ball
+    if (game.state !== S.STATE.PLAYING) return; // no grabbing the popped ball
     S.tryGrab(game);
   });
   window.addEventListener('mouseup', () => S.releaseTether(game));
@@ -80,12 +80,12 @@ window.Tethered = window.Tethered || {};
 
   function update(dt) {
     const T = S.TUNING;
-    if (game.state === 'dying') {
+    if (game.state === S.STATE.DYING) {
       // Death pop playing out: the ball and survival clock are frozen, the
       // rest of the world coasts. Show the overlay once the last ring fades.
       game.playerPop.t += dt;
       const total = T.PLAYER_POP_DURATION + (T.PLAYER_POP_RINGS - 1) * T.PLAYER_POP_RING_LAG;
-      if (game.playerPop.t >= total) game.state = 'gameover';
+      if (game.playerPop.t >= total) game.state = S.STATE.GAMEOVER;
     } else {
       game.time += dt;
       S.updateTether(game, dt);
@@ -108,7 +108,7 @@ window.Tethered = window.Tethered || {};
     dt = Math.min(dt, 0.1); // avoid spiral of death after a background tab
 
     // Physics runs while playing and through the death animation.
-    const live = () => game.state === 'playing' || game.state === 'dying';
+    const live = () => game.state === S.STATE.PLAYING || game.state === S.STATE.DYING;
     if (live()) {
       acc += dt;
       while (acc >= STEP && live()) {

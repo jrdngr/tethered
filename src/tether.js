@@ -7,6 +7,13 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  // The tether's full shape: spring state plus the previous-step sweep
+  // snapshot (pmx/pmy = mouse, pbx/pby = ball) that wrap detection compares
+  // against.
+  S.createTether = function () {
+    return { active: false, restLength: 0, stretch: 0, wraps: [], pmx: 0, pmy: 0, pbx: 0, pby: 0 };
+  };
+
   S.tryGrab = function (game) {
     const T = S.TUNING;
     const b = game.ball;

@@ -50,7 +50,7 @@ window.Tethered = window.Tethered || {};
       ctx.beginPath();
       ctx.arc(game.mouse.x, game.mouse.y, 6, 0, Math.PI * 2);
       ctx.stroke();
-    } else if (game.state === 'playing') {
+    } else if (game.state === S.STATE.PLAYING) {
       // Grab hint when hovering near the ball.
       const d = Math.hypot(game.mouse.x - b.x, game.mouse.y - b.y);
       if (d <= b.r + T.GRAB_RADIUS) {
@@ -180,7 +180,7 @@ window.Tethered = window.Tethered || {};
     // blue as an "about to drop out" warning. The glow is cyan when free
     // and tether-red while held (grabbing breaks the combo).
     // Flash during i-frames. Once it pops, there's no ball to draw.
-    if (game.state !== 'dying' && game.state !== 'gameover') {
+    if (game.state !== S.STATE.DYING && game.state !== S.STATE.GAMEOVER) {
       const speed = S.ballSpeed(b);
       const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
       const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
@@ -212,14 +212,22 @@ window.Tethered = window.Tethered || {};
 
     // Overlays share the world's (translated) coordinate space so their
     // card/click rects line up with the mouse; the HUD stays visible above.
-    if (game.state === 'levelup') drawLevelUp(ctx, game);
-    if (game.state === 'gameover') drawGameOver(ctx, game);
+    if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
+    if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
     ctx.restore();
   };
 
   function lerpColor(a, b, t) {
     const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  }
+
+  // Survival time as M:SS.
+  function formatTime(seconds) {
+    const secs = Math.floor(seconds);
+    const mm = Math.floor(secs / 60);
+    const ss = String(secs % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
   }
 
   function drawHud(ctx, game) {
@@ -271,12 +279,9 @@ window.Tethered = window.Tethered || {};
     ctx.fillText(`LV ${game.level}`, bx - 10, 14);
 
     // Survival time, top-right.
-    const secs = Math.floor(game.time);
-    const mm = Math.floor(secs / 60);
-    const ss = String(secs % 60).padStart(2, '0');
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`${mm}:${ss}`, game.width - 16, 14);
+    ctx.fillText(formatTime(game.time), game.width - 16, 14);
 
     // Speed meter, top center just below the level bar: shows how close the
     // ball is to the invincibility threshold (the key feedback for learning
@@ -365,13 +370,10 @@ window.Tethered = window.Tethered || {};
     ctx.font = 'bold 48px monospace';
     ctx.fillText('GAME OVER', cx, cy - 60);
 
-    const secs = Math.floor(game.time);
-    const mm = Math.floor(secs / 60);
-    const ss = String(secs % 60).padStart(2, '0');
     ctx.fillStyle = '#e8e8f0';
     ctx.font = '20px monospace';
     ctx.fillText(`LEVEL ${game.level}`, cx, cy);
-    ctx.fillText(`SURVIVED ${mm}:${ss}`, cx, cy + 32);
+    ctx.fillText(`SURVIVED ${formatTime(game.time)}`, cx, cy + 32);
 
     ctx.fillStyle = '#6b6f80';
     ctx.font = '16px monospace';

@@ -3,6 +3,14 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  // Random scatter velocity for burst spawns: a uniform angle at
+  // maxSpeed × (minFrac..1). Shared by coin, heal, and death-particle bursts.
+  S.randomVelocity = function (maxSpeed, minFrac) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = maxSpeed * (minFrac + (1 - minFrac) * Math.random());
+    return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+  };
+
   // Coins needed to clear the given level.
   S.coinsForLevel = function (level) {
     const T = S.TUNING;
@@ -23,12 +31,9 @@ window.Tethered = window.Tethered || {};
       Math.floor(Math.random() * (T.COINS_PER_KILL_MAX - T.COINS_PER_KILL_MIN + 1));
     const count = base * game.combo * (mult || 1);
     for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = T.COIN_BURST_SPEED * (0.3 + 0.7 * Math.random());
       game.coins.push({
         x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        ...S.randomVelocity(T.COIN_BURST_SPEED, 0.3),
         r: T.COIN_RADIUS,
         age: 0,
         value: 1,
@@ -43,15 +48,11 @@ window.Tethered = window.Tethered || {};
   // scoop/magnetism for a grace period so the grab is a deliberate move.
   S.spawnHealthPickup = function (game, x, y) {
     const T = S.TUNING;
-    const angle = Math.random() * Math.PI * 2;
-    const speed = T.HEALTH_FLING_SPEED * (0.7 + 0.3 * Math.random());
     game.coins.push({
       x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      ...S.randomVelocity(T.HEALTH_FLING_SPEED, 0.7),
       r: T.HEALTH_RADIUS,
       age: 0,
-      spin: 0, // unused — health pickups don't spin
       heal: T.HEALTH_HEAL,
     });
   };
@@ -75,12 +76,9 @@ window.Tethered = window.Tethered || {};
   function spawnHealParticles(game, x, y) {
     const T = S.TUNING;
     for (let i = 0; i < T.HEAL_PARTICLES; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = T.HEAL_PARTICLE_SPEED * (0.3 + 0.7 * Math.random());
       game.particles.push({
         x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        ...S.randomVelocity(T.HEAL_PARTICLE_SPEED, 0.3),
         age: 0,
         life: T.HEAL_PARTICLE_LIFE * (0.6 + 0.4 * Math.random()),
       });
@@ -92,7 +90,7 @@ window.Tethered = window.Tethered || {};
     const b = game.ball;
     const decay = Math.exp(-T.COIN_DRAG * dt);
     // The popped ball can't scoop or attract anything during the death pop.
-    const playing = game.state === 'playing';
+    const playing = game.state === S.STATE.PLAYING;
 
     // Advance heal-burst particles (same drag as coins).
     for (let i = game.particles.length - 1; i >= 0; i--) {
@@ -182,7 +180,7 @@ window.Tethered = window.Tethered || {};
           game.level += 1;
           game.pendingLevelUps += 1; // each level pauses for an upgrade pick
         }
-        if (game.pendingLevelUps > 0 && game.state === 'playing') {
+        if (game.pendingLevelUps > 0 && game.state === S.STATE.PLAYING) {
           S.startLevelUp(game);
         }
         continue;
@@ -202,10 +200,11 @@ window.Tethered = window.Tethered || {};
       c.y += c.vy * dt;
 
       // Keep coins inside the arena with a soft bounce.
-      if (c.x - c.r < 0) { c.x = c.r; c.vx = -c.vx * 0.6; }
-      else if (c.x + c.r > game.width) { c.x = game.width - c.r; c.vx = -c.vx * 0.6; }
-      if (c.y - c.r < 0) { c.y = c.r; c.vy = -c.vy * 0.6; }
-      else if (c.y + c.r > game.height) { c.y = game.height - c.r; c.vy = -c.vy * 0.6; }
+      const R = T.PICKUP_RESTITUTION;
+      if (c.x - c.r < 0) { c.x = c.r; c.vx = -c.vx * R; }
+      else if (c.x + c.r > game.width) { c.x = game.width - c.r; c.vx = -c.vx * R; }
+      if (c.y - c.r < 0) { c.y = c.r; c.vy = -c.vy * R; }
+      else if (c.y + c.r > game.height) { c.y = game.height - c.r; c.vy = -c.vy * R; }
     }
 
     // Merge clusters: when enough same-value coins nearly overlap, replace

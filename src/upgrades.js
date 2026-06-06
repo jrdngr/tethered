@@ -117,10 +117,10 @@ window.Tethered = window.Tethered || {};
     const choices = rollChoices(game);
     if (choices.length === 0) {
       game.pendingLevelUps = 0;
-      game.state = 'playing'; // also unfreezes a chooseUpgrade chain that ran dry
+      game.state = S.STATE.PLAYING; // also unfreezes a chooseUpgrade chain that ran dry
       return;
     }
-    game.state = 'levelup';
+    game.state = S.STATE.LEVELUP;
     S.releaseTether(game);
     game.upgradeChoices = choices;
   };
@@ -135,7 +135,7 @@ window.Tethered = window.Tethered || {};
     game.upgradeChoices = null;
     game.pendingLevelUps -= 1;
     if (game.pendingLevelUps > 0) S.startLevelUp(game);
-    else game.state = 'playing';
+    else game.state = S.STATE.PLAYING;
   };
 
   // Card layout, shared by render (drawing) and main (click hit-testing).

@@ -66,7 +66,7 @@ window.Tethered = window.Tethered || {};
       else if (side === 1) { x = t * game.width; y = game.height - r; }
       else if (side === 2) { x = r; y = t * game.height; }
       else { x = game.width - r; y = t * game.height; }
-      if (Math.hypot(x - game.ball.x, y - game.ball.y) > 150) break;
+      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
     }
     game.enemies.push(makeEnemy(type, x, y));
   };
@@ -243,7 +243,7 @@ window.Tethered = window.Tethered || {};
 
     // Spawn rate climbs exponentially: it doubles every SPAWN_DOUBLE_TIME of
     // survival. Paused while the player's death pop plays out.
-    if (game.state === 'playing') {
+    if (game.state === S.STATE.PLAYING) {
       const interval = T.SPAWN_INTERVAL_START * Math.pow(2, -game.time / T.SPAWN_DOUBLE_TIME);
       game.spawnTimer -= dt;
       if (game.spawnTimer <= 0) {
@@ -287,7 +287,7 @@ window.Tethered = window.Tethered || {};
       // Collision with the ball (skipped while the death pop plays out —
       // the ball is already gone — and while a fresh split child's
       // invincibility runs down: it can't be hurt or deal a hit).
-      if (game.state !== 'playing' || e.invuln > 0) continue;
+      if (game.state !== S.STATE.PLAYING || e.invuln > 0) continue;
       const gap = Math.hypot(b.x - e.x, b.y - e.y);
       if (gap >= b.r + e.r) continue;
       const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball
@@ -352,7 +352,7 @@ window.Tethered = window.Tethered || {};
         }
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
-        if (game.state !== 'playing') break; // dead — still sweep corpses below
+        if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below
       } else {
         // During i-frames: just keep the enemy from overlapping the ball
         // (anchor-aware so the push sticks on an orbiting orbiter).

@@ -43,17 +43,14 @@ window.Tethered = window.Tethered || {};
   S.gameOver = function (game) {
     const T = S.TUNING;
     const b = game.ball;
-    game.state = 'dying';
+    game.state = S.STATE.DYING;
     S.releaseTether(game);
     game.playerPop = { x: b.x, y: b.y, t: 0 };
     // White-hot debris flung from the popped ball.
     for (let i = 0; i < T.PLAYER_POP_PARTICLES; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = T.PLAYER_POP_PARTICLE_SPEED * (0.2 + 0.8 * Math.random());
       game.particles.push({
         x: b.x, y: b.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        ...S.randomVelocity(T.PLAYER_POP_PARTICLE_SPEED, 0.2),
         age: 0,
         life: T.PLAYER_POP_DURATION * (0.4 + 0.6 * Math.random()),
         color: Math.random() < 0.5 ? '#ffffff' : '#aef4ff',
