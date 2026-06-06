@@ -124,10 +124,20 @@ window.Tethered = window.Tethered || {};
         return [{ x1: -r0, y1: 0, x2: -(r0 + T.WEAPON_TAIL_REACH * scale), y2: 0,
           r: T.WEAPON_TAIL_WIDTH * scale }];
       },
+      // Reverse taper to the spike: a point under the ball flaring out to
+      // the wide end at the tip, so the tail reads heaviest away from it.
       draw(ctx, game, scale) {
+        const T = S.TUNING;
+        const tip = game.ball.r + T.WEAPON_TAIL_REACH * scale;
+        const halfWidth = T.WEAPON_TAIL_WIDTH * scale;
         ctx.save();
         ctx.rotate(Math.PI);
-        spike(ctx, game.ball.r, S.TUNING.WEAPON_TAIL_REACH * scale, S.TUNING.WEAPON_TAIL_WIDTH * scale);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(tip, -halfWidth);
+        ctx.lineTo(tip, halfWidth);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       },
     },

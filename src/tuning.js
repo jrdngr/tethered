@@ -182,15 +182,15 @@ Tethered.TUNING = {
   WEAPON_POKER_REACH: 48,      // px front spike length (1.5× ball diameter)
   WEAPON_POKER_WIDTH: 6,       // px hit-capsule radius / half-width at the base
   WEAPON_POKER_DMG: 1,         // bonus damage per level (1-4)
-  WEAPON_TAIL_REACH: 48,       // px rear cone length (1.5× ball diameter)
-  WEAPON_TAIL_WIDTH: 8,
+  WEAPON_TAIL_REACH: 96,       // px rear cone length (3× ball diameter)
+  WEAPON_TAIL_WIDTH: 16,       // px hit-capsule radius / half-width at the wide tip
   WEAPON_TAIL_DMG: 1,
   WEAPON_EARS_REACH: 16,       // px the side crescents extend (0.5× ball diameter)
   WEAPON_EARS_WIDTH: 8,
   WEAPON_EARS_DMG: 1,
   WEAPON_EARS_SPAN: 70,        // ° of ball circumference each crescent covers
-  WEAPON_HORNS_REACH: 16,      // px horn length (0.5× ball diameter)
-  WEAPON_HORNS_WIDTH: 5,
+  WEAPON_HORNS_REACH: 64,      // px horn length (2× ball diameter)
+  WEAPON_HORNS_WIDTH: 20,
   WEAPON_HORNS_DMG: 1,
   WEAPON_HORN_ANGLE: 45,       // ° off the heading per horn
   WEAPON_SIZE_GROWTH: 0.1,     // size × (1 + this × (level-1)), levels 1-4
