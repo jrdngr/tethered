@@ -40,7 +40,7 @@ window.Tethered = window.Tethered || {};
     ctx.fill();
     if (def.draw) def.draw(ctx, { x, y, r, hp: 2 }); // hp 2: armor intact
     if (def.splitCount) {
-      const seams = def.splitCount / 2;
+      const seams = (def.pieces || def.splitCount) / 2;
       ctx.strokeStyle = '#0d0e14';
       ctx.lineWidth = 1.5;
       ctx.beginPath();

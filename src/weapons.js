@@ -1,8 +1,9 @@
 // Weapons: upgrade-granted shapes attached to the ball. They arm on tether
-// release while the ball is fast, orient along the velocity vector, and
-// expire (until the next release) once the ball slows into the flash-warning
-// zone. A weapon hit resolves like a body smash with the weapon's bonus
-// damage added, so weapons read as reach extensions of the ball.
+// release while the ball is fast, orient along the velocity vector (the
+// tail lags behind on a rotational spring), and expire (until the next
+// release) once the ball slows into the flash-warning zone. A weapon hit
+// resolves like a body smash with the weapon's bonus damage added, so
+// weapons read as reach extensions of the ball.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -118,10 +119,21 @@ window.Tethered = window.Tethered || {};
     tail: {
       name: 'TAIL',
       dmg: () => S.TUNING.WEAPON_TAIL_DMG,
+      // The tail is floppy: it points along its own sprung world angle
+      // (integrated in updateWeapons) rather than snapping straight behind.
+      // Capsules and draw work in the ball-local frame (callers rotate by
+      // the heading), so the world angle is expressed as an offset from it.
+      localAngle(game) {
+        const b = game.ball;
+        return game.weaponState.tailAngle - Math.atan2(b.vy, b.vx);
+      },
       capsules(game, scale) {
         const T = S.TUNING;
         const r0 = game.ball.r;
-        return [{ x1: -r0, y1: 0, x2: -(r0 + T.WEAPON_TAIL_REACH * scale), y2: 0,
+        const a = this.localAngle(game);
+        const tip = r0 + T.WEAPON_TAIL_REACH * scale;
+        return [{ x1: Math.cos(a) * r0, y1: Math.sin(a) * r0,
+          x2: Math.cos(a) * tip, y2: Math.sin(a) * tip,
           r: T.WEAPON_TAIL_WIDTH * scale }];
       },
       // Reverse taper to the spike: a point under the ball flaring out to
@@ -131,7 +143,7 @@ window.Tethered = window.Tethered || {};
         const tip = game.ball.r + T.WEAPON_TAIL_REACH * scale;
         const halfWidth = T.WEAPON_TAIL_WIDTH * scale;
         ctx.save();
-        ctx.rotate(Math.PI);
+        ctx.rotate(this.localAngle(game));
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(tip, -halfWidth);
@@ -157,10 +169,23 @@ window.Tethered = window.Tethered || {};
 
   // Per-tick expiry: weapons hide while the ball is held and expire once it
   // slows into the warning flash.
-  S.updateWeapons = function (game) {
+  S.updateWeapons = function (game, dt) {
     if (game.tether.active || S.ballSpeed(game.ball) < armSpeed()) {
       game.weaponState.active = false;
     }
+    // Floppy-tail spring: the tail's world angle chases straight-behind
+    // with rotational force. The spring is underdamped, so it overshoots
+    // and keeps swinging — it (almost) never sits still. Integrated every
+    // tick, armed or not, so it's already trailing when the weapons deploy.
+    const T = S.TUNING;
+    const ws = game.weaponState;
+    const b = game.ball;
+    const target = Math.atan2(-b.vy, -b.vx);
+    const dev = Math.atan2(Math.sin(target - ws.tailAngle), Math.cos(target - ws.tailAngle));
+    ws.tailVel += T.WEAPON_TAIL_TURN_K * dev * dt;
+    ws.tailVel *= Math.exp(-T.WEAPON_TAIL_TURN_DAMPING * dt);
+    const a = ws.tailAngle + ws.tailVel * dt;
+    ws.tailAngle = Math.atan2(Math.sin(a), Math.cos(a)); // keep wrapped
   };
 
   // World-space hit capsules for every owned weapon, oriented to the heading.
@@ -198,8 +223,9 @@ window.Tethered = window.Tethered || {};
 
   // Weapon pass, run before the body-collision loop: each enemy takes at
   // most one weapon hit per tick; resolveSmash kills (flagging dead for the
-  // sweep) or knocks the survivor flush against the weapon, so the body
-  // loop can't land a second hit the same step.
+  // sweep) or knocks the survivor flush against the weapon (a poker pierce
+  // grants brief invuln instead), so the body loop can't land a second hit
+  // the same step.
   S.updateWeaponCollisions = function (game) {
     if (!game.weaponState.active) return;
     const segs = S.weaponSegments(game);
@@ -229,6 +255,8 @@ window.Tethered = window.Tethered || {};
         }
         S.resolveSmash(game, e, nx, ny, false, {
           dmgBonus: S.weaponDamage(game, s.kind),
+          // The poker pierces: its hits never bounce the ball.
+          pierce: s.kind === 'poker',
           // HORNS special: gore — horn hits always bash through.
           bashOverride: s.kind === 'horns' && game.stats.hornsGore,
           // EARS special: boxer — ear hits knock survivors back harder.
@@ -247,16 +275,21 @@ window.Tethered = window.Tethered || {};
 
   // Drawn under the ball fill so the shapes emerge from its rim. Weapons are
   // only ever visible while the ball is fast and bright, so a fixed pale
-  // cyan reads as part of it.
-  S.drawWeapons = function (ctx, game) {
+  // cyan reads as part of it. While tethered, owned weapons instead show as
+  // a faded fixed-size ghost (`preview`) — a hint that release deploys them.
+  // The preview never grows: it uses WEAPON_PREVIEW_SCALE regardless of
+  // level, and a stub `stats` hides size specials like the poker's skewer.
+  S.drawWeapons = function (ctx, game, preview) {
     const b = game.ball;
     ctx.save();
     ctx.translate(b.x, b.y);
     ctx.rotate(Math.atan2(b.vy, b.vx));
     ctx.fillStyle = '#aef4ff';
+    if (preview) ctx.globalAlpha *= 0.5; // faded ghost (× any i-frame flash fade)
+    const g = preview ? { ball: game.ball, stats: {}, weaponState: game.weaponState } : game;
     for (const kind in S.WEAPONS) {
       if (!weaponLevel(game, kind)) continue;
-      S.WEAPONS[kind].draw(ctx, game, weaponScale(game, kind));
+      S.WEAPONS[kind].draw(ctx, g, preview ? S.TUNING.WEAPON_PREVIEW_SCALE : weaponScale(game, kind));
     }
     ctx.restore();
   };

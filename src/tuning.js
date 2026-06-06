@@ -182,18 +182,22 @@ Tethered.TUNING = {
   WEAPON_POKER_REACH: 48,      // px front spike length (1.5× ball diameter)
   WEAPON_POKER_WIDTH: 6,       // px hit-capsule radius / half-width at the base
   WEAPON_POKER_DMG: 1,         // bonus damage per level (1-4)
-  WEAPON_TAIL_REACH: 96,       // px rear cone length (3× ball diameter)
-  WEAPON_TAIL_WIDTH: 16,       // px hit-capsule radius / half-width at the wide tip
+  WEAPON_POKER_PIERCE_INVULN: 0.25, // s a pierced survivor can't be re-hit — long enough for the ball to fly through
+  WEAPON_TAIL_REACH: 72,       // px rear cone length (2.25× ball diameter)
+  WEAPON_TAIL_WIDTH: 12,       // px hit-capsule radius / half-width at the wide tip
   WEAPON_TAIL_DMG: 1,
+  WEAPON_TAIL_TURN_K: 140,     // 1/s^2 — spring accel pulling the floppy tail toward straight-behind
+  WEAPON_TAIL_TURN_DAMPING: 3, // 1/s — light damping: the tail overshoots and keeps swinging
   WEAPON_EARS_REACH: 16,       // px the side crescents extend (0.5× ball diameter)
   WEAPON_EARS_WIDTH: 8,
   WEAPON_EARS_DMG: 1,
   WEAPON_EARS_SPAN: 70,        // ° of ball circumference each crescent covers
-  WEAPON_HORNS_REACH: 64,      // px horn length (2× ball diameter)
-  WEAPON_HORNS_WIDTH: 20,
+  WEAPON_HORNS_REACH: 32,      // px horn length (1× ball diameter)
+  WEAPON_HORNS_WIDTH: 10,
   WEAPON_HORNS_DMG: 1,
   WEAPON_HORN_ANGLE: 45,       // ° off the heading per horn
   WEAPON_SIZE_GROWTH: 0.1,     // size × (1 + this × (level-1)), levels 1-4
+  WEAPON_PREVIEW_SCALE: 0.35,  // × base size of the tethered "will deploy" ghost (never grows with level)
   WEAPON_POKER_SKEWER_MULT: 2, // POKER special — × spike length
   WEAPON_EARS_KNOCK_MULT: 2,   // EARS special — × knockback on ear hits
 

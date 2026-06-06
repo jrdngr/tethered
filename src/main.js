@@ -45,7 +45,9 @@ window.Tethered = window.Tethered || {};
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       particles: [], // green sparks from grabbed health pickups
-      weaponState: { active: false }, // weapons arm on tether release, expire when slow
+      // Weapons arm on tether release, expire when slow; the floppy tail
+      // keeps its own sprung world angle and angular velocity.
+      weaponState: { active: false, tailAngle: 0, tailVel: 0 },
 
       mouse: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
@@ -125,7 +127,7 @@ window.Tethered = window.Tethered || {};
       game.time += dt;
       S.updateTether(game, dt);
       S.updateBall(game, dt);
-      S.updateWeapons(game);
+      S.updateWeapons(game, dt);
     }
     S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);

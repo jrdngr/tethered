@@ -105,7 +105,8 @@ window.Tethered = window.Tethered || {};
 
     // Enemies: the base disc in the type's color (flashing white when a hit
     // doesn't kill), the type's own decoration (tank armor ring), and seams
-    // hinting how a splitter breaks — one diameter line per pair of children.
+    // hinting how a splitter breaks — one diameter line per pair of pieces
+    // it ultimately yields (a super-splitter shows a four-piece cross).
     for (const e of game.enemies) {
       const def = S.ENEMY_TYPES[e.type];
       ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color;
@@ -113,8 +114,8 @@ window.Tethered = window.Tethered || {};
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
       if (def.draw) def.draw(ctx, e);
-      if (e.splitCount) {
-        const seams = e.splitCount / 2;
+      if (e.pieces) {
+        const seams = e.pieces / 2;
         ctx.strokeStyle = '#0d0e14';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -173,7 +174,10 @@ window.Tethered = window.Tethered || {};
       ctx.save();
       if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
       // Weapons draw first, under the ball, so the shapes emerge from its rim.
+      // Armed weapons at full size; while tethered, a small faded preview
+      // hints that they'll deploy on release.
       if (game.weaponState.active) S.drawWeapons(ctx, game);
+      else if (game.tether.active) S.drawWeapons(ctx, game, true);
       if (speed > T.SPEED_THRESHOLD && !flashDark) {
         const f = Math.min(
           (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);

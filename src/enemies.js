@@ -81,8 +81,9 @@ window.Tethered = window.Tethered || {};
   // Hooks: `onSpawn` (extra state), `brain` (steering; default seekBall),
   // `onShift` (keep brain state consistent when the enemy is teleported), and
   // `draw` (render decoration — render.js draws the base disc in `color`,
-  // then `draw`, and derives split seams from splitCount). Adding a type is
-  // one entry here plus its TUNING constants.
+  // then `draw`, plus one seam line per pair of `pieces`, the chasers the
+  // type ultimately yields — splitCount unless its children split further).
+  // Adding a type is one entry here plus its TUNING constants.
   S.ENEMY_TYPES = {
     chaser: {
       color: '#e5484d', // red
@@ -116,6 +117,7 @@ window.Tethered = window.Tethered || {};
       spawnGate: (T) => ({ delay: T.SUPER_SPLITTER_SPAWN_DELAY, chance: T.SUPER_SPLITTER_CHANCE }),
       splitCount: 2,
       splitChild: 'splitter',
+      pieces: 4, // seams show the four chasers its splitters become
     },
     orbiter: {
       color: '#e93d82', // pink
@@ -170,6 +172,7 @@ window.Tethered = window.Tethered || {};
     if (def.splitCount) {
       e.splitCount = def.splitCount;
       e.splitChild = def.splitChild;
+      e.pieces = def.pieces || def.splitCount;
     }
     if (def.onSpawn) def.onSpawn(e);
     return e;
@@ -322,6 +325,10 @@ window.Tethered = window.Tethered || {};
   // BASH_HP_FACTOR × max HP — plows through instead (deflected but never
   // bounced backwards) and pops with BASH_POP_PUSH × force. opts:
   //   dmgBonus     extra damage on top of smashDamage (weapon hits)
+  //   pierce       fly straight through: the ball keeps its heading (no
+  //                bounce or deflection), and a survivor gets brief invuln
+  //                instead of flush separation so the ball passes cleanly
+  //                without re-hitting it (poker)
   //   bashOverride force a bash regardless of the damage threshold
   //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
   //   ax/ay/ar     separation anchor a survivor is pushed flush against
@@ -346,14 +353,20 @@ window.Tethered = window.Tethered || {};
       // so the next physics step doesn't land a second hit. No combo —
       // that only counts kills.
       const knock = T.KNOCKBACK_SPEED * (opts.knockMult || 1);
-      const ax = opts.ax !== undefined ? opts.ax : b.x;
-      const ay = opts.ay !== undefined ? opts.ay : b.y;
-      const ar = opts.ar !== undefined ? opts.ar : b.r;
       e.flash = T.HIT_FLASH_DURATION;
       e.kx = -nx * knock;
       e.ky = -ny * knock;
-      e.x = ax - nx * (ar + e.r);
-      e.y = ay - ny * (ar + e.r);
+      if (opts.pierce) {
+        // No separation — the ball flies through; the invuln keeps the
+        // weapon and body passes from landing again mid-traversal.
+        e.invuln = T.WEAPON_POKER_PIERCE_INVULN;
+      } else {
+        const ax = opts.ax !== undefined ? opts.ax : b.x;
+        const ay = opts.ay !== undefined ? opts.ay : b.y;
+        const ar = opts.ar !== undefined ? opts.ar : b.r;
+        e.x = ax - nx * (ar + e.r);
+        e.y = ay - ny * (ar + e.r);
+      }
     }
     // KILL SURGE: pops feed speed back into the ball (capped next step);
     // its special pays out on every smash, kill or not. A bash plows
@@ -363,7 +376,12 @@ window.Tethered = window.Tethered || {};
     // the normal.
     const surge = killed || game.stats.surgeEverySmash ? game.stats.killBoost : 0;
     const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
-    if (bash) {
+    if (opts.pierce) {
+      // Pierce: straight through — the heading never changes.
+      const heading = Math.atan2(b.vy, b.vx);
+      b.vx = Math.cos(heading) * speed;
+      b.vy = Math.sin(heading) * speed;
+    } else if (bash) {
       const heading = Math.atan2(b.vy, b.vx);
       let dev = Math.atan2(ny, nx) - heading;
       dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
