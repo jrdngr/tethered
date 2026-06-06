@@ -183,12 +183,13 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     const ws = game.weaponState;
     const b = game.ball;
+    const tdt = dt * T.WEAPON_TAIL_TIME_SCALE; // slowed time: same motion shape, slower playback
     const target = Math.atan2(-b.vy, -b.vx);
     const dev = Math.atan2(Math.sin(target - ws.tailAngle), Math.cos(target - ws.tailAngle));
     const k = T.WEAPON_TAIL_TURN_K + T.WEAPON_TAIL_WIND_PER_SPEED * S.ballSpeed(b);
-    ws.tailVel += k * dev * dt;
-    ws.tailVel *= Math.exp(-T.WEAPON_TAIL_TURN_DAMPING * dt);
-    const a = ws.tailAngle + ws.tailVel * dt;
+    ws.tailVel += k * dev * tdt;
+    ws.tailVel *= Math.exp(-T.WEAPON_TAIL_TURN_DAMPING * tdt);
+    const a = ws.tailAngle + ws.tailVel * tdt;
     ws.tailAngle = Math.atan2(Math.sin(a), Math.cos(a)); // keep wrapped
   };
 
