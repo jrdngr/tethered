@@ -2,6 +2,10 @@
 window.Tethered = window.Tethered || {};
 
 Tethered.TUNING = {
+  // HUD: a reserved band above the play area, so game elements never pass
+  // under the UI. The arena starts below it.
+  HUD_HEIGHT: 64,         // px
+
   // Ball
   BALL_RADIUS: 16,        // px
   BALL_DRAG: 0.4,         // 1/s — exponential velocity decay (top-down friction)

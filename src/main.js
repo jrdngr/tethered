@@ -6,12 +6,19 @@ window.Tethered = window.Tethered || {};
   const ctx = canvas.getContext('2d');
   let game;
 
+  // The game's coordinate space is the play area: the canvas minus the HUD
+  // band reserved at the top. Rendering translates the world down by
+  // HUD_HEIGHT so game elements never pass under the UI.
+  function playHeight() {
+    return canvas.height - S.TUNING.HUD_HEIGHT;
+  }
+
   function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     if (game) {
       game.width = canvas.width;
-      game.height = canvas.height;
+      game.height = playHeight();
     }
   }
   window.addEventListener('resize', resize);
@@ -21,8 +28,8 @@ window.Tethered = window.Tethered || {};
     // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
       width: canvas.width,
-      height: canvas.height,
-      ball: S.createBall(canvas.width, canvas.height),
+      height: playHeight(),
+      ball: S.createBall(canvas.width, playHeight()),
       tether: { active: false, restLength: 0, stretch: 0 },
       enemies: [],
       pops: [], // enemy death pop animations
@@ -31,7 +38,7 @@ window.Tethered = window.Tethered || {};
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       particles: [], // green sparks from grabbed health pickups
 
-      mouse: { x: canvas.width / 2, y: canvas.height / 2 },
+      mouse: { x: canvas.width / 2, y: playHeight() / 2 },
       combo: 1,
       level: 1,
       coinProgress: 0, // coins collected toward the next level
@@ -48,7 +55,9 @@ window.Tethered = window.Tethered || {};
   function updateMouse(e) {
     const rect = canvas.getBoundingClientRect();
     game.mouse.x = e.clientX - rect.left;
-    game.mouse.y = e.clientY - rect.top;
+    // Play-area coordinates; clamp so a cursor over the HUD anchors the
+    // tether at the arena's top edge instead of inside the UI.
+    game.mouse.y = Math.max(e.clientY - rect.top - S.TUNING.HUD_HEIGHT, 0);
   }
 
   canvas.addEventListener('mousemove', updateMouse);

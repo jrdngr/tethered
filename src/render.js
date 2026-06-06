@@ -16,9 +16,20 @@ window.Tethered = window.Tethered || {};
     const w = game.width;
     const h = game.height;
 
-    // Background + arena border.
+    // Background (HUD band + arena), then the HUD in its own band up top.
     ctx.fillStyle = '#0d0e14';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, w, T.HUD_HEIGHT + h);
+    drawHud(ctx, game);
+
+    // The world renders translated below the HUD and clipped to the arena,
+    // so game elements never draw under the UI.
+    ctx.save();
+    ctx.translate(0, T.HUD_HEIGHT);
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+
+    // Arena border.
     ctx.strokeStyle = '#2a2d3a';
     ctx.lineWidth = 4;
     ctx.strokeRect(2, 2, w - 4, h - 4);
@@ -190,9 +201,11 @@ window.Tethered = window.Tethered || {};
       }
     }
 
-    drawHud(ctx, game);
+    // Overlays share the world's (translated) coordinate space so their
+    // card/click rects line up with the mouse; the HUD stays visible above.
     if (game.state === 'levelup') drawLevelUp(ctx, game);
     if (game.state === 'gameover') drawGameOver(ctx, game);
+    ctx.restore();
   };
 
   function lerpColor(a, b, t) {
