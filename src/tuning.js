@@ -85,6 +85,11 @@ Tethered.TUNING = {
   ENEMY_POP_PUSH: 350,        // px/s — shove to nearby enemies/pickups when one dies...
   ENEMY_POP_PUSH_RADIUS: 120, // ...fading to 0 at this range
 
+  // Overkill: a smash dealing more than OVERKILL_HP_FACTOR × the enemy's
+  // remaining HP plows straight through (no bounce) and pops harder
+  OVERKILL_HP_FACTOR: 2,    // damage must exceed this × remaining HP
+  OVERKILL_POP_PUSH: 2,     // × ENEMY_POP_PUSH on an overkill pop
+
   // Player death: a far bigger pop than an enemy's — staggered shockwave
   // rings, a spark burst, and a screen flash — plus an arena-wide blast
   // that flings every enemy away.

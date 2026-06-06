@@ -236,15 +236,20 @@ window.Tethered = window.Tethered || {};
         // Smash: the enemy takes the player's damage (speed-scaled once
         // MOMENTUM is picked); the ball bounces off along the normal (same
         // shape as the damage knockback) keeping most of its speed either way.
-        e.hp -= S.smashDamage(game);
+        // Overkill — damage past OVERKILL_HP_FACTOR × remaining HP — plows
+        // straight through instead and pops with OVERKILL_POP_PUSH × force.
+        const dmg = S.smashDamage(game);
+        const overkill = dmg > e.hp * T.OVERKILL_HP_FACTOR;
+        e.hp -= dmg;
         const killed = e.hp <= 0;
         if (killed) {
           game.enemies.splice(i, 1);
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
           // The pop shoves nearby enemies and pickups away (before this
           // kill's own coins drop, so they only get their burst scatter).
-          S.pushEnemies(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
-          S.pushCoins(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
+          const push = T.ENEMY_POP_PUSH * (overkill ? T.OVERKILL_POP_PUSH : 1);
+          S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
+          S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
           // Splitters break in two after the shockwave, so the children only
           // get their own opposing fling.
           if (e.type === 'splitter') splitEnemy(game, e);
@@ -263,9 +268,17 @@ window.Tethered = window.Tethered || {};
           e.y = b.y - ny * (b.r + e.r);
         }
         // KILL SURGE: pops feed speed back into the ball (capped next step).
+        // An overkill keeps the ball's heading; otherwise it bounces off
+        // along the normal.
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + (killed ? game.stats.killBoost : 0);
-        b.vx = nx * speed;
-        b.vy = ny * speed;
+        if (overkill) {
+          const cur = S.ballSpeed(b) || 1;
+          b.vx = (b.vx / cur) * speed;
+          b.vy = (b.vy / cur) * speed;
+        } else {
+          b.vx = nx * speed;
+          b.vy = ny * speed;
+        }
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== 'playing') return;
