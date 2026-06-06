@@ -110,14 +110,15 @@ window.Tethered = window.Tethered || {};
 
     // Count, per coin, how many same-value coins sit inside merge range
     // (itself included) — clusters short of a full merge group repel a
-    // little instead of stacking.
+    // little instead of stacking. Coins still inside the merge grace sit out
+    // this whole pairwise dance (count, attraction, and repulsion alike).
     const near = new Array(game.coins.length).fill(1);
     for (let i = 0; i < game.coins.length; i++) {
       const a = game.coins[i];
-      if (a.heal || !T.COIN_MERGE_COUNTS[a.value]) continue;
+      if (a.heal || a.age < T.COIN_MERGE_GRACE || !T.COIN_MERGE_COUNTS[a.value]) continue;
       for (let j = i + 1; j < game.coins.length; j++) {
         const o = game.coins[j];
-        if (o.heal || o.value !== a.value) continue;
+        if (o.heal || o.age < T.COIN_MERGE_GRACE || o.value !== a.value) continue;
         const d = Math.hypot(o.x - a.x, o.y - a.y);
         if (d < (a.r + o.r) * T.COIN_MERGE_DIST_MULT) { near[i]++; near[j]++; }
       }
@@ -130,11 +131,11 @@ window.Tethered = window.Tethered || {};
     for (let i = 0; i < game.coins.length; i++) {
       const a = game.coins[i];
       const need = T.COIN_MERGE_COUNTS[a.value];
-      if (a.heal || !need) continue;
+      if (a.heal || a.age < T.COIN_MERGE_GRACE || !need) continue;
       const range = a.r * T.COIN_ATTRACT_RADIUS_MULT;
       for (let j = i + 1; j < game.coins.length; j++) {
         const o = game.coins[j];
-        if (o.heal || o.value !== a.value) continue;
+        if (o.heal || o.age < T.COIN_MERGE_GRACE || o.value !== a.value) continue;
         const dx = o.x - a.x;
         const dy = o.y - a.y;
         const d = Math.hypot(dx, dy) || 1;

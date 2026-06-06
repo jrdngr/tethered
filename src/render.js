@@ -49,7 +49,7 @@ window.Tethered = window.Tethered || {};
     }
 
     // Coins: pulsating gold discs, fading out at the end of their life;
-    // merged denominations are bigger and wear their value.
+    // merged denominations read by size alone.
     // Health pickups share the array: a green disc with a white cross.
     for (const c of game.coins) {
       ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
@@ -64,18 +64,11 @@ window.Tethered = window.Tethered || {};
         ctx.fillRect(c.x - thick / 2, c.y - arm, thick, arm * 2);
         ctx.fillRect(c.x - arm, c.y - thick / 2, arm * 2, thick);
       } else {
-        const pulse = 0.85 + 0.15 * Math.sin(c.spin + game.time * 6);
+        const pulse = 0.925 + 0.075 * Math.sin(c.spin + game.time * 6);
         ctx.fillStyle = '#ffc53d';
         ctx.beginPath();
         ctx.arc(c.x, c.y, c.r * pulse, 0, Math.PI * 2);
         ctx.fill();
-        if (c.value > 1) {
-          ctx.fillStyle = '#7a5200';
-          ctx.font = `bold ${Math.round(c.r)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(c.value, c.x, c.y);
-        }
       }
     }
     ctx.globalAlpha = 1;
