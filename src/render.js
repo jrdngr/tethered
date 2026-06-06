@@ -2,15 +2,6 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  const ENEMY_COLORS = {
-    chaser: '#e5484d',   // red
-    tank: '#b558f6',     // purple
-    splitter: '#f76b15', // orange
-    supersplitter: '#ff3300', // red-orange — a splitter, but angrier
-    orbiter: '#e93d82',  // pink
-    runner: '#cc9a1f',   // dark gold — it's the payday target
-  };
-
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
     const b = game.ball;
@@ -112,32 +103,27 @@ window.Tethered = window.Tethered || {};
       else ctx.fillRect(r.x, r.y, 2, r.h);
     }
 
-    // Enemies, color-coded by type; flash white when a hit doesn't kill.
-    // Tanks at full HP wear an armor ring that breaks off with the first
-    // hit; splitters wear a seam hinting they break in two.
+    // Enemies: the base disc in the type's color (flashing white when a hit
+    // doesn't kill), the type's own decoration (tank armor ring), and seams
+    // hinting how a splitter breaks — one diameter line per pair of children.
     for (const e of game.enemies) {
-      ctx.fillStyle = e.flash > 0 ? '#ffffff' : ENEMY_COLORS[e.type];
+      const def = S.ENEMY_TYPES[e.type];
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
-      if (e.type === 'tank' && e.hp > 1) {
-        ctx.strokeStyle = '#d8b4fe';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      if (e.type === 'splitter' || e.type === 'supersplitter') {
-        // Seam(s) hinting how it breaks: one line for two pieces, a cross
-        // for the super-splitter's four.
+      if (def.draw) def.draw(ctx, e);
+      if (e.splitCount) {
+        const seams = e.splitCount / 2;
         ctx.strokeStyle = '#0d0e14';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(e.x, e.y - e.r);
-        ctx.lineTo(e.x, e.y + e.r);
-        if (e.type === 'supersplitter') {
-          ctx.moveTo(e.x - e.r, e.y);
-          ctx.lineTo(e.x + e.r, e.y);
+        for (let k = 0; k < seams; k++) {
+          const a = Math.PI / 2 + (k * Math.PI) / seams;
+          const sx = Math.cos(a) * e.r;
+          const sy = Math.sin(a) * e.r;
+          ctx.moveTo(e.x + sx, e.y + sy);
+          ctx.lineTo(e.x - sx, e.y - sy);
         }
         ctx.stroke();
       }

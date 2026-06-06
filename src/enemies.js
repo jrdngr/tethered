@@ -1,96 +1,36 @@
-// Enemies: edge spawning with a ramping rate and a time-gated type mix
-// (chasers, tanks, splitters, super-splitters, orbiters, runners), steering,
-// collision outcomes.
+// Enemies: a per-type definition registry (stats, spawn gating, behavior
+// hooks), edge spawning with a ramping rate, steering, collision outcomes.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  // One roll decides the spawn type: each special unlocked by survival time
-  // claims its CHANCE slice; whatever's left is a basic chaser.
-  function rollType(game) {
-    const T = S.TUNING;
-    const specials = [
-      ['tank', T.TANK_SPAWN_DELAY, T.TANK_CHANCE],
-      ['splitter', T.SPLITTER_SPAWN_DELAY, T.SPLITTER_CHANCE],
-      ['supersplitter', T.SUPER_SPLITTER_SPAWN_DELAY, T.SUPER_SPLITTER_CHANCE],
-      ['orbiter', T.ORBITER_SPAWN_DELAY, T.ORBITER_CHANCE],
-      ['runner', T.RUNNER_SPAWN_DELAY, T.RUNNER_CHANCE],
-    ];
-    let roll = Math.random();
-    for (const [type, delay, chance] of specials) {
-      if (game.time < delay) continue;
-      if (roll < chance) return type;
-      roll -= chance;
-    }
-    return 'chaser';
+  // Steering brains. Each integrates position from its own steering plus the
+  // shared decaying knockback (kx/ky). Default: seek the ball.
+  function seekBall(game, e, dt) {
+    const dx = game.ball.x - e.x;
+    const dy = game.ball.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    e.x += ((dx / d) * e.speed + e.kx) * dt;
+    e.y += ((dy / d) * e.speed + e.ky) * dt;
   }
 
-  function makeEnemy(type, x, y) {
+  // Runner: chase like a chaser, but bolt once the ball gets close — pinned
+  // inside the arena so fleeing can't leave the screen.
+  function runnerBrain(game, e, dt) {
     const T = S.TUNING;
-    const stats = {
-      chaser: { r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, coinMult: 1 },
-      tank: { r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT },
-      splitter: { r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 },
-      supersplitter: { r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 },
-      orbiter: { r: T.ORBITER_RADIUS, hp: T.ENEMY_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 },
-      runner: { r: T.RUNNER_RADIUS, hp: T.ENEMY_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT },
-    }[type];
-    const e = {
-      x, y, type,
-      kx: 0, ky: 0,
-      r: stats.r,
-      hp: stats.hp,
-      maxHp: stats.hp,
-      damage: stats.damage,
-      speed: stats.speed,
-      coinMult: stats.coinMult,
-      flash: 0, // hit-feedback timer when a smash doesn't kill
-      invuln: 0, // can't be hurt (or hurt the ball) while this runs down
-    };
-    if (type === 'orbiter') {
-      e.phase = 'drift'; // 'drift' (creep toward ball) or 'orbit' (spiral)
-      e.driftSpeed = stats.speed;
-    }
-    return e;
-  }
-
-  S.spawnEnemy = function (game) {
-    const type = rollType(game);
-    const r = makeEnemy(type, 0, 0).r;
-    let x = 0;
-    let y = 0;
-    // Pick an edge point; re-roll a few times if it's right on top of the ball.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const side = Math.floor(Math.random() * 4);
-      const t = Math.random();
-      if (side === 0) { x = t * game.width; y = r; }
-      else if (side === 1) { x = t * game.width; y = game.height - r; }
-      else if (side === 2) { x = r; y = t * game.height; }
-      else { x = game.width - r; y = t * game.height; }
-      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
-    }
-    game.enemies.push(makeEnemy(type, x, y));
-  };
-
-  // A dead splitter breaks into basic chasers (two; four for a
-  // super-splitter) flung evenly apart, briefly invincible so the smash that
-  // freed them can't kill them in the same instant.
-  function splitEnemy(game, e, count) {
-    const T = S.TUNING;
-    const base = Math.random() * Math.PI * 2;
-    for (let i = 0; i < count; i++) {
-      const a = base + (i / count) * Math.PI * 2;
-      const child = makeEnemy('chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
-      child.kx = Math.cos(a) * T.SPLIT_FLING;
-      child.ky = Math.sin(a) * T.SPLIT_FLING;
-      child.invuln = T.SPLIT_INVULN;
-      game.enemies.push(child);
-    }
+    const dx = game.ball.x - e.x;
+    const dy = game.ball.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const seek = d < T.RUNNER_FLEE_RADIUS ? -1 : 1;
+    e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
+    e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
+    e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
+    e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
   }
 
   // Orbiter brain. Drift: creep toward the ball, bleeding speed. Stalled:
   // anchor in place and spiral out to max radius, close back in, then drift
   // again. Knockback shoves the anchor while orbiting.
-  function updateOrbiter(game, e, dt) {
+  function orbiterBrain(game, e, dt) {
     const T = S.TUNING;
     if (e.phase === 'drift') {
       e.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
@@ -124,15 +64,153 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Move an enemy without breaking its brain: an orbiting orbiter's anchor
-  // shifts along with it (its position is recomputed from the anchor).
-  function shiftEnemy(e, dx, dy) {
-    e.x += dx;
-    e.y += dy;
-    if (e.type === 'orbiter' && e.phase === 'orbit') {
+  // An orbiting orbiter's position is recomputed from its anchor, so a shift
+  // must move the anchor along with it.
+  function orbiterShift(e, dx, dy) {
+    if (e.phase === 'orbit') {
       e.cx += dx;
       e.cy += dy;
     }
+  }
+
+  // Everything about an enemy type in one place. `stats` resolves from TUNING
+  // at spawn time so console tuning shows up live; `spawnGate` claims a slice
+  // of each spawn roll once its delay passes (no gate = the fallback chaser);
+  // `splitCount` types break into that many chasers instead of paying out.
+  // Hooks: `onSpawn` (extra state), `brain` (steering; default seekBall),
+  // `onShift` (keep brain state consistent when the enemy is teleported), and
+  // `draw` (render decoration — render.js draws the base disc in `color`,
+  // then `draw`, and derives split seams from splitCount). Adding a type is
+  // one entry here plus its TUNING constants.
+  S.ENEMY_TYPES = {
+    chaser: {
+      color: '#e5484d', // red
+      stats: (T) => ({ r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, coinMult: 1 }),
+    },
+    // Gated types claim their roll slice in this order (see the spawn-mix
+    // notes in tuning.js).
+    tank: {
+      color: '#b558f6', // purple
+      stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT }),
+      spawnGate: (T) => ({ delay: T.TANK_SPAWN_DELAY, chance: T.TANK_CHANCE }),
+      // Armor ring above 1 HP that breaks off with the first hit.
+      draw(ctx, e) {
+        if (e.hp <= 1) return;
+        ctx.strokeStyle = '#d8b4fe';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      },
+    },
+    splitter: {
+      color: '#f76b15', // orange
+      stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.SPLITTER_SPAWN_DELAY, chance: T.SPLITTER_CHANCE }),
+      splitCount: 2,
+    },
+    supersplitter: {
+      color: '#ff3300', // red-orange — a splitter, but angrier
+      stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.SUPER_SPLITTER_SPAWN_DELAY, chance: T.SUPER_SPLITTER_CHANCE }),
+      splitCount: 4,
+    },
+    orbiter: {
+      color: '#e93d82', // pink
+      stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.ORBITER_SPAWN_DELAY, chance: T.ORBITER_CHANCE }),
+      onSpawn(e) {
+        e.phase = 'drift'; // 'drift' (creep toward ball) or 'orbit' (spiral)
+        e.driftSpeed = e.speed;
+      },
+      brain: orbiterBrain,
+      onShift: orbiterShift,
+    },
+    runner: {
+      color: '#cc9a1f', // dark gold — it's the payday target
+      stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT }),
+      spawnGate: (T) => ({ delay: T.RUNNER_SPAWN_DELAY, chance: T.RUNNER_CHANCE }),
+      brain: runnerBrain,
+    },
+  };
+
+  // One roll decides the spawn type: each gated type unlocked by survival
+  // time claims its chance slice; whatever's left is a basic chaser.
+  function rollType(game) {
+    const T = S.TUNING;
+    let roll = Math.random();
+    for (const type in S.ENEMY_TYPES) {
+      const gate = S.ENEMY_TYPES[type].spawnGate;
+      if (!gate) continue;
+      const { delay, chance } = gate(T);
+      if (game.time < delay) continue;
+      if (roll < chance) return type;
+      roll -= chance;
+    }
+    return 'chaser';
+  }
+
+  function makeEnemy(type, x, y) {
+    const def = S.ENEMY_TYPES[type];
+    const stats = def.stats(S.TUNING);
+    const e = {
+      x, y, type,
+      kx: 0, ky: 0,
+      r: stats.r,
+      hp: stats.hp,
+      maxHp: stats.hp,
+      damage: stats.damage,
+      speed: stats.speed,
+      coinMult: stats.coinMult,
+      flash: 0, // hit-feedback timer when a smash doesn't kill
+      invuln: 0, // can't be hurt (or hurt the ball) while this runs down
+    };
+    if (def.splitCount) e.splitCount = def.splitCount;
+    if (def.onSpawn) def.onSpawn(e);
+    return e;
+  }
+
+  S.spawnEnemy = function (game) {
+    const type = rollType(game);
+    const r = S.ENEMY_TYPES[type].stats(S.TUNING).r;
+    let x = 0;
+    let y = 0;
+    // Pick an edge point; re-roll a few times if it's right on top of the ball.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const side = Math.floor(Math.random() * 4);
+      const t = Math.random();
+      if (side === 0) { x = t * game.width; y = r; }
+      else if (side === 1) { x = t * game.width; y = game.height - r; }
+      else if (side === 2) { x = r; y = t * game.height; }
+      else { x = game.width - r; y = t * game.height; }
+      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
+    }
+    game.enemies.push(makeEnemy(type, x, y));
+  };
+
+  // A dead splitter breaks into basic chasers (two; four for a
+  // super-splitter) flung evenly apart, briefly invincible so the smash that
+  // freed them can't kill them in the same instant.
+  function splitEnemy(game, e, count) {
+    const T = S.TUNING;
+    const base = Math.random() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      const a = base + (i / count) * Math.PI * 2;
+      const child = makeEnemy('chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
+      child.kx = Math.cos(a) * T.SPLIT_FLING;
+      child.ky = Math.sin(a) * T.SPLIT_FLING;
+      child.invuln = T.SPLIT_INVULN;
+      game.enemies.push(child);
+    }
+  }
+
+  // Move an enemy without breaking its brain — the type's onShift hook keeps
+  // any derived state (an orbiter's anchor) in step.
+  function shiftEnemy(e, dx, dy) {
+    e.x += dx;
+    e.y += dy;
+    const onShift = S.ENEMY_TYPES[e.type].onShift;
+    if (onShift) onShift(e, dx, dy);
   }
 
   // Enemies don't stack: overlapping pairs separate and trade a light bounce
@@ -201,10 +279,8 @@ window.Tethered = window.Tethered || {};
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
     S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
-    if (e.type === 'splitter') {
-      splitEnemy(game, e, 2);
-    } else if (e.type === 'supersplitter') {
-      splitEnemy(game, e, 4);
+    if (e.splitCount) {
+      splitEnemy(game, e, e.splitCount);
     } else {
       S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
       if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
@@ -263,26 +339,12 @@ window.Tethered = window.Tethered || {};
       if (e.flash > 0) e.flash -= dt;
       if (e.invuln > 0) e.invuln -= dt;
 
-      // Per-type steering, plus decaying knockback. Chasers/tanks/splitters
-      // seek the ball; runners do too until the ball gets close, then bolt
-      // (pinned inside the arena); orbiters run their creep/spiral brain.
+      // Per-type steering brain (default: seek the ball), plus decaying
+      // knockback integrated by each brain.
       const decay = Math.exp(-4 * dt);
       e.kx *= decay;
       e.ky *= decay;
-      if (e.type === 'orbiter') {
-        updateOrbiter(game, e, dt);
-      } else {
-        const toBallX = b.x - e.x;
-        const toBallY = b.y - e.y;
-        const dist = Math.hypot(toBallX, toBallY) || 1;
-        const seek = e.type === 'runner' && dist < T.RUNNER_FLEE_RADIUS ? -1 : 1;
-        e.x += ((toBallX / dist) * e.speed * seek + e.kx) * dt;
-        e.y += ((toBallY / dist) * e.speed * seek + e.ky) * dt;
-        if (e.type === 'runner') {
-          e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
-          e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
-        }
-      }
+      (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);
 
       // Collision with the ball (skipped while the death pop plays out —
       // the ball is already gone — and while a fresh split child's

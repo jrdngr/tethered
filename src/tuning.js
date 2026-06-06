@@ -76,6 +76,7 @@ Tethered.TUNING = {
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
   // out around the stall point to max radius, close back in, then creep again
+  ORBITER_HP: 2,              // basic HP — the trick is the movement
   ORBITER_DAMAGE: 15,
   ORBITER_RADIUS: 12,         // px
   ORBITER_SPEED: 70,          // px/s at the start of each creep
@@ -89,6 +90,7 @@ Tethered.TUNING = {
 
   // Runners: chase like a chaser at double speed, but bolt once the ball
   // gets close; worth triple coins
+  RUNNER_HP: 2,             // basic HP — the payout is the point, not the fight
   RUNNER_DAMAGE: 5,
   RUNNER_RADIUS: 12,        // px
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
