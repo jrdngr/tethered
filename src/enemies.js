@@ -186,15 +186,19 @@ window.Tethered = window.Tethered || {};
   // scatter), splitter split after the shockwave (so the children only get
   // their own opposing fling), coin drop at the combo at the moment of the
   // kill, health-drop roll, and (for untethered kills) the combo bump.
+  // Splitters drop nothing themselves — their children pay out instead.
   function popEnemy(game, e, bash, bumpCombo) {
     const T = S.TUNING;
     game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
     S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
-    if (e.type === 'splitter') splitEnemy(game, e);
-    S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
-    if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
+    if (e.type === 'splitter') {
+      splitEnemy(game, e);
+    } else {
+      S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
+      if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
+    }
     if (bumpCombo) S.bumpCombo(game);
   }
 
