@@ -14,7 +14,7 @@ Tethered.TUNING = {
 
   // Tether (elastic spring to cursor)
   GRAB_RADIUS: 48,        // px beyond ball radius that still counts as a grab
-  ROPE_K: 18,             // 1/s^2 — spring constant (accel per px of stretch)
+  ROPE_K: 12,             // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
   ROPE_MAX_REST: 120,     // px — max rest length at grab time
   ROPE_MAX_WRAPS: 6,      // max simultaneous wrap pivots (enemies the rope bends around)
