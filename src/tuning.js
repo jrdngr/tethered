@@ -215,6 +215,7 @@ Tethered.TUNING = {
 
   // Level-5 specials
   POP_EXPLODE_DAMAGE: 4,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
+  POP_EXPLODE_DURATION: 0.45,    // DAMAGE — s, fiery blast wave expanding to the splash radius
   COMBO_SHIELD_THRESHOLD: 10,    // VITALITY — combo crossing this grants a shield
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy

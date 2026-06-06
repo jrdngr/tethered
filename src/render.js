@@ -131,7 +131,25 @@ window.Tethered = window.Tethered || {};
     }
 
     // Death pops: an expanding, fading ring where an enemy was smashed.
+    // DAMAGE-special explosions (`explode`) render as a fiery blast wave
+    // instead — a filled flash plus a hot ring expanding to the splash
+    // radius (p.r holds the radius itself, not an enemy radius to scale).
     for (const p of game.pops) {
+      if (p.explode) {
+        const t = p.t / T.POP_EXPLODE_DURATION;
+        const ease = 1 - (1 - t) * (1 - t);
+        const r = p.r * ease;
+        ctx.fillStyle = `rgba(247, 107, 21, ${0.3 * (1 - t)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 200, 60, ${1 - t})`;
+        ctx.lineWidth = 2 + 5 * (1 - t);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        continue;
+      }
       const t = p.t / T.POP_DURATION;
       const ease = 1 - (1 - t) * (1 - t); // ease-out: fast burst, slow settle
       ctx.strokeStyle = `rgba(229, 72, 77, ${1 - t})`;

@@ -304,6 +304,10 @@ window.Tethered = window.Tethered || {};
   // Corpses are flagged `dead` and swept at the end of updateEnemies.
   function explodePop(game, e) {
     const T = S.TUNING;
+    // Distinct death animation: a blast wave out to the actual splash radius
+    // on top of the normal pop ring (`explode` pops render fiery and live
+    // POP_EXPLODE_DURATION instead of POP_DURATION).
+    game.pops.push({ x: e.x, y: e.y, r: T.ENEMY_POP_PUSH_RADIUS, t: 0, explode: true });
     for (const o of game.enemies) {
       if (o.dead || o.invuln > 0) continue;
       if (Math.hypot(o.x - e.x, o.y - e.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
@@ -391,11 +395,11 @@ window.Tethered = window.Tethered || {};
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
-    // Advance death-pop animations.
+    // Advance death-pop animations (explosion blast waves run longer).
     for (let i = game.pops.length - 1; i >= 0; i--) {
       const p = game.pops[i];
       p.t += dt;
-      if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
+      if (p.t >= (p.explode ? T.POP_EXPLODE_DURATION : T.POP_DURATION)) game.pops.splice(i, 1);
     }
 
     // Spawn rate climbs exponentially: it doubles every SPAWN_DOUBLE_TIME of
