@@ -22,6 +22,14 @@ window.Tethered = window.Tethered || {};
   S.damageBall = function (game, enemy, nx, ny) {
     const T = S.TUNING;
     const b = game.ball;
+    // Dev-panel invincibility: the hit fully no-ops (no damage, knockback,
+    // combo reset, or shield loss). I-frames still apply so the collision
+    // loop doesn't re-enter every tick. (S.dev is defined in devpanel.js,
+    // which loads after this file — guard for safety.)
+    if (S.dev && S.dev.invincible) {
+      b.iframes = T.IFRAME_DURATION;
+      return;
+    }
     if (b.shield) {
       b.shield = false;
       b.shieldCooldown = T.COMBO_SHIELD_COOLDOWN;

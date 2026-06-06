@@ -216,6 +216,12 @@ Tethered.TUNING = {
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
   MOMENTUM_BASH_HP_FACTOR: 1,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
+  // Dev panel: a reserved column on the right (like the HUD band up top)
+  // with debug buttons — pause, heal, invincibility, spawners, upgrades.
+  // Hidden by default; the toggle key shrinks the arena to make room.
+  DEV_PANEL_WIDTH: 150,          // px column when open
+  DEV_PANEL_TOGGLE: 'Backquote', // KeyboardEvent.code that toggles it
+
   // Loop
   PHYSICS_HZ: 120,
 };

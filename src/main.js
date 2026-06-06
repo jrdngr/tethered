@@ -7,29 +7,37 @@ window.Tethered = window.Tethered || {};
   let game;
 
   // The game's coordinate space is the play area: the canvas minus the HUD
-  // band reserved at the top. Rendering translates the world down by
-  // HUD_HEIGHT so game elements never pass under the UI.
+  // band reserved at the top and the dev panel column on the right (when
+  // open). Rendering translates the world down by HUD_HEIGHT so game
+  // elements never pass under the UI.
   function playHeight() {
     return canvas.height - S.TUNING.HUD_HEIGHT;
+  }
+
+  // Recompute the arena from the canvas and the dev panel — called on window
+  // resize and when the panel toggles. A shrink self-corrects: the ball's
+  // wall clamp snaps it back in, and enemies steer toward the (in-bounds)
+  // ball.
+  function applyArenaSize() {
+    game.width = S.arenaWidth(canvas.width);
+    game.height = playHeight();
   }
 
   function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    if (game) {
-      game.width = canvas.width;
-      game.height = playHeight();
-    }
+    if (game) applyArenaSize();
   }
   window.addEventListener('resize', resize);
   resize();
 
   function reset() {
+    const w = S.arenaWidth(canvas.width);
     // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
-      width: canvas.width,
+      width: w,
       height: playHeight(),
-      ball: S.createBall(canvas.width, playHeight()),
+      ball: S.createBall(w, playHeight()),
       tether: S.createTether(),
       enemies: [],
       pops: [], // enemy death pop animations
@@ -39,7 +47,7 @@ window.Tethered = window.Tethered || {};
       particles: [], // green sparks from grabbed health pickups
       weaponState: { active: false }, // weapons arm on tether release, expire when slow
 
-      mouse: { x: canvas.width / 2, y: playHeight() / 2 },
+      mouse: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
       comboIdle: 0, // s since the combo last changed; COMBO_TIMEOUT resets it
       level: 1,
@@ -54,16 +62,33 @@ window.Tethered = window.Tethered || {};
     };
   }
 
-  function updateMouse(e) {
+  // Raw canvas coordinates, for the dev panel (it sits outside the play area).
+  function canvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
-    game.mouse.x = e.clientX - rect.left;
-    // Play-area coordinates; clamp so a cursor over the HUD anchors the
-    // tether at the arena's top edge instead of inside the UI.
-    game.mouse.y = Math.max(e.clientY - rect.top - S.TUNING.HUD_HEIGHT, 0);
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  canvas.addEventListener('mousemove', updateMouse);
+  function updateMouse(e) {
+    const p = canvasPoint(e);
+    // Play-area coordinates; clamp so a cursor over the HUD (or the dev
+    // panel) anchors the tether at the arena's edge instead of inside the UI.
+    game.mouse.x = Math.min(p.x, game.width);
+    game.mouse.y = Math.max(p.y - S.TUNING.HUD_HEIGHT, 0);
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    updateMouse(e);
+    const p = canvasPoint(e);
+    S.devHover(game, canvas.width, p.x, p.y);
+  });
   canvas.addEventListener('mousedown', (e) => {
+    // Clicks in the dev panel column go to its buttons and never reach the
+    // game — no grabbing the ball, picking a card, or restarting through it.
+    const p = canvasPoint(e);
+    if (S.dev.open && p.x >= game.width) {
+      S.devClick(game, canvas.width, p.x, p.y);
+      return;
+    }
     updateMouse(e);
     if (game.state === S.STATE.GAMEOVER) {
       reset();
@@ -78,6 +103,15 @@ window.Tethered = window.Tethered || {};
   });
   window.addEventListener('mouseup', () => S.releaseTether(game));
   window.addEventListener('blur', () => S.releaseTether(game));
+
+  // Dev panel toggle. Closing it force-resumes so the game can't sit in an
+  // invisible pause; invincibility deliberately persists while hidden.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== S.TUNING.DEV_PANEL_TOGGLE) return;
+    S.dev.open = !S.dev.open;
+    if (!S.dev.open) S.dev.paused = false;
+    applyArenaSize();
+  });
 
   function update(dt) {
     const T = S.TUNING;
@@ -109,8 +143,10 @@ window.Tethered = window.Tethered || {};
     last = now;
     dt = Math.min(dt, 0.1); // avoid spiral of death after a background tab
 
-    // Physics runs while playing and through the death animation.
-    const live = () => game.state === S.STATE.PLAYING || game.state === S.STATE.DYING;
+    // Physics runs while playing and through the death animation — unless
+    // the dev panel has it paused (rendering continues either way).
+    const live = () => !S.dev.paused &&
+      (game.state === S.STATE.PLAYING || game.state === S.STATE.DYING);
     if (live()) {
       acc += dt;
       while (acc >= STEP && live()) {

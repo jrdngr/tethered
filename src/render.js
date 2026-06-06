@@ -203,6 +203,10 @@ window.Tethered = window.Tethered || {};
     if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
     if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
     ctx.restore();
+
+    // Dev panel column on the right, in raw canvas coordinates. The arena
+    // fills above only cover game.width, so the two tile exactly.
+    S.drawDevPanel(ctx, game);
   };
 
   function lerpColor(a, b, t) {
@@ -319,21 +323,25 @@ window.Tethered = window.Tethered || {};
       ctx.strokeStyle = hover ? '#ffc53d' : '#2a2d3a';
       ctx.lineWidth = 2;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
+      // The upgrade's glyph — the same icon the dev panel buttons use.
+      ctx.save(); // icons set their own colors/joins/alpha
+      u.icon(ctx, r.x + r.w / 2, r.y + 26, 28);
+      ctx.restore();
       ctx.fillStyle = '#ffc53d';
       ctx.font = 'bold 16px monospace';
-      ctx.fillText(u.name, r.x + r.w / 2, r.y + 42);
+      ctx.fillText(u.name, r.x + r.w / 2, r.y + 58);
       const lvl = S.upgradeLevel(game, u);
       const final = lvl === S.TUNING.UPGRADE_LEVEL_MAX - 1; // next pick is the special
       ctx.fillStyle = final ? '#ffc53d' : '#9aa0b4';
       ctx.font = '13px monospace';
-      ctx.fillText(final ? u.specialDesc() : u.desc(), r.x + r.w / 2, r.y + 76);
+      ctx.fillText(final ? u.specialDesc() : u.desc(), r.x + r.w / 2, r.y + 86);
       // Level pips: one per level, filled up to the current level.
       const max = S.TUNING.UPGRADE_LEVEL_MAX;
       const pipGap = 14;
       const px0 = r.x + r.w / 2 - ((max - 1) * pipGap) / 2;
       for (let p = 0; p < max; p++) {
         ctx.beginPath();
-        ctx.arc(px0 + p * pipGap, r.y + r.h - 18, 3.5, 0, Math.PI * 2);
+        ctx.arc(px0 + p * pipGap, r.y + r.h - 16, 3.5, 0, Math.PI * 2);
         if (p < lvl) {
           ctx.fillStyle = '#ffc53d';
           ctx.fill();

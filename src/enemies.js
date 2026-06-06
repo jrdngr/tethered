@@ -175,8 +175,10 @@ window.Tethered = window.Tethered || {};
     return e;
   }
 
-  S.spawnEnemy = function (game) {
-    const type = rollType(game);
+  // Edge-spawn one enemy. The type rolls from the survival-gated mix unless
+  // forced (dev panel spawn buttons).
+  S.spawnEnemy = function (game, forcedType) {
+    const type = forcedType || rollType(game);
     const r = S.ENEMY_TYPES[type].stats(S.TUNING).r;
     let x = 0;
     let y = 0;
