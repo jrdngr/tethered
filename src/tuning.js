@@ -186,7 +186,7 @@ Tethered.TUNING = {
   WEAPON_TAIL_WIDTH: 12,       // px hit-capsule radius / half-width at the wide tip
   WEAPON_TAIL_DMG: 1,
   WEAPON_TAIL_TURN_K: 140,     // 1/s^2 — spring accel pulling the floppy tail toward straight-behind
-  WEAPON_TAIL_TURN_DAMPING: 6, // 1/s — light damping: the tail overshoots and keeps swinging
+  WEAPON_TAIL_TURN_DAMPING: 12, // 1/s — moderate damping: a few overshoots before the tail settles
   WEAPON_TAIL_WIND_PER_SPEED: 1.0, // 1/s^2 per px/s — headwind: extra pull toward straight-behind per unit of ball speed
   WEAPON_TAIL_TIME_SCALE: 0.5, // the tail spring integrates in slowed time: the same motion at this × speed
   WEAPON_EARS_REACH: 16,       // px the side crescents extend (0.5× ball diameter)
