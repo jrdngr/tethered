@@ -238,7 +238,8 @@ window.Tethered = window.Tethered || {};
         // MOMENTUM is picked); the ball bounces off along the normal (same
         // shape as the damage knockback) keeping most of its speed either way.
         // Bashing — damage past BASH_HP_FACTOR × max HP — plows
-        // straight through instead and pops with BASH_POP_PUSH × force.
+        // through instead (deflected but never bounced backwards) and
+        // pops with BASH_POP_PUSH × force.
         const dmg = S.smashDamage(game);
         const bash = dmg > e.maxHp * T.BASH_HP_FACTOR;
         e.hp -= dmg;
@@ -269,13 +270,19 @@ window.Tethered = window.Tethered || {};
           e.y = b.y - ny * (b.r + e.r);
         }
         // KILL SURGE: pops feed speed back into the ball (capped next step).
-        // A bash keeps the ball's heading; otherwise it bounces off
-        // along the normal.
+        // A bash plows through: it deflects toward the bounce normal but
+        // never backwards — clamped to BASH_DEFLECT_MAX off the incoming
+        // heading, so the ball always keeps forward momentum. Otherwise it
+        // bounces off along the normal.
         const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + (killed ? game.stats.killBoost : 0);
         if (bash) {
-          const cur = S.ballSpeed(b) || 1;
-          b.vx = (b.vx / cur) * speed;
-          b.vy = (b.vy / cur) * speed;
+          const heading = Math.atan2(b.vy, b.vx);
+          let dev = Math.atan2(ny, nx) - heading;
+          dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
+          const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
+          const out = heading + Math.max(-max, Math.min(max, dev));
+          b.vx = Math.cos(out) * speed;
+          b.vy = Math.sin(out) * speed;
         } else {
           b.vx = nx * speed;
           b.vy = ny * speed;

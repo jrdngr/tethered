@@ -86,9 +86,10 @@ Tethered.TUNING = {
   ENEMY_POP_PUSH_RADIUS: 120, // ...fading to 0 at this range
 
   // Bashing: a smash dealing more than BASH_HP_FACTOR × the enemy's
-  // max HP plows straight through (no bounce) and pops harder
-  BASH_HP_FACTOR: 5,    // damage must exceed this × max HP
-  BASH_POP_PUSH: 2,     // × ENEMY_POP_PUSH on a bash pop
+  // max HP plows through (deflected, never bounced back) and pops harder
+  BASH_HP_FACTOR: 5,        // damage must exceed this × max HP
+  BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
+  BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
 
   // Player death: a far bigger pop than an enemy's — staggered shockwave
   // rings, a spark burst, and a screen flash — plus an arena-wide blast
