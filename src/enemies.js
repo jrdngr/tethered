@@ -108,8 +108,10 @@ window.Tethered = window.Tethered || {};
         if (e.hp <= 0) {
           game.enemies.splice(i, 1);
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
-          // The pop gives nearby enemies a small shove.
+          // The pop shoves nearby enemies and pickups away (before this
+          // kill's own coins drop, so they only get their burst scatter).
           S.pushEnemies(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
+          S.pushCoins(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
           // Coin drop scales with the combo at the moment of the kill.
           S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
           if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);

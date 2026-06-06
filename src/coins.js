@@ -49,6 +49,21 @@ window.Tethered = window.Tethered || {};
     });
   };
 
+  // Radial shockwave for pickups: shove every coin and health pickup within
+  // `radius` of (x, y) away, fading linearly with distance. The pickup
+  // counterpart of S.pushEnemies.
+  S.pushCoins = function (game, x, y, speed, radius) {
+    for (const c of game.coins) {
+      const dx = c.x - x;
+      const dy = c.y - y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d >= radius) continue;
+      const fade = 1 - d / radius;
+      c.vx += (dx / d) * speed * fade;
+      c.vy += (dy / d) * speed * fade;
+    }
+  };
+
   // Green spark burst where a health pickup was grabbed.
   function spawnHealParticles(game, x, y) {
     const T = S.TUNING;
