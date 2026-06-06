@@ -11,11 +11,18 @@ window.Tethered = window.Tethered || {};
       r: S.TUNING.BALL_RADIUS,
       hp: S.TUNING.MAX_HP,
       iframes: 0,
+      shield: false, // one-hit shield from the VITALITY special
     };
   };
 
   S.ballSpeed = function (ball) {
     return Math.hypot(ball.vx, ball.vy);
+  };
+
+  // "At top speed" for the level-5 specials. Drag dips the speed slightly
+  // between cap clamps, so accept anything within a hair of the cap.
+  S.atMaxSpeed = function (game) {
+    return S.ballSpeed(game.ball) >= game.stats.maxSpeed * S.TUNING.MAX_SPEED_FRACTION;
   };
 
   S.updateBall = function (game, dt) {
@@ -26,6 +33,20 @@ window.Tethered = window.Tethered || {};
     const decay = Math.exp(-T.BALL_DRAG * dt);
     b.vx *= decay;
     b.vy *= decay;
+
+    // TOP SPEED special: at the cap, bend gently toward the nearest enemy.
+    // The cap below re-clamps, so it reads as a homing curve, not a speedup.
+    // Suppressed while tethered — it would fight the player's steering.
+    if (game.stats.homing && !game.tether.active && S.atMaxSpeed(game)) {
+      const e = S.nearestEnemy(game, b.x, b.y);
+      if (e) {
+        const dx = e.x - b.x;
+        const dy = e.y - b.y;
+        const d = Math.hypot(dx, dy) || 1;
+        b.vx += (dx / d) * T.HOMING_ACCEL * dt;
+        b.vy += (dy / d) * T.HOMING_ACCEL * dt;
+      }
+    }
 
     // Speed cap (upgradable stat).
     const speed = S.ballSpeed(b);

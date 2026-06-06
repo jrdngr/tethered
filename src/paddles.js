@@ -10,8 +10,13 @@ window.Tethered = window.Tethered || {};
     return edge < 2 ? game.width : game.height;
   }
 
-  // The PADDLE upgrade: fill empty edges first, then double up (two max per
-  // edge — PADDLES_MAX). A second paddle drops into the emptier half of its
+  // Paddle length along its edge; the PADDLE special doubles every paddle.
+  function paddleLen(game) {
+    return S.TUNING.PADDLE_LENGTH * (game.stats.paddleWide ? 2 : 1);
+  }
+
+  // The PADDLE upgrade: fill empty edges first, then double up (one paddle
+  // per level, four max). A second paddle drops into the emptier half of its
   // edge so it doesn't spawn on top of its peer.
   S.addPaddle = function (game) {
     const counts = EDGES.map((e) => game.paddles.filter((p) => p.edge === e).length);
@@ -30,7 +35,7 @@ window.Tethered = window.Tethered || {};
   // The paddle's rectangle, shared by physics and render.
   S.paddleRect = function (game, p) {
     const T = S.TUNING;
-    const L = T.PADDLE_LENGTH;
+    const L = paddleLen(game);
     const K = T.PADDLE_THICKNESS;
     if (p.edge === 0) return { x: p.pos - L / 2, y: 0, w: L, h: K };
     if (p.edge === 1) return { x: p.pos - L / 2, y: game.height - K, w: L, h: K };
@@ -40,7 +45,7 @@ window.Tethered = window.Tethered || {};
 
   S.updatePaddles = function (game, dt) {
     const T = S.TUNING;
-    const half = T.PADDLE_LENGTH / 2;
+    const half = paddleLen(game) / 2;
 
     // Patrol: slide along the edge, bouncing off its ends. The clamp also
     // herds paddles back in bounds after a window resize.
@@ -58,7 +63,7 @@ window.Tethered = window.Tethered || {};
       if (pair.length < 2) continue;
       pair.sort((a, b) => a.pos - b.pos);
       const [lo, hi] = pair;
-      if (hi.pos - lo.pos < T.PADDLE_LENGTH) {
+      if (hi.pos - lo.pos < paddleLen(game)) {
         const mid = (lo.pos + hi.pos) / 2;
         lo.pos = mid - half;
         hi.pos = mid + half;

@@ -168,6 +168,60 @@ window.Tethered = window.Tethered || {};
     }
   };
 
+  // Closest live enemy to (x, y), or null. Used by the TOP SPEED special's
+  // homing bend.
+  S.nearestEnemy = function (game, x, y) {
+    let best = null;
+    let bestD = Infinity;
+    for (const e of game.enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - x, e.y - y);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    return best;
+  };
+
+  // Pop a dead enemy: ring animation, shockwave to nearby enemies and
+  // pickups (before this kill's own coins drop, so they only get their burst
+  // scatter), splitter split after the shockwave (so the children only get
+  // their own opposing fling), coin drop at the combo at the moment of the
+  // kill, health-drop roll, and (for untethered kills) the combo bump.
+  function popEnemy(game, e, bash, bumpCombo) {
+    const T = S.TUNING;
+    game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+    const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
+    S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
+    S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
+    if (e.type === 'splitter') splitEnemy(game, e);
+    S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
+    if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
+    if (bumpCombo) S.bumpCombo(game);
+  }
+
+  // DAMAGE special: every pop splash-damages the live enemies inside its
+  // push radius; deaths pop in turn and chain (full kills — coins, combo,
+  // even splitter children spawned mid-cascade can get caught). Corpses are
+  // flagged `dead` and swept at the end of updateEnemies.
+  function explodePop(game, e) {
+    const T = S.TUNING;
+    const work = [e];
+    while (work.length) {
+      const src = work.pop();
+      for (const o of game.enemies) {
+        if (o.dead) continue;
+        if (Math.hypot(o.x - src.x, o.y - src.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
+        o.hp -= T.POP_EXPLODE_DAMAGE;
+        if (o.hp <= 0) {
+          o.dead = true;
+          popEnemy(game, o, false, true);
+          work.push(o);
+        } else {
+          o.flash = T.HIT_FLASH_DURATION;
+        }
+      }
+    }
+  }
+
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
@@ -193,6 +247,10 @@ window.Tethered = window.Tethered || {};
     const b = game.ball;
     for (let i = game.enemies.length - 1; i >= 0; i--) {
       const e = game.enemies[i];
+
+      // Killed earlier this tick by a pop chain — already popped, just waits
+      // for the sweep below.
+      if (e.dead) continue;
 
       if (e.flash > 0) e.flash -= dt;
 
@@ -241,24 +299,16 @@ window.Tethered = window.Tethered || {};
         // through instead (deflected but never bounced backwards) and
         // pops with BASH_POP_PUSH × force.
         const dmg = S.smashDamage(game);
-        const bash = dmg > e.maxHp * T.BASH_HP_FACTOR;
+        // MOMENTUM special: bashing comes easier at top speed.
+        const bashFactor = game.stats.bashEasy && S.atMaxSpeed(game)
+          ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
+        const bash = dmg > e.maxHp * bashFactor;
         e.hp -= dmg;
         const killed = e.hp <= 0;
         if (killed) {
-          game.enemies.splice(i, 1);
-          game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
-          // The pop shoves nearby enemies and pickups away (before this
-          // kill's own coins drop, so they only get their burst scatter).
-          const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
-          S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
-          S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
-          // Splitters break in two after the shockwave, so the children only
-          // get their own opposing fling.
-          if (e.type === 'splitter') splitEnemy(game, e);
-          // Coin drop scales with the combo at the moment of the kill.
-          S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
-          if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
-          if (!tethered) S.bumpCombo(game);
+          e.dead = true;
+          popEnemy(game, e, bash, !tethered);
+          if (game.stats.popExplode) explodePop(game, e);
         } else {
           // Armor absorbed the hit: flash, knock the enemy back, and separate
           // so the next physics step doesn't land a second hit. No combo —
@@ -269,12 +319,14 @@ window.Tethered = window.Tethered || {};
           e.x = b.x - nx * (b.r + e.r);
           e.y = b.y - ny * (b.r + e.r);
         }
-        // KILL SURGE: pops feed speed back into the ball (capped next step).
-        // A bash plows through: it deflects toward the bounce normal but
-        // never backwards — clamped to BASH_DEFLECT_MAX off the incoming
-        // heading, so the ball always keeps forward momentum. Otherwise it
-        // bounces off along the normal.
-        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + (killed ? game.stats.killBoost : 0);
+        // KILL SURGE: pops feed speed back into the ball (capped next step);
+        // its special pays out on every smash, kill or not. A bash plows
+        // through: it deflects toward the bounce normal but never backwards
+        // — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
+        // ball always keeps forward momentum. Otherwise it bounces off along
+        // the normal.
+        const surge = killed || game.stats.surgeEverySmash ? game.stats.killBoost : 0;
+        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
         if (bash) {
           const heading = Math.atan2(b.vy, b.vx);
           let dev = Math.atan2(ny, nx) - heading;
@@ -289,13 +341,17 @@ window.Tethered = window.Tethered || {};
         }
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
-        if (game.state !== 'playing') return;
+        if (game.state !== 'playing') break; // dead — still sweep corpses below
       } else {
         // During i-frames: just keep the enemy from overlapping the ball
         // (anchor-aware so the push sticks on an orbiting orbiter).
         shiftEnemy(e, b.x - nx * (b.r + e.r) - e.x, b.y - ny * (b.r + e.r) - e.y);
       }
     }
+
+    // Sweep this tick's corpses in one pass — the loop and the pop chains
+    // only flag them, so mid-iteration kills can't corrupt the indices.
+    game.enemies = game.enemies.filter((e) => !e.dead);
 
     resolveEnemyOverlaps(game);
   };

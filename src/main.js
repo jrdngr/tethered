@@ -36,8 +36,9 @@ window.Tethered = window.Tethered || {};
       level: 1,
       coinProgress: 0, // coins collected toward the next level
       stats: S.createStats(), // per-run stats raised by level-up upgrades
+      upgradeLevels: {}, // upgrade name -> level picked this run (absent = 0)
       pendingLevelUps: 0, // level-ups awaiting an upgrade pick
-      upgradeChoices: null, // the three cards on offer while state is 'levelup'
+      upgradeChoices: null, // the cards on offer while state is 'levelup'
       time: 0,
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: 'playing',

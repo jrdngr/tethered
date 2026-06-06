@@ -144,19 +144,29 @@ Tethered.TUNING = {
   HEAL_PARTICLE_LIFE: 0.5,   // s — max particle lifetime
 
   // Paddles: upgrade-granted rectangles that patrol screen edges and launch
-  // the ball to top speed on contact. Capped at two per edge (8 total).
-  PADDLE_LENGTH: 110,    // px along the edge
+  // the ball to top speed on contact. One per PADDLE level (4 max); the
+  // level-5 special doubles every paddle's length instead.
+  PADDLE_LENGTH: 55,     // px along the edge (doubled by the PADDLE special)
   PADDLE_THICKNESS: 14,  // px into the arena
   PADDLE_SPEED: 200,     // px/s patrol speed
-  PADDLES_MAX: 8,
 
-  // Level-up upgrades (gain per pick; the damage upgrade is +1)
+  // Level-up upgrades (gain per pick; the damage upgrade is +1). Each tops
+  // out at UPGRADE_LEVEL_MAX: levels 1-4 are the normal gain, the 5th pick
+  // grants only that upgrade's special effect, then it leaves the pool.
+  UPGRADE_LEVEL_MAX: 5,       // picks per upgrade; the 5th is a special
   UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick
   UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius
-  UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin magnet pull
+  UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin pull (×2 = the MAGNET RANGE special)
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
   UPGRADE_SPEED_DAMAGE: 0.5,  // × damage at the speed cap per MOMENTUM pick
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
+
+  // Level-5 specials
+  POP_EXPLODE_DAMAGE: 1,         // DAMAGE — splash dmg inside the pop push radius
+  COMBO_SHIELD_THRESHOLD: 20,    // VITALITY — combo crossing this grants a shield
+  HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy
+  MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
+  MOMENTUM_BASH_HP_FACTOR: 4,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
   // Loop
   PHYSICS_HZ: 120,

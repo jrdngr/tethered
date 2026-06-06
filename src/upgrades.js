@@ -1,10 +1,13 @@
 // Level-up rewards: the game pauses and the player picks one of three
 // upgrades rolled from the pool. Upgrades modify per-run stats, never TUNING.
+// Each upgrade has UPGRADE_LEVEL_MAX levels: every level but the last is the
+// normal gain, the final pick grants only the upgrade's special effect, and a
+// maxed upgrade leaves the pool.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Per-run stats that upgrades raise. Gameplay code reads these instead of
-  // the corresponding TUNING base values.
+  // the corresponding TUNING base values. The booleans are level-5 specials.
   S.createStats = function () {
     const T = S.TUNING;
     return {
@@ -15,7 +18,17 @@ window.Tethered = window.Tethered || {};
       maxSpeed: T.BALL_MAX_SPEED,
       speedDamage: 1, // × damage at the speed cap (MOMENTUM); 1 = speed has no effect
       killBoost: 0,   // px/s the ball gains per popped enemy (KILL SURGE)
+      popExplode: false,      // DAMAGE: pops splash-damage nearby enemies, chaining
+      homing: false,          // TOP SPEED: bend toward the nearest enemy at top speed
+      bashEasy: false,        // MOMENTUM: lower bash threshold at top speed
+      surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills
+      paddleWide: false,      // PADDLE: every paddle is double length
+      comboShield: false,     // VITALITY: crossing the combo threshold grants a shield
     };
+  };
+
+  S.upgradeLevel = function (game, u) {
+    return game.upgradeLevels[u.name] || 0;
   };
 
   // Damage per smash. With MOMENTUM picked, it scales with speed: ×1 at the
@@ -29,17 +42,15 @@ window.Tethered = window.Tethered || {};
   };
 
   // The full pool; each level-up offers three of these at random.
-  // desc is a function so console-tuned TUNING values show up live.
+  // desc/specialDesc are functions so console-tuned TUNING values show up
+  // live. apply is the normal per-level gain; special fires on the final pick.
   S.UPGRADES = [
     {
       name: 'MAGNET RANGE',
       desc: () => `+${S.TUNING.UPGRADE_MAGNET_RADIUS}px coin pull radius`,
       apply: (game) => { game.stats.magnetRadius += S.TUNING.UPGRADE_MAGNET_RADIUS; },
-    },
-    {
-      name: 'MAGNET POWER',
-      desc: () => `+${S.TUNING.UPGRADE_MAGNET_ACCEL} coin pull accel`,
-      apply: (game) => { game.stats.magnetAccel += S.TUNING.UPGRADE_MAGNET_ACCEL; },
+      specialDesc: () => '2× coin pull force',
+      special: (game) => { game.stats.magnetAccel += 2 * S.TUNING.UPGRADE_MAGNET_ACCEL; },
     },
     {
       name: 'VITALITY',
@@ -48,39 +59,50 @@ window.Tethered = window.Tethered || {};
         game.stats.maxHp += S.TUNING.UPGRADE_MAX_HP;
         game.ball.hp += S.TUNING.UPGRADE_MAX_HP;
       },
+      specialDesc: () => `shield at combo x${S.TUNING.COMBO_SHIELD_THRESHOLD}`,
+      special: (game) => { game.stats.comboShield = true; },
     },
     {
       name: 'DAMAGE',
       desc: () => '+1 damage per smash',
       apply: (game) => { game.stats.damage += 1; },
+      specialDesc: () => 'pops chain-explode',
+      special: (game) => { game.stats.popExplode = true; },
     },
     {
       name: 'TOP SPEED',
       desc: () => `+${S.TUNING.UPGRADE_MAX_SPEED} max ball speed`,
       apply: (game) => { game.stats.maxSpeed += S.TUNING.UPGRADE_MAX_SPEED; },
+      specialDesc: () => 'home in at top speed',
+      special: (game) => { game.stats.homing = true; },
     },
     {
       name: 'MOMENTUM',
       desc: () => `+${S.TUNING.UPGRADE_SPEED_DAMAGE}× dmg at top speed`,
       apply: (game) => { game.stats.speedDamage += S.TUNING.UPGRADE_SPEED_DAMAGE; },
+      specialDesc: () => 'easier bash at top speed',
+      special: (game) => { game.stats.bashEasy = true; },
     },
     {
       name: 'KILL SURGE',
       desc: () => `+${S.TUNING.UPGRADE_KILL_BOOST} speed per pop`,
       apply: (game) => { game.stats.killBoost += S.TUNING.UPGRADE_KILL_BOOST; },
+      specialDesc: () => 'boost on every smash',
+      special: (game) => { game.stats.surgeEverySmash = true; },
     },
     {
       name: 'PADDLE',
       desc: () => '+1 top-speed wall paddle',
       apply: (game) => S.addPaddle(game),
-      available: (game) => game.paddles.length < S.TUNING.PADDLES_MAX,
+      specialDesc: () => '2× paddle width',
+      special: (game) => { game.stats.paddleWide = true; },
     },
   ];
 
-  // Three distinct upgrades, uniformly random from the pool (Fisher-Yates).
-  // Upgrades with an `available` gate (e.g. PADDLE at its cap) drop out.
+  // Up to three distinct upgrades, uniformly random from the pool
+  // (Fisher-Yates). Maxed-out upgrades drop out, so late runs offer fewer.
   function rollChoices(game) {
-    const pool = S.UPGRADES.filter((u) => !u.available || u.available(game));
+    const pool = S.UPGRADES.filter((u) => S.upgradeLevel(game, u) < S.TUNING.UPGRADE_LEVEL_MAX);
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -88,16 +110,28 @@ window.Tethered = window.Tethered || {};
     return pool.slice(0, 3);
   }
 
-  // Freeze the game and present three choices. Consumes one pending level-up;
-  // chooseUpgrade chains back here if more are queued.
+  // Freeze the game and present the choices. Consumes one pending level-up;
+  // chooseUpgrade chains back here if more are queued. With every upgrade
+  // maxed there's nothing to offer — drop the queue and keep playing.
   S.startLevelUp = function (game) {
+    const choices = rollChoices(game);
+    if (choices.length === 0) {
+      game.pendingLevelUps = 0;
+      game.state = 'playing'; // also unfreezes a chooseUpgrade chain that ran dry
+      return;
+    }
     game.state = 'levelup';
     S.releaseTether(game);
-    game.upgradeChoices = rollChoices(game);
+    game.upgradeChoices = choices;
   };
 
   S.chooseUpgrade = function (game, index) {
-    game.upgradeChoices[index].apply(game);
+    const u = game.upgradeChoices[index];
+    const next = S.upgradeLevel(game, u) + 1;
+    // The final level grants only the special — no normal gain.
+    if (next === S.TUNING.UPGRADE_LEVEL_MAX) u.special(game);
+    else u.apply(game);
+    game.upgradeLevels[u.name] = next;
     game.upgradeChoices = null;
     game.pendingLevelUps -= 1;
     if (game.pendingLevelUps > 0) S.startLevelUp(game);
@@ -105,13 +139,15 @@ window.Tethered = window.Tethered || {};
   };
 
   // Card layout, shared by render (drawing) and main (click hit-testing).
+  // Sized to however many choices are on offer (the pool shrinks as upgrades max).
   S.upgradeCardRects = function (game) {
     const w = 200;
     const h = 120;
     const gap = 24;
-    const x0 = (game.width - (3 * w + 2 * gap)) / 2;
+    const n = game.upgradeChoices ? game.upgradeChoices.length : 3;
+    const x0 = (game.width - (n * w + (n - 1) * gap)) / 2;
     const y = game.height / 2 - h / 2;
-    return [0, 1, 2].map((i) => ({ x: x0 + i * (w + gap), y, w, h }));
+    return Array.from({ length: n }, (_, i) => ({ x: x0 + i * (w + gap), y, w, h }));
   };
 
   // Apply the upgrade under (mx, my), if any.

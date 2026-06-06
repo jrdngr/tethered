@@ -6,13 +6,22 @@ window.Tethered = window.Tethered || {};
   // +1 per wall bounce / enemy kill while fast.
   S.bumpCombo = function (game) {
     game.combo += 1;
+    // VITALITY special: crossing the threshold grants a one-hit shield
+    // (max 1 held — losing it means rebuilding the combo for another).
+    if (game.stats.comboShield && game.combo >= S.TUNING.COMBO_SHIELD_THRESHOLD &&
+        !game.ball.shield) {
+      game.ball.shield = true;
+    }
   };
 
-  // Vulnerable ball touched by an enemy. (nx, ny) is the unit normal from enemy to ball.
+  // Vulnerable ball touched by an enemy. (nx, ny) is the unit normal from
+  // enemy to ball. A shield eats the damage, but the hit still knocks back,
+  // grants i-frames, and resets the combo.
   S.damageBall = function (game, enemy, nx, ny) {
     const T = S.TUNING;
     const b = game.ball;
-    b.hp -= enemy.damage;
+    if (b.shield) b.shield = false;
+    else b.hp -= enemy.damage;
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
     // Knock both apart.

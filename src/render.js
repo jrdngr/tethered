@@ -179,6 +179,15 @@ window.Tethered = window.Tethered || {};
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+
+      // VITALITY special: the held one-hit shield is a cyan ring.
+      if (b.shield) {
+        ctx.strokeStyle = '#aef4ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     drawHud(ctx, game);
@@ -259,7 +268,9 @@ window.Tethered = window.Tethered || {};
     ctx.fillRect(tx - 1, my - 3, 2, meterH + 6);
   }
 
-  // Level-up pause: three upgrade cards, hover to highlight, click to pick.
+  // Level-up pause: up to three upgrade cards, hover to highlight, click to
+  // pick. Each card shows its level as a row of pips; an upgrade one pick
+  // from the cap advertises its special in gold instead of the normal gain.
   function drawLevelUp(ctx, game) {
     ctx.fillStyle = 'rgba(13, 14, 20, 0.8)';
     ctx.fillRect(0, 0, game.width, game.height);
@@ -288,9 +299,27 @@ window.Tethered = window.Tethered || {};
       ctx.fillStyle = '#ffc53d';
       ctx.font = 'bold 16px monospace';
       ctx.fillText(u.name, r.x + r.w / 2, r.y + 42);
-      ctx.fillStyle = '#9aa0b4';
+      const lvl = S.upgradeLevel(game, u);
+      const final = lvl === S.TUNING.UPGRADE_LEVEL_MAX - 1; // next pick is the special
+      ctx.fillStyle = final ? '#ffc53d' : '#9aa0b4';
       ctx.font = '13px monospace';
-      ctx.fillText(u.desc(), r.x + r.w / 2, r.y + 76);
+      ctx.fillText(final ? u.specialDesc() : u.desc(), r.x + r.w / 2, r.y + 76);
+      // Level pips: one per level, filled up to the current level.
+      const max = S.TUNING.UPGRADE_LEVEL_MAX;
+      const pipGap = 14;
+      const px0 = r.x + r.w / 2 - ((max - 1) * pipGap) / 2;
+      for (let p = 0; p < max; p++) {
+        ctx.beginPath();
+        ctx.arc(px0 + p * pipGap, r.y + r.h - 18, 3.5, 0, Math.PI * 2);
+        if (p < lvl) {
+          ctx.fillStyle = '#ffc53d';
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = '#2a2d3a';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
     });
   }
 
