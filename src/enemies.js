@@ -76,7 +76,8 @@ window.Tethered = window.Tethered || {};
   // Everything about an enemy type in one place. `stats` resolves from TUNING
   // at spawn time so console tuning shows up live; `spawnGate` claims a slice
   // of each spawn roll once its delay passes (no gate = the fallback chaser);
-  // `splitCount` types break into that many chasers instead of paying out.
+  // `splitCount` types break into that many children (`splitChild`, default
+  // chaser) instead of paying out.
   // Hooks: `onSpawn` (extra state), `brain` (steering; default seekBall),
   // `onShift` (keep brain state consistent when the enemy is teleported), and
   // `draw` (render decoration — render.js draws the base disc in `color`,
@@ -113,7 +114,8 @@ window.Tethered = window.Tethered || {};
       color: '#ff3300', // red-orange — a splitter, but angrier
       stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 }),
       spawnGate: (T) => ({ delay: T.SUPER_SPLITTER_SPAWN_DELAY, chance: T.SUPER_SPLITTER_CHANCE }),
-      splitCount: 4,
+      splitCount: 2,
+      splitChild: 'splitter',
     },
     orbiter: {
       color: '#e93d82', // pink
@@ -165,7 +167,10 @@ window.Tethered = window.Tethered || {};
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
     };
-    if (def.splitCount) e.splitCount = def.splitCount;
+    if (def.splitCount) {
+      e.splitCount = def.splitCount;
+      e.splitChild = def.splitChild;
+    }
     if (def.onSpawn) def.onSpawn(e);
     return e;
   }
@@ -188,15 +193,15 @@ window.Tethered = window.Tethered || {};
     game.enemies.push(makeEnemy(type, x, y));
   };
 
-  // A dead splitter breaks into basic chasers (two; four for a
-  // super-splitter) flung evenly apart, briefly invincible so the smash that
-  // freed them can't kill them in the same instant.
+  // A dead splitter breaks into its children (two chasers; a super-splitter
+  // breaks into two regular splitters) flung evenly apart, briefly invincible
+  // so the smash that freed them can't kill them in the same instant.
   function splitEnemy(game, e, count) {
     const T = S.TUNING;
     const base = Math.random() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
       const a = base + (i / count) * Math.PI * 2;
-      const child = makeEnemy('chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
+      const child = makeEnemy(e.splitChild || 'chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
       child.kx = Math.cos(a) * T.SPLIT_FLING;
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;

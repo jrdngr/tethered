@@ -66,12 +66,13 @@ Tethered.TUNING = {
   SPLIT_FLING: 600,          // px/s the children fling apart
   SPLIT_INVULN: 0.1,         // s the freshly split children can't be hurt
 
-  // Super-splitters: rarer, bigger splitters that break into four chasers
+  // Super-splitters: rarer, bigger splitters that break into two regular
+  // splitters (four chasers once those die too)
   SUPER_SPLITTER_HP: 12,
   SUPER_SPLITTER_DAMAGE: 20,
   SUPER_SPLITTER_RADIUS: 21,      // px
   SUPER_SPLITTER_SPEED: 75,       // px/s
-  SUPER_SPLITTER_CHANCE: 0.02,    // a third the splitter rate — four children is a lot
+  SUPER_SPLITTER_CHANCE: 0.02,    // a third the splitter rate — splitter children is a lot
   SUPER_SPLITTER_SPAWN_DELAY: 50, // s
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
