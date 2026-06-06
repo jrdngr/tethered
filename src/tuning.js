@@ -43,14 +43,16 @@ Tethered.TUNING = {
 
   // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
-  // basic chaser.
+  // basic chaser. Chances scale inversely with strength (tank rarest), and
+  // even the most common special stays under 15% of the chaser rate: with
+  // all four unlocked, chasers get 0.72 and runners 0.10 ≈ 14% of that.
 
   // Tanks: rarer armored enemies that take four base-damage hits
   TANK_HP: 4,
   TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
   TANK_SPEED: 80,         // px/s — slower than chasers
-  TANK_CHANCE: 0.2,       // fraction of spawns that are tanks, once unlocked
+  TANK_CHANCE: 0.04,      // fraction of spawns that are tanks, once unlocked — strongest, so rarest
   TANK_SPAWN_DELAY: 15,   // s of survival before tanks start spawning
   TANK_COIN_MULT: 2,      // tanks drop this × the base coin burst
 
@@ -59,7 +61,7 @@ Tethered.TUNING = {
   SPLITTER_DAMAGE: 15,
   SPLITTER_RADIUS: 17,       // px
   SPLITTER_SPEED: 90,        // px/s
-  SPLITTER_CHANCE: 0.1,
+  SPLITTER_CHANCE: 0.06,
   SPLITTER_SPAWN_DELAY: 25,  // s
   SPLIT_FLING: 300,          // px/s the two children fling apart
 
@@ -73,7 +75,7 @@ Tethered.TUNING = {
   ORBITER_MAX_RADIUS: 110,    // px — orbit radius at full spiral
   ORBITER_RADIUS_SPEED: 70,   // px/s the orbit radius opens and closes
   ORBITER_ANGULAR_SPEED: 2.6, // rad/s
-  ORBITER_CHANCE: 0.08,
+  ORBITER_CHANCE: 0.08,       // mid-strength: tricky movement but only basic HP
   ORBITER_SPAWN_DELAY: 40,    // s
 
   // Runners: chase like a chaser at double speed, but bolt once the ball
@@ -83,7 +85,7 @@ Tethered.TUNING = {
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
   RUNNER_FLEE_RADIUS: 240,  // px from the ball where chasing flips to fleeing
   RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
-  RUNNER_CHANCE: 0.06,
+  RUNNER_CHANCE: 0.10,      // weakest special, so most common
   RUNNER_SPAWN_DELAY: 20,   // s
 
   // Enemy death pop animation
@@ -111,8 +113,8 @@ Tethered.TUNING = {
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
   // Spawning
-  SPAWN_INTERVAL_START: 5.0, // s
-  SPAWN_INTERVAL_MIN: 1.2,   // s
+  SPAWN_INTERVAL_START: 10.0, // s
+  SPAWN_INTERVAL_MIN: 2.4,    // s
   SPAWN_RAMP_TIME: 120,      // s of survival to reach min interval
 
   // Coins & leveling
@@ -169,7 +171,7 @@ Tethered.TUNING = {
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
 
   // Level-5 specials
-  POP_EXPLODE_DAMAGE: 1,         // DAMAGE — splash dmg inside the pop push radius
+  POP_EXPLODE_DAMAGE: 2,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
   COMBO_SHIELD_THRESHOLD: 20,    // VITALITY — combo crossing this grants a shield
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy

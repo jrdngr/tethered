@@ -202,26 +202,21 @@ window.Tethered = window.Tethered || {};
     if (bumpCombo) S.bumpCombo(game);
   }
 
-  // DAMAGE special: every pop splash-damages the live enemies inside its
-  // push radius; deaths pop in turn and chain (full kills — coins, combo,
-  // even splitter children spawned mid-cascade can get caught). Corpses are
-  // flagged `dead` and swept at the end of updateEnemies.
+  // DAMAGE special: a smashed enemy's pop splash-damages the live enemies
+  // inside its push radius; deaths pop normally (coins, combo) but don't
+  // explode in turn — only enemies the player actually hits explode.
+  // Corpses are flagged `dead` and swept at the end of updateEnemies.
   function explodePop(game, e) {
     const T = S.TUNING;
-    const work = [e];
-    while (work.length) {
-      const src = work.pop();
-      for (const o of game.enemies) {
-        if (o.dead) continue;
-        if (Math.hypot(o.x - src.x, o.y - src.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
-        o.hp -= T.POP_EXPLODE_DAMAGE;
-        if (o.hp <= 0) {
-          o.dead = true;
-          popEnemy(game, o, false, true);
-          work.push(o);
-        } else {
-          o.flash = T.HIT_FLASH_DURATION;
-        }
+    for (const o of game.enemies) {
+      if (o.dead) continue;
+      if (Math.hypot(o.x - e.x, o.y - e.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
+      o.hp -= T.POP_EXPLODE_DAMAGE;
+      if (o.hp <= 0) {
+        o.dead = true;
+        popEnemy(game, o, false, true);
+      } else {
+        o.flash = T.HIT_FLASH_DURATION;
       }
     }
   }

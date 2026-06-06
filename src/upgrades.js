@@ -66,7 +66,7 @@ window.Tethered = window.Tethered || {};
       name: 'DAMAGE',
       desc: () => '+1 damage per smash',
       apply: (game) => { game.stats.damage += 1; },
-      specialDesc: () => 'pops chain-explode',
+      specialDesc: () => 'your kills explode',
       special: (game) => { game.stats.popExplode = true; },
     },
     {
