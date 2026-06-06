@@ -6,6 +6,7 @@ window.Tethered = window.Tethered || {};
   // +1 per wall bounce / enemy kill while fast.
   S.bumpCombo = function (game) {
     game.combo += 1;
+    game.comboIdle = 0;
     // VITALITY special: crossing the threshold grants a one-hit shield
     // (max 1 held — losing it means rebuilding the combo for another, and
     // a broken shield keeps a fresh one away for the cooldown).
@@ -63,8 +64,10 @@ window.Tethered = window.Tethered || {};
     S.pushEnemies(game, b.x, b.y, T.PLAYER_POP_PUSH, Infinity);
   };
 
-  S.updateCombo = function (game) {
-    // Combo only survives while the ball stays fast.
-    if (S.ballSpeed(game.ball) < S.TUNING.SPEED_THRESHOLD) game.combo = 1;
+  S.updateCombo = function (game, dt) {
+    // Combo decays on idleness: COMBO_TIMEOUT without a change resets it.
+    if (game.combo <= 1) return;
+    game.comboIdle += dt;
+    if (game.comboIdle >= S.TUNING.COMBO_TIMEOUT) game.combo = 1;
   };
 })(Tethered);

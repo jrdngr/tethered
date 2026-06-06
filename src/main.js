@@ -40,6 +40,7 @@ window.Tethered = window.Tethered || {};
 
       mouse: { x: canvas.width / 2, y: playHeight() / 2 },
       combo: 1,
+      comboIdle: 0, // s since the combo last changed; COMBO_TIMEOUT resets it
       level: 1,
       coinProgress: 0, // coins collected toward the next level
       stats: S.createStats(), // per-run stats raised by level-up upgrades
@@ -93,7 +94,7 @@ window.Tethered = window.Tethered || {};
     S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);
     S.updateCoins(game, dt);
-    S.updateCombo(game);
+    S.updateCombo(game, dt);
   }
 
   // Fixed-timestep physics accumulated from rAF; render every frame.

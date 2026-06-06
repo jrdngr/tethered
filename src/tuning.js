@@ -112,10 +112,12 @@ Tethered.TUNING = {
   PLAYER_POP_PARTICLE_SPEED: 700, // px/s — max scatter speed
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
-  // Spawning
+  // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
   SPAWN_INTERVAL_START: 10.0, // s
-  SPAWN_INTERVAL_MIN: 2.4,    // s
-  SPAWN_RAMP_TIME: 120,      // s of survival to reach min interval
+  SPAWN_DOUBLE_TIME: 600,     // s of survival for the spawn rate to double
+
+  // Combo
+  COMBO_TIMEOUT: 10,       // s without a combo change before it resets to ×1
 
   // Coins & leveling
   COIN_RADIUS: 5,          // px
@@ -172,7 +174,7 @@ Tethered.TUNING = {
 
   // Level-5 specials
   POP_EXPLODE_DAMAGE: 2,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
-  COMBO_SHIELD_THRESHOLD: 20,    // VITALITY — combo crossing this grants a shield
+  COMBO_SHIELD_THRESHOLD: 10,    // VITALITY — combo crossing this grants a shield
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed

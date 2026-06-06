@@ -231,11 +231,10 @@ window.Tethered = window.Tethered || {};
       if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
     }
 
-    // Spawn rate ramps from START down to MIN over SPAWN_RAMP_TIME of
+    // Spawn rate climbs exponentially: it doubles every SPAWN_DOUBLE_TIME of
     // survival. Paused while the player's death pop plays out.
     if (game.state === 'playing') {
-      const ramp = Math.min(game.time / T.SPAWN_RAMP_TIME, 1);
-      const interval = T.SPAWN_INTERVAL_START + (T.SPAWN_INTERVAL_MIN - T.SPAWN_INTERVAL_START) * ramp;
+      const interval = T.SPAWN_INTERVAL_START * Math.pow(2, -game.time / T.SPAWN_DOUBLE_TIME);
       game.spawnTimer -= dt;
       if (game.spawnTimer <= 0) {
         S.spawnEnemy(game);
