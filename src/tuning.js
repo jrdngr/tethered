@@ -69,10 +69,12 @@ Tethered.TUNING = {
   ORBITER_CHANCE: 0.08,
   ORBITER_SPAWN_DELAY: 40,    // s
 
-  // Runners: flee the ball at double chaser speed; worth triple coins
+  // Runners: chase like a chaser at double speed, but bolt once the ball
+  // gets close; worth triple coins
   RUNNER_DAMAGE: 5,
   RUNNER_RADIUS: 12,        // px
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
+  RUNNER_FLEE_RADIUS: 240,  // px from the ball where chasing flips to fleeing
   RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
   RUNNER_CHANCE: 0.06,
   RUNNER_SPAWN_DELAY: 20,   // s
@@ -109,7 +111,7 @@ Tethered.TUNING = {
   COIN_MAGNET_RADIUS: 128, // px from ball center — 2× the grab handle (BALL_RADIUS + GRAB_RADIUS)
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
   COIN_LIFETIME: 30,       // s before an uncollected coin fades away
-  LEVEL_COINS_BASE: 50,    // coins to clear level 1
+  LEVEL_COINS_BASE: 25,    // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
   // Health pickups: occasional heart drops from dead enemies. They use the
@@ -138,7 +140,7 @@ Tethered.TUNING = {
   UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin magnet pull
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
   UPGRADE_SPEED_DAMAGE: 0.5,  // × damage at the speed cap per MOMENTUM pick
-  UPGRADE_KILL_BOOST: 70,     // px/s gained per popped enemy per KILL SURGE pick
+  UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
 
   // Loop
   PHYSICS_HZ: 120,

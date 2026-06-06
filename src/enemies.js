@@ -196,8 +196,8 @@ window.Tethered = window.Tethered || {};
       if (e.flash > 0) e.flash -= dt;
 
       // Per-type steering, plus decaying knockback. Chasers/tanks/splitters
-      // seek the ball, runners flee it (pinned inside the arena), orbiters
-      // run their creep/spiral brain.
+      // seek the ball; runners do too until the ball gets close, then bolt
+      // (pinned inside the arena); orbiters run their creep/spiral brain.
       const decay = Math.exp(-4 * dt);
       e.kx *= decay;
       e.ky *= decay;
@@ -207,7 +207,7 @@ window.Tethered = window.Tethered || {};
         const toBallX = b.x - e.x;
         const toBallY = b.y - e.y;
         const dist = Math.hypot(toBallX, toBallY) || 1;
-        const seek = e.type === 'runner' ? -1 : 1;
+        const seek = e.type === 'runner' && dist < T.RUNNER_FLEE_RADIUS ? -1 : 1;
         e.x += ((toBallX / dist) * e.speed * seek + e.kx) * dt;
         e.y += ((toBallY / dist) * e.speed * seek + e.ky) * dt;
         if (e.type === 'runner') {
