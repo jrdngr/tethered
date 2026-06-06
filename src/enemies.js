@@ -1,5 +1,6 @@
 // Enemies: edge spawning with a ramping rate and a time-gated type mix
-// (chasers, tanks, splitters, orbiters, runners), steering, collision outcomes.
+// (chasers, tanks, splitters, super-splitters, orbiters, runners), steering,
+// collision outcomes.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -10,6 +11,7 @@ window.Tethered = window.Tethered || {};
     const specials = [
       ['tank', T.TANK_SPAWN_DELAY, T.TANK_CHANCE],
       ['splitter', T.SPLITTER_SPAWN_DELAY, T.SPLITTER_CHANCE],
+      ['supersplitter', T.SUPER_SPLITTER_SPAWN_DELAY, T.SUPER_SPLITTER_CHANCE],
       ['orbiter', T.ORBITER_SPAWN_DELAY, T.ORBITER_CHANCE],
       ['runner', T.RUNNER_SPAWN_DELAY, T.RUNNER_CHANCE],
     ];
@@ -28,6 +30,7 @@ window.Tethered = window.Tethered || {};
       chaser: { r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, coinMult: 1 },
       tank: { r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT },
       splitter: { r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 },
+      supersplitter: { r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 },
       orbiter: { r: T.ORBITER_RADIUS, hp: T.ENEMY_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 },
       runner: { r: T.RUNNER_RADIUS, hp: T.ENEMY_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT },
     }[type];
@@ -41,6 +44,7 @@ window.Tethered = window.Tethered || {};
       speed: stats.speed,
       coinMult: stats.coinMult,
       flash: 0, // hit-feedback timer when a smash doesn't kill
+      invuln: 0, // can't be hurt (or hurt the ball) while this runs down
     };
     if (type === 'orbiter') {
       e.phase = 'drift'; // 'drift' (creep toward ball) or 'orbit' (spiral)
@@ -67,14 +71,18 @@ window.Tethered = window.Tethered || {};
     game.enemies.push(makeEnemy(type, x, y));
   };
 
-  // A dead splitter breaks into two basic chasers flung in opposite directions.
-  function splitEnemy(game, e) {
+  // A dead splitter breaks into basic chasers (two; four for a
+  // super-splitter) flung evenly apart, briefly invincible so the smash that
+  // freed them can't kill them in the same instant.
+  function splitEnemy(game, e, count) {
     const T = S.TUNING;
-    const a = Math.random() * Math.PI * 2;
-    for (const sign of [1, -1]) {
-      const child = makeEnemy('chaser', e.x + Math.cos(a) * sign * e.r * 0.6, e.y + Math.sin(a) * sign * e.r * 0.6);
-      child.kx = Math.cos(a) * sign * T.SPLIT_FLING;
-      child.ky = Math.sin(a) * sign * T.SPLIT_FLING;
+    const base = Math.random() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      const a = base + (i / count) * Math.PI * 2;
+      const child = makeEnemy('chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
+      child.kx = Math.cos(a) * T.SPLIT_FLING;
+      child.ky = Math.sin(a) * T.SPLIT_FLING;
+      child.invuln = T.SPLIT_INVULN;
       game.enemies.push(child);
     }
   }
@@ -194,7 +202,9 @@ window.Tethered = window.Tethered || {};
     S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     if (e.type === 'splitter') {
-      splitEnemy(game, e);
+      splitEnemy(game, e, 2);
+    } else if (e.type === 'supersplitter') {
+      splitEnemy(game, e, 4);
     } else {
       S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
       if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
@@ -209,7 +219,7 @@ window.Tethered = window.Tethered || {};
   function explodePop(game, e) {
     const T = S.TUNING;
     for (const o of game.enemies) {
-      if (o.dead) continue;
+      if (o.dead || o.invuln > 0) continue;
       if (Math.hypot(o.x - e.x, o.y - e.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
       o.hp -= T.POP_EXPLODE_DAMAGE;
       if (o.hp <= 0) {
@@ -251,6 +261,7 @@ window.Tethered = window.Tethered || {};
       if (e.dead) continue;
 
       if (e.flash > 0) e.flash -= dt;
+      if (e.invuln > 0) e.invuln -= dt;
 
       // Per-type steering, plus decaying knockback. Chasers/tanks/splitters
       // seek the ball; runners do too until the ball gets close, then bolt
@@ -274,8 +285,9 @@ window.Tethered = window.Tethered || {};
       }
 
       // Collision with the ball (skipped while the death pop plays out —
-      // the ball is already gone).
-      if (game.state !== 'playing') continue;
+      // the ball is already gone — and while a fresh split child's
+      // invincibility runs down: it can't be hurt or deal a hit).
+      if (game.state !== 'playing' || e.invuln > 0) continue;
       const gap = Math.hypot(b.x - e.x, b.y - e.y);
       if (gap >= b.r + e.r) continue;
       const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball

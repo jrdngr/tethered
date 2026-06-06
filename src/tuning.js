@@ -43,9 +43,9 @@ Tethered.TUNING = {
 
   // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
-  // basic chaser. Chances scale inversely with strength (tank rarest), and
-  // even the most common special stays under 15% of the chaser rate: with
-  // all four unlocked, chasers get 0.72 and runners 0.10 ≈ 14% of that.
+  // basic chaser. Chances scale inversely with strength (super-splitter
+  // rarest), and even the most common special stays under 15% of the chaser
+  // rate: with all five unlocked, chasers get 0.70 and runners 0.10 ≈ 14%.
 
   // Tanks: rarer armored enemies that take four base-damage hits
   TANK_HP: 4,
@@ -63,7 +63,16 @@ Tethered.TUNING = {
   SPLITTER_SPEED: 90,        // px/s
   SPLITTER_CHANCE: 0.06,
   SPLITTER_SPAWN_DELAY: 25,  // s
-  SPLIT_FLING: 300,          // px/s the two children fling apart
+  SPLIT_FLING: 600,          // px/s the children fling apart
+  SPLIT_INVULN: 0.1,         // s the freshly split children can't be hurt
+
+  // Super-splitters: rarer, bigger splitters that break into four chasers
+  SUPER_SPLITTER_HP: 6,
+  SUPER_SPLITTER_DAMAGE: 20,
+  SUPER_SPLITTER_RADIUS: 21,      // px
+  SUPER_SPLITTER_SPEED: 75,       // px/s
+  SUPER_SPLITTER_CHANCE: 0.02,    // a third the splitter rate — four children is a lot
+  SUPER_SPLITTER_SPAWN_DELAY: 50, // s
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
   // out around the stall point to max radius, close back in, then creep again
@@ -113,7 +122,7 @@ Tethered.TUNING = {
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
   // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
-  SPAWN_INTERVAL_START: 10.0, // s
+  SPAWN_INTERVAL_START: 5.0,  // s
   SPAWN_DOUBLE_TIME: 600,     // s of survival for the spawn rate to double
 
   // Combo

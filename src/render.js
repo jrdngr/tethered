@@ -6,6 +6,7 @@ window.Tethered = window.Tethered || {};
     chaser: '#e5484d',   // red
     tank: '#b558f6',     // purple
     splitter: '#f76b15', // orange
+    supersplitter: '#ff3300', // red-orange — a splitter, but angrier
     orbiter: '#e93d82',  // pink
     runner: '#cc9a1f',   // dark gold — it's the payday target
   };
@@ -126,12 +127,18 @@ window.Tethered = window.Tethered || {};
         ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2);
         ctx.stroke();
       }
-      if (e.type === 'splitter') {
+      if (e.type === 'splitter' || e.type === 'supersplitter') {
+        // Seam(s) hinting how it breaks: one line for two pieces, a cross
+        // for the super-splitter's four.
         ctx.strokeStyle = '#0d0e14';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(e.x, e.y - e.r);
         ctx.lineTo(e.x, e.y + e.r);
+        if (e.type === 'supersplitter') {
+          ctx.moveTo(e.x - e.r, e.y);
+          ctx.lineTo(e.x + e.r, e.y);
+        }
         ctx.stroke();
       }
     }
