@@ -19,6 +19,13 @@ Tethered.TUNING = {
   SPEED_COLOR_MAX: 700,   // px/s — ball color/glow gradient reaches full brightness
   SPEED_FLASH_WINDOW: 120, // px/s above threshold where the ball flashes a vulnerability warning
 
+  // Slow-mo: while the ball flashes its warning, the world eases down with
+  // its speed — hitting SLOWMO_MIN_SCALE at the instant it drops vulnerable —
+  // then quickly ramps back to full speed. One trigger per cooldown.
+  SLOWMO_MIN_SCALE: 0.5,     // world time scale at the vulnerability moment
+  SLOWMO_RECOVER_TIME: 0.35, // s (real) to ramp from min scale back to 1
+  SLOWMO_COOLDOWN: 5,        // s (real) before slow-mo can trigger again
+
   // Health
   MAX_HP: 100,
   IFRAME_DURATION: 1.0,   // s of post-hit invulnerability

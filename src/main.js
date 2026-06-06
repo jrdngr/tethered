@@ -40,6 +40,7 @@ window.Tethered = window.Tethered || {};
       upgradeChoices: null, // the three cards on offer while state is 'levelup'
       time: 0,
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
+      slowmo: { scale: 1, cooldown: 0, recovering: false }, // world time scale around the vulnerability drop
       state: 'playing',
     };
   }
@@ -86,6 +87,40 @@ window.Tethered = window.Tethered || {};
     S.updateCombo(game);
   }
 
+  // World time scale: as the ball's speed falls through the flash window the
+  // world eases toward SLOWMO_MIN_SCALE, bottoming out at the instant it
+  // drops vulnerable, then quickly but continuously ramps back to full speed.
+  // Crossing the threshold consumes the trigger for SLOWMO_COOLDOWN real
+  // seconds. Runs on real (unscaled) frame time.
+  function updateSlowmo(dt) {
+    const T = S.TUNING;
+    const sm = game.slowmo;
+    if (sm.cooldown > 0) sm.cooldown -= dt;
+    if (game.state !== 'playing') {
+      sm.scale = 1;
+      sm.recovering = false;
+      return;
+    }
+    const speed = S.ballSpeed(game.ball);
+    if (sm.recovering) {
+      sm.scale += ((1 - T.SLOWMO_MIN_SCALE) / T.SLOWMO_RECOVER_TIME) * dt;
+      if (sm.scale >= 1) {
+        sm.scale = 1;
+        sm.recovering = false;
+      }
+    } else if (sm.scale < 1 && speed <= T.SPEED_THRESHOLD) {
+      // The slowdown was engaged and the ball just went vulnerable: snap back.
+      sm.recovering = true;
+      sm.cooldown = T.SLOWMO_COOLDOWN;
+    } else if (sm.cooldown <= 0 && speed > T.SPEED_THRESHOLD &&
+               speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW) {
+      sm.scale = T.SLOWMO_MIN_SCALE + (1 - T.SLOWMO_MIN_SCALE) *
+        (speed - T.SPEED_THRESHOLD) / T.SPEED_FLASH_WINDOW;
+    } else {
+      sm.scale = 1;
+    }
+  }
+
   // Fixed-timestep physics accumulated from rAF; render every frame.
   const STEP = 1 / S.TUNING.PHYSICS_HZ;
   let last = performance.now();
@@ -99,7 +134,8 @@ window.Tethered = window.Tethered || {};
     // Physics runs while playing and through the death animation.
     const live = () => game.state === 'playing' || game.state === 'dying';
     if (live()) {
-      acc += dt;
+      updateSlowmo(dt);
+      acc += dt * game.slowmo.scale;
       while (acc >= STEP && live()) {
         update(STEP);
         acc -= STEP;
