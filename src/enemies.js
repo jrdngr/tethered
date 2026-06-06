@@ -307,6 +307,69 @@ window.Tethered = window.Tethered || {};
     }
   }
 
+  // Resolve a fast hit on an enemy — shared by body smashes and weapon hits.
+  // nx/ny is the unit normal from the enemy toward the contact point. The
+  // enemy takes the player's damage (speed-scaled once MOMENTUM is picked);
+  // the ball bounces off along the normal (same shape as the damage
+  // knockback) keeping most of its speed either way. Bashing — damage past
+  // BASH_HP_FACTOR × max HP — plows through instead (deflected but never
+  // bounced backwards) and pops with BASH_POP_PUSH × force. opts:
+  //   dmgBonus     extra damage on top of smashDamage (weapon hits)
+  //   bashOverride force a bash regardless of the damage threshold
+  //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
+  //   ax/ay/ar     separation anchor a survivor is pushed flush against
+  //                (defaults to the ball; weapons pass their contact point)
+  S.resolveSmash = function (game, e, nx, ny, tethered, opts = {}) {
+    const T = S.TUNING;
+    const b = game.ball;
+    if (tethered) game.combo = 1;
+    const dmg = S.smashDamage(game) + (opts.dmgBonus || 0);
+    // MOMENTUM special: bashing comes easier at top speed.
+    const bashFactor = game.stats.bashEasy && S.atMaxSpeed(game)
+      ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
+    const bash = opts.bashOverride || dmg > e.maxHp * bashFactor;
+    e.hp -= dmg;
+    const killed = e.hp <= 0;
+    if (killed) {
+      e.dead = true;
+      popEnemy(game, e, bash, !tethered);
+      if (game.stats.popExplode) explodePop(game, e);
+    } else {
+      // Armor absorbed the hit: flash, knock the enemy back, and separate
+      // so the next physics step doesn't land a second hit. No combo —
+      // that only counts kills.
+      const knock = T.KNOCKBACK_SPEED * (opts.knockMult || 1);
+      const ax = opts.ax !== undefined ? opts.ax : b.x;
+      const ay = opts.ay !== undefined ? opts.ay : b.y;
+      const ar = opts.ar !== undefined ? opts.ar : b.r;
+      e.flash = T.HIT_FLASH_DURATION;
+      e.kx = -nx * knock;
+      e.ky = -ny * knock;
+      e.x = ax - nx * (ar + e.r);
+      e.y = ay - ny * (ar + e.r);
+    }
+    // KILL SURGE: pops feed speed back into the ball (capped next step);
+    // its special pays out on every smash, kill or not. A bash plows
+    // through: it deflects toward the bounce normal but never backwards
+    // — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
+    // ball always keeps forward momentum. Otherwise it bounces off along
+    // the normal.
+    const surge = killed || game.stats.surgeEverySmash ? game.stats.killBoost : 0;
+    const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
+    if (bash) {
+      const heading = Math.atan2(b.vy, b.vx);
+      let dev = Math.atan2(ny, nx) - heading;
+      dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
+      const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
+      const out = heading + Math.max(-max, Math.min(max, dev));
+      b.vx = Math.cos(out) * speed;
+      b.vy = Math.sin(out) * speed;
+    } else {
+      b.vx = nx * speed;
+      b.vy = ny * speed;
+    }
+  };
+
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
@@ -364,54 +427,7 @@ window.Tethered = window.Tethered || {};
       if (tethered) S.releaseTether(game);
 
       if (fast) {
-        if (tethered) game.combo = 1;
-        // Smash: the enemy takes the player's damage (speed-scaled once
-        // MOMENTUM is picked); the ball bounces off along the normal (same
-        // shape as the damage knockback) keeping most of its speed either way.
-        // Bashing — damage past BASH_HP_FACTOR × max HP — plows
-        // through instead (deflected but never bounced backwards) and
-        // pops with BASH_POP_PUSH × force.
-        const dmg = S.smashDamage(game);
-        // MOMENTUM special: bashing comes easier at top speed.
-        const bashFactor = game.stats.bashEasy && S.atMaxSpeed(game)
-          ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
-        const bash = dmg > e.maxHp * bashFactor;
-        e.hp -= dmg;
-        const killed = e.hp <= 0;
-        if (killed) {
-          e.dead = true;
-          popEnemy(game, e, bash, !tethered);
-          if (game.stats.popExplode) explodePop(game, e);
-        } else {
-          // Armor absorbed the hit: flash, knock the enemy back, and separate
-          // so the next physics step doesn't land a second hit. No combo —
-          // that only counts kills.
-          e.flash = T.HIT_FLASH_DURATION;
-          e.kx = -nx * T.KNOCKBACK_SPEED;
-          e.ky = -ny * T.KNOCKBACK_SPEED;
-          e.x = b.x - nx * (b.r + e.r);
-          e.y = b.y - ny * (b.r + e.r);
-        }
-        // KILL SURGE: pops feed speed back into the ball (capped next step);
-        // its special pays out on every smash, kill or not. A bash plows
-        // through: it deflects toward the bounce normal but never backwards
-        // — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
-        // ball always keeps forward momentum. Otherwise it bounces off along
-        // the normal.
-        const surge = killed || game.stats.surgeEverySmash ? game.stats.killBoost : 0;
-        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
-        if (bash) {
-          const heading = Math.atan2(b.vy, b.vx);
-          let dev = Math.atan2(ny, nx) - heading;
-          dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
-          const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
-          const out = heading + Math.max(-max, Math.min(max, dev));
-          b.vx = Math.cos(out) * speed;
-          b.vy = Math.sin(out) * speed;
-        } else {
-          b.vx = nx * speed;
-          b.vy = ny * speed;
-        }
+        S.resolveSmash(game, e, nx, ny, tethered);
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below
