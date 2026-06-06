@@ -246,12 +246,13 @@ window.Tethered = window.Tethered || {};
     ctx.fillStyle = '#e8e8f0';
     ctx.fillText(`${mm}:${ss}`, game.width - 16, 14);
 
-    // Speed meter, bottom center: shows how close the ball is to the
-    // invincibility threshold (the key feedback for learning the mechanic).
+    // Speed meter, top center just below the level bar: shows how close the
+    // ball is to the invincibility threshold (the key feedback for learning
+    // the mechanic).
     const meterW = 240;
     const meterH = 10;
     const mx = (game.width - meterW) / 2;
-    const my = game.height - 30;
+    const my = by + barH + 10;
     const maxShown = T.SPEED_THRESHOLD * 1.6;
     const frac = Math.min(S.ballSpeed(b) / maxShown, 1);
     ctx.fillStyle = '#1c1f2a';

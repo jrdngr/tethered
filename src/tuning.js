@@ -124,7 +124,9 @@ Tethered.TUNING = {
   COIN_MERGE_COUNTS: { 1: 5, 5: 5, 25: 4 }, // coins of this value needed to merge up
   COIN_ATTRACT_RADIUS_MULT: 4, // × coin radius — double the coin's diameter
   COIN_ATTRACT_ACCEL: 120,     // px/s^2 pull at point-blank; vs drag ≈ 40 px/s drift
+  COIN_BLOB_REPEL_ACCEL: 240,  // px/s^2 shove between merge-close coins short of a full group
   COIN_MERGE_DIST_MULT: 0.5,   // × combined radii — "nearly overlapping" to merge
+  COIN_MERGE_GRACE: 0.2,       // s after spawning before a coin may merge
   COIN_SIZE_GROWTH: 0.25,      // coin radius = COIN_RADIUS × value^this
 
   // Health pickups: occasional heart drops from dead enemies. They use the

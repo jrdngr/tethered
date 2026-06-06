@@ -108,11 +108,29 @@ window.Tethered = window.Tethered || {};
       p.y += p.vy * dt;
     }
 
-    // Slow pairwise attraction between same-value coins that can still merge
-    // up, so clusters drift together. Reaches double the coin's diameter.
+    // Count, per coin, how many same-value coins sit inside merge range
+    // (itself included) — clusters short of a full merge group repel a
+    // little instead of stacking.
+    const near = new Array(game.coins.length).fill(1);
     for (let i = 0; i < game.coins.length; i++) {
       const a = game.coins[i];
       if (a.heal || !T.COIN_MERGE_COUNTS[a.value]) continue;
+      for (let j = i + 1; j < game.coins.length; j++) {
+        const o = game.coins[j];
+        if (o.heal || o.value !== a.value) continue;
+        const d = Math.hypot(o.x - a.x, o.y - a.y);
+        if (d < (a.r + o.r) * T.COIN_MERGE_DIST_MULT) { near[i]++; near[j]++; }
+      }
+    }
+
+    // Slow pairwise attraction between same-value coins that can still merge
+    // up, so clusters drift together. Reaches double the coin's diameter.
+    // Merge-close pairs short of a full group flip to a gentle repulsion, so
+    // undersized clusters blob around each other until the last coin arrives.
+    for (let i = 0; i < game.coins.length; i++) {
+      const a = game.coins[i];
+      const need = T.COIN_MERGE_COUNTS[a.value];
+      if (a.heal || !need) continue;
       const range = a.r * T.COIN_ATTRACT_RADIUS_MULT;
       for (let j = i + 1; j < game.coins.length; j++) {
         const o = game.coins[j];
@@ -121,11 +139,15 @@ window.Tethered = window.Tethered || {};
         const dy = o.y - a.y;
         const d = Math.hypot(dx, dy) || 1;
         if (d >= range) continue;
-        const pull = T.COIN_ATTRACT_ACCEL * (1 - d / range) * dt;
-        a.vx += (dx / d) * pull;
-        a.vy += (dy / d) * pull;
-        o.vx -= (dx / d) * pull;
-        o.vy -= (dy / d) * pull;
+        const mergeDist = (a.r + o.r) * T.COIN_MERGE_DIST_MULT;
+        const blob = d < mergeDist && near[i] < need && near[j] < need;
+        const force = blob
+          ? -T.COIN_BLOB_REPEL_ACCEL * (1 - d / mergeDist) * dt
+          : T.COIN_ATTRACT_ACCEL * (1 - d / range) * dt;
+        a.vx += (dx / d) * force;
+        a.vy += (dy / d) * force;
+        o.vx -= (dx / d) * force;
+        o.vy -= (dy / d) * force;
       }
     }
 
@@ -186,19 +208,20 @@ window.Tethered = window.Tethered || {};
     }
 
     // Merge clusters: when enough same-value coins nearly overlap, replace
-    // them with one coin of the next denomination at their centroid. Merged
-    // coins push onto the end of the array, so a fresh 5 can chain straight
-    // into a 25 in the same pass.
+    // them with one coin of the next denomination at their centroid. Brand-new
+    // coins sit out a short grace so burst drops don't merge mid-scatter.
+    // Merged coins push onto the end of the array with age 0, so chaining a
+    // fresh 5 into a 25 also waits out the grace.
     let anyMerged = false;
     for (let i = 0; i < game.coins.length; i++) {
       const c = game.coins[i];
-      if (c.heal || c.merged) continue;
+      if (c.heal || c.merged || c.age < T.COIN_MERGE_GRACE) continue;
       const need = T.COIN_MERGE_COUNTS[c.value];
       if (!need) continue;
       const group = [c];
       for (let j = i + 1; j < game.coins.length && group.length < need; j++) {
         const o = game.coins[j];
-        if (o.heal || o.merged || o.value !== c.value) continue;
+        if (o.heal || o.merged || o.value !== c.value || o.age < T.COIN_MERGE_GRACE) continue;
         const d = Math.hypot(o.x - c.x, o.y - c.y);
         if (d < (c.r + o.r) * T.COIN_MERGE_DIST_MULT) group.push(o);
       }
