@@ -91,7 +91,7 @@ Tethered.TUNING = {
 
   // Bashing: a smash dealing more than BASH_HP_FACTOR × the enemy's
   // max HP plows through (deflected, never bounced back) and pops harder
-  BASH_HP_FACTOR: 5,        // damage must exceed this × max HP
+  BASH_HP_FACTOR: 3,        // damage must exceed this × max HP
   BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
   BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
 
@@ -171,7 +171,7 @@ Tethered.TUNING = {
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
-  MOMENTUM_BASH_HP_FACTOR: 4,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
+  MOMENTUM_BASH_HP_FACTOR: 2,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
   // Loop
   PHYSICS_HZ: 120,
