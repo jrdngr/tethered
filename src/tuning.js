@@ -32,6 +32,11 @@ Tethered.TUNING = {
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
   PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
   HIT_FLASH_DURATION: 0.15, // s — enemy flashes white when a hit doesn't kill
+  ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (no stacking)
+
+  // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
+  // and claims its CHANCE slice of every spawn roll; whatever's left is a
+  // basic chaser.
 
   // Tanks: rarer armored enemies that take two base-damage hits
   TANK_HP: 2,
@@ -41,6 +46,36 @@ Tethered.TUNING = {
   TANK_CHANCE: 0.2,       // fraction of spawns that are tanks, once unlocked
   TANK_SPAWN_DELAY: 15,   // s of survival before tanks start spawning
   TANK_COIN_MULT: 2,      // tanks drop this × the base coin burst
+
+  // Splitters: tank-tough enemies that break into two basic chasers on death
+  SPLITTER_HP: 2,            // same starting HP as tanks
+  SPLITTER_DAMAGE: 15,
+  SPLITTER_RADIUS: 17,       // px
+  SPLITTER_SPEED: 90,        // px/s
+  SPLITTER_CHANCE: 0.1,
+  SPLITTER_SPAWN_DELAY: 25,  // s
+  SPLIT_FLING: 300,          // px/s the two children fling apart
+
+  // Orbiters: creep toward the ball while slowing; once stalled they spiral
+  // out around the stall point to max radius, close back in, then creep again
+  ORBITER_DAMAGE: 15,
+  ORBITER_RADIUS: 12,         // px
+  ORBITER_SPEED: 70,          // px/s at the start of each creep
+  ORBITER_DECEL: 0.3,         // 1/s — exponential creep-speed decay
+  ORBITER_STOP_SPEED: 12,     // px/s — below this the creep stalls and the orbit starts
+  ORBITER_MAX_RADIUS: 110,    // px — orbit radius at full spiral
+  ORBITER_RADIUS_SPEED: 70,   // px/s the orbit radius opens and closes
+  ORBITER_ANGULAR_SPEED: 2.6, // rad/s
+  ORBITER_CHANCE: 0.08,
+  ORBITER_SPAWN_DELAY: 40,    // s
+
+  // Runners: flee the ball at double chaser speed; worth triple coins
+  RUNNER_DAMAGE: 5,
+  RUNNER_RADIUS: 12,        // px
+  RUNNER_SPEED: 220,        // px/s — 2× chaser speed
+  RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
+  RUNNER_CHANCE: 0.06,
+  RUNNER_SPAWN_DELAY: 20,   // s
 
   // Enemy death pop animation
   POP_DURATION: 0.25,     // s — how long the pop ring lasts
@@ -90,11 +125,20 @@ Tethered.TUNING = {
   HEAL_PARTICLE_SPEED: 260,  // px/s — max scatter speed
   HEAL_PARTICLE_LIFE: 0.5,   // s — max particle lifetime
 
+  // Paddles: upgrade-granted rectangles that patrol screen edges and launch
+  // the ball to top speed on contact. Capped at two per edge (8 total).
+  PADDLE_LENGTH: 110,    // px along the edge
+  PADDLE_THICKNESS: 14,  // px into the arena
+  PADDLE_SPEED: 200,     // px/s patrol speed
+  PADDLES_MAX: 8,
+
   // Level-up upgrades (gain per pick; the damage upgrade is +1)
   UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick
   UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius
   UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin magnet pull
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
+  UPGRADE_SPEED_DAMAGE: 0.5,  // × damage at the speed cap per MOMENTUM pick
+  UPGRADE_KILL_BOOST: 70,     // px/s gained per popped enemy per KILL SURGE pick
 
   // Loop
   PHYSICS_HZ: 120,

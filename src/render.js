@@ -2,6 +2,14 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  const ENEMY_COLORS = {
+    chaser: '#e5484d',   // red
+    tank: '#b558f6',     // purple
+    splitter: '#f76b15', // orange
+    orbiter: '#e93d82',  // pink
+    runner: '#ffc53d',   // coin gold — it's the payday target
+  };
+
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
     const b = game.ball;
@@ -76,19 +84,40 @@ window.Tethered = window.Tethered || {};
     }
     ctx.globalAlpha = 1;
 
-    // Enemies: chasers red, tanks purple; flash white when a hit doesn't
-    // kill. Tanks at full HP wear an armor ring that breaks off with the
-    // first hit.
+    // Paddles: cyan launch pads patrolling the edges.
+    for (const p of game.paddles) {
+      const r = S.paddleRect(game, p);
+      ctx.fillStyle = '#3aa7c9';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      // Bright inner face — the side that launches the ball.
+      ctx.fillStyle = '#aef4ff';
+      if (p.edge === 0) ctx.fillRect(r.x, r.y + r.h - 2, r.w, 2);
+      else if (p.edge === 1) ctx.fillRect(r.x, r.y, r.w, 2);
+      else if (p.edge === 2) ctx.fillRect(r.x + r.w - 2, r.y, 2, r.h);
+      else ctx.fillRect(r.x, r.y, 2, r.h);
+    }
+
+    // Enemies, color-coded by type; flash white when a hit doesn't kill.
+    // Tanks at full HP wear an armor ring that breaks off with the first
+    // hit; splitters wear a seam hinting they break in two.
     for (const e of game.enemies) {
-      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.tank ? '#b558f6' : '#e5484d';
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : ENEMY_COLORS[e.type];
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
-      if (e.tank && e.hp > 1) {
+      if (e.type === 'tank' && e.hp > 1) {
         ctx.strokeStyle = '#d8b4fe';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (e.type === 'splitter') {
+        ctx.strokeStyle = '#0d0e14';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y - e.r);
+        ctx.lineTo(e.x, e.y + e.r);
         ctx.stroke();
       }
     }

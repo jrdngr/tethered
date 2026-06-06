@@ -13,7 +13,19 @@ window.Tethered = window.Tethered || {};
       maxHp: T.MAX_HP,
       damage: T.PLAYER_DAMAGE,
       maxSpeed: T.BALL_MAX_SPEED,
+      speedDamage: 1, // × damage at the speed cap (MOMENTUM); 1 = speed has no effect
+      killBoost: 0,   // px/s the ball gains per popped enemy (KILL SURGE)
     };
+  };
+
+  // Damage per smash. With MOMENTUM picked, it scales with speed: ×1 at the
+  // invincibility threshold up to ×speedDamage at the speed cap.
+  S.smashDamage = function (game) {
+    const T = S.TUNING;
+    const f = Math.min(Math.max(
+      (S.ballSpeed(game.ball) - T.SPEED_THRESHOLD) /
+      (game.stats.maxSpeed - T.SPEED_THRESHOLD), 0), 1);
+    return game.stats.damage * (1 + (game.stats.speedDamage - 1) * f);
   };
 
   // The full pool; each level-up offers three of these at random.
@@ -47,11 +59,28 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.UPGRADE_MAX_SPEED} max ball speed`,
       apply: (game) => { game.stats.maxSpeed += S.TUNING.UPGRADE_MAX_SPEED; },
     },
+    {
+      name: 'MOMENTUM',
+      desc: () => `+${S.TUNING.UPGRADE_SPEED_DAMAGE}× dmg at top speed`,
+      apply: (game) => { game.stats.speedDamage += S.TUNING.UPGRADE_SPEED_DAMAGE; },
+    },
+    {
+      name: 'KILL SURGE',
+      desc: () => `+${S.TUNING.UPGRADE_KILL_BOOST} speed per pop`,
+      apply: (game) => { game.stats.killBoost += S.TUNING.UPGRADE_KILL_BOOST; },
+    },
+    {
+      name: 'PADDLE',
+      desc: () => '+1 top-speed wall paddle',
+      apply: (game) => S.addPaddle(game),
+      available: (game) => game.paddles.length < S.TUNING.PADDLES_MAX,
+    },
   ];
 
   // Three distinct upgrades, uniformly random from the pool (Fisher-Yates).
-  function rollChoices() {
-    const pool = S.UPGRADES.slice();
+  // Upgrades with an `available` gate (e.g. PADDLE at its cap) drop out.
+  function rollChoices(game) {
+    const pool = S.UPGRADES.filter((u) => !u.available || u.available(game));
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -64,7 +93,7 @@ window.Tethered = window.Tethered || {};
   S.startLevelUp = function (game) {
     game.state = 'levelup';
     S.releaseTether(game);
-    game.upgradeChoices = rollChoices();
+    game.upgradeChoices = rollChoices(game);
   };
 
   S.chooseUpgrade = function (game, index) {

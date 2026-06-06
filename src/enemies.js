@@ -1,13 +1,56 @@
-// Chaser enemies: edge spawning with a ramping rate, seek the ball, collision outcomes.
+// Enemies: edge spawning with a ramping rate and a time-gated type mix
+// (chasers, tanks, splitters, orbiters, runners), steering, collision outcomes.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  S.spawnEnemy = function (game) {
+  // One roll decides the spawn type: each special unlocked by survival time
+  // claims its CHANCE slice; whatever's left is a basic chaser.
+  function rollType(game) {
     const T = S.TUNING;
-    // Tanks (slower, armored, two base-damage hits) join the spawn mix after
-    // TANK_SPAWN_DELAY of survival.
-    const tank = game.time >= T.TANK_SPAWN_DELAY && Math.random() < T.TANK_CHANCE;
-    const r = tank ? T.TANK_RADIUS : T.ENEMY_RADIUS;
+    const specials = [
+      ['tank', T.TANK_SPAWN_DELAY, T.TANK_CHANCE],
+      ['splitter', T.SPLITTER_SPAWN_DELAY, T.SPLITTER_CHANCE],
+      ['orbiter', T.ORBITER_SPAWN_DELAY, T.ORBITER_CHANCE],
+      ['runner', T.RUNNER_SPAWN_DELAY, T.RUNNER_CHANCE],
+    ];
+    let roll = Math.random();
+    for (const [type, delay, chance] of specials) {
+      if (game.time < delay) continue;
+      if (roll < chance) return type;
+      roll -= chance;
+    }
+    return 'chaser';
+  }
+
+  function makeEnemy(type, x, y) {
+    const T = S.TUNING;
+    const stats = {
+      chaser: { r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, coinMult: 1 },
+      tank: { r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT },
+      splitter: { r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 },
+      orbiter: { r: T.ORBITER_RADIUS, hp: T.ENEMY_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 },
+      runner: { r: T.RUNNER_RADIUS, hp: T.ENEMY_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT },
+    }[type];
+    const e = {
+      x, y, type,
+      kx: 0, ky: 0,
+      r: stats.r,
+      hp: stats.hp,
+      damage: stats.damage,
+      speed: stats.speed,
+      coinMult: stats.coinMult,
+      flash: 0, // hit-feedback timer when a smash doesn't kill
+    };
+    if (type === 'orbiter') {
+      e.phase = 'drift'; // 'drift' (creep toward ball) or 'orbit' (spiral)
+      e.driftSpeed = stats.speed;
+    }
+    return e;
+  }
+
+  S.spawnEnemy = function (game) {
+    const type = rollType(game);
+    const r = makeEnemy(type, 0, 0).r;
     let x = 0;
     let y = 0;
     // Pick an edge point; re-roll a few times if it's right on top of the ball.
@@ -20,16 +63,94 @@ window.Tethered = window.Tethered || {};
       else { x = game.width - r; y = t * game.height; }
       if (Math.hypot(x - game.ball.x, y - game.ball.y) > 150) break;
     }
-    game.enemies.push({
-      x, y, r,
-      kx: 0, ky: 0,
-      tank,
-      hp: tank ? T.TANK_HP : T.ENEMY_HP,
-      damage: tank ? T.TANK_DAMAGE : T.ENEMY_DAMAGE,
-      speed: tank ? T.TANK_SPEED : T.ENEMY_SPEED,
-      flash: 0, // hit-feedback timer when a smash doesn't kill
-    });
+    game.enemies.push(makeEnemy(type, x, y));
   };
+
+  // A dead splitter breaks into two basic chasers flung in opposite directions.
+  function splitEnemy(game, e) {
+    const T = S.TUNING;
+    const a = Math.random() * Math.PI * 2;
+    for (const sign of [1, -1]) {
+      const child = makeEnemy('chaser', e.x + Math.cos(a) * sign * e.r * 0.6, e.y + Math.sin(a) * sign * e.r * 0.6);
+      child.kx = Math.cos(a) * sign * T.SPLIT_FLING;
+      child.ky = Math.sin(a) * sign * T.SPLIT_FLING;
+      game.enemies.push(child);
+    }
+  }
+
+  // Orbiter brain. Drift: creep toward the ball, bleeding speed. Stalled:
+  // anchor in place and spiral out to max radius, close back in, then drift
+  // again. Knockback shoves the anchor while orbiting.
+  function updateOrbiter(game, e, dt) {
+    const T = S.TUNING;
+    if (e.phase === 'drift') {
+      e.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
+      const dx = game.ball.x - e.x;
+      const dy = game.ball.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      e.x += ((dx / d) * e.driftSpeed + e.kx) * dt;
+      e.y += ((dy / d) * e.driftSpeed + e.ky) * dt;
+      if (e.driftSpeed <= T.ORBITER_STOP_SPEED) {
+        e.phase = 'orbit';
+        e.cx = e.x;
+        e.cy = e.y;
+        e.angle = Math.random() * Math.PI * 2;
+        e.radius = 0;
+        e.radiusDir = 1;
+      }
+    } else {
+      e.cx += e.kx * dt;
+      e.cy += e.ky * dt;
+      e.angle += T.ORBITER_ANGULAR_SPEED * dt;
+      e.radius += e.radiusDir * T.ORBITER_RADIUS_SPEED * dt;
+      if (e.radius >= T.ORBITER_MAX_RADIUS) {
+        e.radius = T.ORBITER_MAX_RADIUS;
+        e.radiusDir = -1;
+      } else if (e.radius <= 0) {
+        e.phase = 'drift';
+        e.driftSpeed = T.ORBITER_SPEED;
+      }
+      e.x = e.cx + Math.cos(e.angle) * e.radius;
+      e.y = e.cy + Math.sin(e.angle) * e.radius;
+    }
+  }
+
+  // Move an enemy without breaking its brain: an orbiting orbiter's anchor
+  // shifts along with it (its position is recomputed from the anchor).
+  function shiftEnemy(e, dx, dy) {
+    e.x += dx;
+    e.y += dy;
+    if (e.type === 'orbiter' && e.phase === 'orbit') {
+      e.cx += dx;
+      e.cy += dy;
+    }
+  }
+
+  // Enemies don't stack: overlapping pairs separate and trade a light bounce
+  // through the same decaying knockback a hit applies.
+  function resolveEnemyOverlaps(game) {
+    const T = S.TUNING;
+    const list = game.enemies;
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i];
+        const b = list[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const overlap = a.r + b.r - d;
+        if (overlap <= 0) continue;
+        const nx = dx / d;
+        const ny = dy / d;
+        shiftEnemy(a, -nx * overlap / 2, -ny * overlap / 2);
+        shiftEnemy(b, nx * overlap / 2, ny * overlap / 2);
+        a.kx -= nx * T.ENEMY_BOUNCE;
+        a.ky -= ny * T.ENEMY_BOUNCE;
+        b.kx += nx * T.ENEMY_BOUNCE;
+        b.ky += ny * T.ENEMY_BOUNCE;
+      }
+    }
+  }
 
   // Radial shockwave: shove every enemy within `radius` of (x, y) away,
   // fading linearly with distance, via the same decaying knockback a hit
@@ -74,15 +195,26 @@ window.Tethered = window.Tethered || {};
 
       if (e.flash > 0) e.flash -= dt;
 
-      // Seek the ball, plus decaying knockback.
-      const toBallX = b.x - e.x;
-      const toBallY = b.y - e.y;
-      const dist = Math.hypot(toBallX, toBallY) || 1;
+      // Per-type steering, plus decaying knockback. Chasers/tanks/splitters
+      // seek the ball, runners flee it (pinned inside the arena), orbiters
+      // run their creep/spiral brain.
       const decay = Math.exp(-4 * dt);
       e.kx *= decay;
       e.ky *= decay;
-      e.x += ((toBallX / dist) * e.speed + e.kx) * dt;
-      e.y += ((toBallY / dist) * e.speed + e.ky) * dt;
+      if (e.type === 'orbiter') {
+        updateOrbiter(game, e, dt);
+      } else {
+        const toBallX = b.x - e.x;
+        const toBallY = b.y - e.y;
+        const dist = Math.hypot(toBallX, toBallY) || 1;
+        const seek = e.type === 'runner' ? -1 : 1;
+        e.x += ((toBallX / dist) * e.speed * seek + e.kx) * dt;
+        e.y += ((toBallY / dist) * e.speed * seek + e.ky) * dt;
+        if (e.type === 'runner') {
+          e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
+          e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
+        }
+      }
 
       // Collision with the ball (skipped while the death pop plays out —
       // the ball is already gone).
@@ -101,19 +233,23 @@ window.Tethered = window.Tethered || {};
 
       if (fast) {
         if (tethered) game.combo = 1;
-        // Smash: the enemy takes the player's damage stat; the ball bounces
-        // off along the normal (same shape as the damage knockback) keeping
-        // most of its speed either way.
-        e.hp -= game.stats.damage;
-        if (e.hp <= 0) {
+        // Smash: the enemy takes the player's damage (speed-scaled once
+        // MOMENTUM is picked); the ball bounces off along the normal (same
+        // shape as the damage knockback) keeping most of its speed either way.
+        e.hp -= S.smashDamage(game);
+        const killed = e.hp <= 0;
+        if (killed) {
           game.enemies.splice(i, 1);
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
           // The pop shoves nearby enemies and pickups away (before this
           // kill's own coins drop, so they only get their burst scatter).
           S.pushEnemies(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
           S.pushCoins(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
+          // Splitters break in two after the shockwave, so the children only
+          // get their own opposing fling.
+          if (e.type === 'splitter') splitEnemy(game, e);
           // Coin drop scales with the combo at the moment of the kill.
-          S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
+          S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
           if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
           if (!tethered) S.bumpCombo(game);
         } else {
@@ -126,17 +262,20 @@ window.Tethered = window.Tethered || {};
           e.x = b.x - nx * (b.r + e.r);
           e.y = b.y - ny * (b.r + e.r);
         }
-        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
+        // KILL SURGE: pops feed speed back into the ball (capped next step).
+        const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + (killed ? game.stats.killBoost : 0);
         b.vx = nx * speed;
         b.vy = ny * speed;
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== 'playing') return;
       } else {
-        // During i-frames: just keep the enemy from overlapping the ball.
-        e.x = b.x - nx * (b.r + e.r);
-        e.y = b.y - ny * (b.r + e.r);
+        // During i-frames: just keep the enemy from overlapping the ball
+        // (anchor-aware so the push sticks on an orbiting orbiter).
+        shiftEnemy(e, b.x - nx * (b.r + e.r) - e.x, b.y - ny * (b.r + e.r) - e.y);
       }
     }
+
+    resolveEnemyOverlaps(game);
   };
 })(Tethered);

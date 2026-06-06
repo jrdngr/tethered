@@ -28,6 +28,7 @@ window.Tethered = window.Tethered || {};
       pops: [], // enemy death pop animations
       playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
+      paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       particles: [], // green sparks from grabbed health pickups
 
       mouse: { x: canvas.width / 2, y: canvas.height / 2 },
@@ -79,6 +80,7 @@ window.Tethered = window.Tethered || {};
       S.updateTether(game, dt);
       S.updateBall(game, dt);
     }
+    S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);
     S.updateCoins(game, dt);
     S.updateCombo(game);
