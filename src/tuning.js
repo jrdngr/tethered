@@ -34,7 +34,7 @@ Tethered.TUNING = {
   // Enemies
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
-  ENEMY_HP: 2,            // basic enemies die to two base-damage hits
+  ENEMY_HP: 4,            // basic enemies die to four base-damage hits (weapons speed this up)
   ENEMY_DAMAGE: 10,       // HP the ball loses to a basic enemy touch
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
   PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
@@ -47,8 +47,8 @@ Tethered.TUNING = {
   // rarest), and even the most common special stays under 15% of the chaser
   // rate: with all five unlocked, chasers get 0.70 and runners 0.10 ≈ 14%.
 
-  // Tanks: rarer armored enemies that take four base-damage hits
-  TANK_HP: 4,
+  // Tanks: rarer armored enemies that take eight base-damage hits
+  TANK_HP: 8,
   TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
   TANK_SPEED: 80,         // px/s — slower than chasers
@@ -57,7 +57,7 @@ Tethered.TUNING = {
   TANK_COIN_MULT: 2,      // tanks drop this × the base coin burst
 
   // Splitters: tank-tough enemies that break into two basic chasers on death
-  SPLITTER_HP: 4,            // same starting HP as tanks
+  SPLITTER_HP: 8,            // same starting HP as tanks
   SPLITTER_DAMAGE: 15,
   SPLITTER_RADIUS: 17,       // px
   SPLITTER_SPEED: 90,        // px/s
@@ -67,7 +67,7 @@ Tethered.TUNING = {
   SPLIT_INVULN: 0.1,         // s the freshly split children can't be hurt
 
   // Super-splitters: rarer, bigger splitters that break into four chasers
-  SUPER_SPLITTER_HP: 6,
+  SUPER_SPLITTER_HP: 12,
   SUPER_SPLITTER_DAMAGE: 20,
   SUPER_SPLITTER_RADIUS: 21,      // px
   SUPER_SPLITTER_SPEED: 75,       // px/s
@@ -76,7 +76,7 @@ Tethered.TUNING = {
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
   // out around the stall point to max radius, close back in, then creep again
-  ORBITER_HP: 2,              // basic HP — the trick is the movement
+  ORBITER_HP: 4,              // basic HP — the trick is the movement
   ORBITER_DAMAGE: 15,
   ORBITER_RADIUS: 12,         // px
   ORBITER_SPEED: 70,          // px/s at the start of each creep
@@ -90,7 +90,7 @@ Tethered.TUNING = {
 
   // Runners: chase like a chaser at double speed, but bolt once the ball
   // gets close; worth triple coins
-  RUNNER_HP: 2,             // basic HP — the payout is the point, not the fight
+  RUNNER_HP: 4,             // basic HP — the payout is the point, not the fight
   RUNNER_DAMAGE: 5,
   RUNNER_RADIUS: 12,        // px
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
@@ -107,7 +107,7 @@ Tethered.TUNING = {
 
   // Bashing: a smash dealing more than BASH_HP_FACTOR × the enemy's
   // max HP plows through (deflected, never bounced back) and pops harder
-  BASH_HP_FACTOR: 3,        // damage must exceed this × max HP
+  BASH_HP_FACTOR: 1.5,      // damage must exceed this × max HP
   BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
   BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
 
@@ -208,12 +208,12 @@ Tethered.TUNING = {
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
 
   // Level-5 specials
-  POP_EXPLODE_DAMAGE: 2,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
+  POP_EXPLODE_DAMAGE: 4,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
   COMBO_SHIELD_THRESHOLD: 10,    // VITALITY — combo crossing this grants a shield
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
   HOMING_ACCEL: 1400,            // TOP SPEED — px/s^2 bend toward the nearest enemy
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
-  MOMENTUM_BASH_HP_FACTOR: 2,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
+  MOMENTUM_BASH_HP_FACTOR: 1,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
   // Loop
   PHYSICS_HZ: 120,
