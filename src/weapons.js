@@ -215,8 +215,18 @@ window.Tethered = window.Tethered || {};
         // Same normal convention as the body collision: from the enemy
         // toward the contact, so a tip hit bounces the ball back along the
         // weapon's axis and a side hit deflects it laterally.
-        const nx = (p.x - e.x) / (gap || 1);
-        const ny = (p.y - e.y) / (gap || 1);
+        let nx = (p.x - e.x) / (gap || 1);
+        let ny = (p.y - e.y) / (gap || 1);
+        // An enemy dead on the capsule axis has no contact direction — a
+        // zero normal would zero the ball's bounce. It happens for real: a
+        // body bounce off a survivor leaves ball, velocity, and enemy
+        // collinear, putting the enemy exactly on the tail's axis next
+        // tick. Fall back to enemy→ball, the line the weapon swept along.
+        if (gap < 1e-6) {
+          const d = Math.hypot(b.x - e.x, b.y - e.y) || 1;
+          nx = (b.x - e.x) / d;
+          ny = (b.y - e.y) / d;
+        }
         S.resolveSmash(game, e, nx, ny, false, {
           dmgBonus: S.weaponDamage(game, s.kind),
           // HORNS special: gore — horn hits always bash through.
