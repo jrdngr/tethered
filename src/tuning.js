@@ -13,7 +13,7 @@ Tethered.TUNING = {
   WALL_RESTITUTION: 0.9,  // bounce energy retention
 
   // Tether (elastic spring to cursor)
-  GRAB_RADIUS: 48,        // px beyond ball radius that still counts as a grab
+  GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
   ROPE_K: 12,             // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
   ROPE_MAX_REST: 120,     // px — max rest length at grab time
@@ -138,7 +138,7 @@ Tethered.TUNING = {
   COINS_PER_KILL_MAX: 10,  // ...rolled in this range, then × combo
   COIN_BURST_SPEED: 220,   // px/s — max scatter speed on drop
   COIN_DRAG: 3,            // 1/s — coins settle quickly
-  COIN_MAGNET_RADIUS: 128, // px from ball center — 2× the grab handle (BALL_RADIUS + GRAB_RADIUS)
+  COIN_MAGNET_RADIUS: 128, // px from ball center
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
   COIN_LIFETIME: 30,       // s before an uncollected coin fades away
   PICKUP_RESTITUTION: 0.6, // wall-bounce energy retention for coins/pickups
