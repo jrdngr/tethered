@@ -69,6 +69,8 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     const b = game.ball;
     const decay = Math.exp(-T.COIN_DRAG * dt);
+    // The popped ball can't scoop or attract anything during the death pop.
+    const playing = game.state === 'playing';
 
     // Advance heal-burst particles (same drag as coins).
     for (let i = game.particles.length - 1; i >= 0; i--) {
@@ -101,7 +103,7 @@ window.Tethered = window.Tethered || {};
       const settled = !c.heal || c.age >= T.HEALTH_GRACE;
 
       // Scooped up on contact with the ball.
-      if (settled && dist < b.r + c.r) {
+      if (playing && settled && dist < b.r + c.r) {
         game.coins.splice(i, 1);
         if (c.heal) {
           b.hp = Math.min(b.hp + c.heal, game.stats.maxHp);
@@ -122,7 +124,7 @@ window.Tethered = window.Tethered || {};
 
       // Gentle magnetism toward the ball — radius starts at the grab handle
       // and grows with upgrades.
-      if (settled && dist < game.stats.magnetRadius) {
+      if (playing && settled && dist < game.stats.magnetRadius) {
         const pull = game.stats.magnetAccel * (1 - dist / game.stats.magnetRadius);
         c.vx += (dx / dist) * pull * dt;
         c.vy += (dy / dist) * pull * dt;

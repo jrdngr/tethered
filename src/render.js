@@ -64,14 +64,14 @@ window.Tethered = window.Tethered || {};
     }
     ctx.globalAlpha = 1;
 
-    // Heal burst: green sparks scattering from a grabbed health pickup,
-    // shrinking and fading as they die.
+    // Spark bursts (green heal sparks by default; the player death burst
+    // overrides color and size), shrinking and fading as they die.
     for (const p of game.particles) {
       const t = p.age / p.life;
       ctx.globalAlpha = 1 - t;
-      ctx.fillStyle = '#6fdc8c';
+      ctx.fillStyle = p.color || '#6fdc8c';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 1 + 2.5 * (1 - t), 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, (p.size || 1) * (1 + 2.5 * (1 - t)), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -104,30 +104,52 @@ window.Tethered = window.Tethered || {};
       ctx.stroke();
     }
 
+    // Player death pop: staggered white-hot shockwave rings, far bigger and
+    // longer than an enemy pop, with a screen flash at the moment of death.
+    if (game.playerPop) {
+      const p = game.playerPop;
+      for (let i = 0; i < T.PLAYER_POP_RINGS; i++) {
+        const t = (p.t - i * T.PLAYER_POP_RING_LAG) / T.PLAYER_POP_DURATION;
+        if (t < 0 || t >= 1) continue;
+        const ease = 1 - (1 - t) * (1 - t);
+        ctx.strokeStyle = `rgba(174, 244, 255, ${1 - t})`;
+        ctx.lineWidth = 2 + 6 * (1 - t);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, T.BALL_RADIUS * (1 + (T.PLAYER_POP_SCALE - 1) * ease), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (p.t < T.PLAYER_POP_FLASH) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * (1 - p.t / T.PLAYER_POP_FLASH)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
     // Ball color tracks speed (tethered or not): dark blue while slow, a
     // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
     // while fast. Just above the threshold it flashes the vulnerable dark
     // blue as an "about to drop out" warning. The glow is cyan when free
     // and tether-red while held (a smash still works but costs the combo).
-    // Flash during i-frames.
-    const speed = S.ballSpeed(b);
-    const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
-    const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
-    ctx.save();
-    if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
-    if (speed > T.SPEED_THRESHOLD && !flashDark) {
-      const f = Math.min(
-        (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
-      ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
-      ctx.shadowColor = game.tether.active ? '#ff641e' : '#56e8ff';
-      ctx.shadowBlur = 10 + 22 * f;
-    } else {
-      ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
+    // Flash during i-frames. Once it pops, there's no ball to draw.
+    if (game.state !== 'dying' && game.state !== 'gameover') {
+      const speed = S.ballSpeed(b);
+      const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
+      const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
+      ctx.save();
+      if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
+      if (speed > T.SPEED_THRESHOLD && !flashDark) {
+        const f = Math.min(
+          (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
+        ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
+        ctx.shadowColor = game.tether.active ? '#ff641e' : '#56e8ff';
+        ctx.shadowBlur = 10 + 22 * f;
+      } else {
+        ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
+      }
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
 
     drawHud(ctx, game);
     if (game.state === 'levelup') drawLevelUp(ctx, game);

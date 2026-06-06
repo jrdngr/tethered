@@ -45,6 +45,19 @@ Tethered.TUNING = {
   // Enemy death pop animation
   POP_DURATION: 0.25,     // s — how long the pop ring lasts
   POP_SCALE: 2.4,         // final pop ring radius, × enemy radius
+  ENEMY_POP_PUSH: 160,        // px/s — small shove to nearby enemies when one dies...
+  ENEMY_POP_PUSH_RADIUS: 120, // ...fading to 0 at this range
+
+  // Player death: a far bigger pop than an enemy's — staggered shockwave
+  // rings, a spark burst, and a screen flash — plus an arena-wide blast
+  // that flings every enemy away with health-pickup fling force.
+  PLAYER_POP_DURATION: 1.0,       // s — each ring expands and fades over this
+  PLAYER_POP_SCALE: 14,           // final ring radius, × ball radius
+  PLAYER_POP_RINGS: 3,            // staggered expanding rings
+  PLAYER_POP_RING_LAG: 0.12,      // s between successive rings
+  PLAYER_POP_PARTICLES: 48,       // sparks in the death burst
+  PLAYER_POP_PARTICLE_SPEED: 700, // px/s — max scatter speed
+  PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
   // Spawning
   SPAWN_INTERVAL_START: 2.5, // s
@@ -65,7 +78,7 @@ Tethered.TUNING = {
 
   // Health pickups: occasional heart drops from dead enemies. They use the
   // same physics/magnetism as coins but heal instead of leveling.
-  HEALTH_DROP_CHANCE: 0.1, // fraction of enemy deaths that drop one
+  HEALTH_DROP_CHANCE: 0.05, // fraction of enemy deaths that drop one
   HEALTH_HEAL: 20,         // HP restored on pickup (capped at max HP)
   HEALTH_RADIUS: 15,       // px — 3× coin radius
   HEALTH_FLING_SPEED: 500, // px/s — flung away from the pop harder than coins

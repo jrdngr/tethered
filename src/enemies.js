@@ -31,6 +31,21 @@ window.Tethered = window.Tethered || {};
     });
   };
 
+  // Radial shockwave: shove every enemy within `radius` of (x, y) away,
+  // fading linearly with distance, via the same decaying knockback a hit
+  // applies. Pass Infinity for a full-strength, arena-wide blast.
+  S.pushEnemies = function (game, x, y, speed, radius) {
+    for (const e of game.enemies) {
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d >= radius) continue;
+      const fade = 1 - d / radius; // d/Infinity is 0, so Infinity → full force
+      e.kx += (dx / d) * speed * fade;
+      e.ky += (dy / d) * speed * fade;
+    }
+  };
+
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
@@ -41,13 +56,16 @@ window.Tethered = window.Tethered || {};
       if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
     }
 
-    // Spawn rate ramps from START down to MIN over SPAWN_RAMP_TIME of survival.
-    const ramp = Math.min(game.time / T.SPAWN_RAMP_TIME, 1);
-    const interval = T.SPAWN_INTERVAL_START + (T.SPAWN_INTERVAL_MIN - T.SPAWN_INTERVAL_START) * ramp;
-    game.spawnTimer -= dt;
-    if (game.spawnTimer <= 0) {
-      S.spawnEnemy(game);
-      game.spawnTimer = interval;
+    // Spawn rate ramps from START down to MIN over SPAWN_RAMP_TIME of
+    // survival. Paused while the player's death pop plays out.
+    if (game.state === 'playing') {
+      const ramp = Math.min(game.time / T.SPAWN_RAMP_TIME, 1);
+      const interval = T.SPAWN_INTERVAL_START + (T.SPAWN_INTERVAL_MIN - T.SPAWN_INTERVAL_START) * ramp;
+      game.spawnTimer -= dt;
+      if (game.spawnTimer <= 0) {
+        S.spawnEnemy(game);
+        game.spawnTimer = interval;
+      }
     }
 
     const b = game.ball;
@@ -66,7 +84,9 @@ window.Tethered = window.Tethered || {};
       e.x += ((toBallX / dist) * e.speed + e.kx) * dt;
       e.y += ((toBallY / dist) * e.speed + e.ky) * dt;
 
-      // Collision with the ball.
+      // Collision with the ball (skipped while the death pop plays out —
+      // the ball is already gone).
+      if (game.state !== 'playing') continue;
       const gap = Math.hypot(b.x - e.x, b.y - e.y);
       if (gap >= b.r + e.r) continue;
       const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball
@@ -88,6 +108,8 @@ window.Tethered = window.Tethered || {};
         if (e.hp <= 0) {
           game.enemies.splice(i, 1);
           game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+          // The pop gives nearby enemies a small shove.
+          S.pushEnemies(game, e.x, e.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
           // Coin drop scales with the combo at the moment of the kill.
           S.spawnCoinBurst(game, e.x, e.y, e.tank ? T.TANK_COIN_MULT : 1);
           if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);

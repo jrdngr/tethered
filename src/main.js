@@ -26,6 +26,7 @@ window.Tethered = window.Tethered || {};
       tether: { active: false, restLength: 0, stretch: 0 },
       enemies: [],
       pops: [], // enemy death pop animations
+      playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
       particles: [], // green sparks from grabbed health pickups
 
@@ -59,15 +60,25 @@ window.Tethered = window.Tethered || {};
       S.pickUpgradeAt(game, game.mouse.x, game.mouse.y);
       return;
     }
+    if (game.state !== 'playing') return; // no grabbing the popped ball
     S.tryGrab(game);
   });
   window.addEventListener('mouseup', () => S.releaseTether(game));
   window.addEventListener('blur', () => S.releaseTether(game));
 
   function update(dt) {
-    game.time += dt;
-    S.updateTether(game, dt);
-    S.updateBall(game, dt);
+    const T = S.TUNING;
+    if (game.state === 'dying') {
+      // Death pop playing out: the ball and survival clock are frozen, the
+      // rest of the world coasts. Show the overlay once the last ring fades.
+      game.playerPop.t += dt;
+      const total = T.PLAYER_POP_DURATION + (T.PLAYER_POP_RINGS - 1) * T.PLAYER_POP_RING_LAG;
+      if (game.playerPop.t >= total) game.state = 'gameover';
+    } else {
+      game.time += dt;
+      S.updateTether(game, dt);
+      S.updateBall(game, dt);
+    }
     S.updateEnemies(game, dt);
     S.updateCoins(game, dt);
     S.updateCombo(game);
@@ -83,9 +94,11 @@ window.Tethered = window.Tethered || {};
     last = now;
     dt = Math.min(dt, 0.1); // avoid spiral of death after a background tab
 
-    if (game.state === 'playing') {
+    // Physics runs while playing and through the death animation.
+    const live = () => game.state === 'playing' || game.state === 'dying';
+    if (live()) {
       acc += dt;
-      while (acc >= STEP && game.state === 'playing') {
+      while (acc >= STEP && live()) {
         update(STEP);
         acc -= STEP;
       }
