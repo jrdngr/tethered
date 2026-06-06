@@ -57,7 +57,7 @@ Tethered.TUNING = {
   COINS_PER_KILL_MAX: 10,  // ...rolled in this range, then × combo
   COIN_BURST_SPEED: 220,   // px/s — max scatter speed on drop
   COIN_DRAG: 3,            // 1/s — coins settle quickly
-  COIN_MAGNET_RADIUS: 64,  // px from ball center — matches grab handle (BALL_RADIUS + GRAB_RADIUS)
+  COIN_MAGNET_RADIUS: 128, // px from ball center — 2× the grab handle (BALL_RADIUS + GRAB_RADIUS)
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
   COIN_LIFETIME: 30,       // s before an uncollected coin fades away
   LEVEL_COINS_BASE: 50,    // coins to clear level 1
