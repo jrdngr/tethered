@@ -214,7 +214,7 @@ Tethered.TUNING = {
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
 
   // Level-5 specials
-  POP_EXPLODE_DAMAGE: 4,         // DAMAGE — splash dmg inside the pop push radius (kills a basic chaser)
+  POP_EXPLODE_DAMAGE: 2,         // DAMAGE — splash dmg inside the pop push radius
   POP_EXPLODE_DURATION: 0.45,    // DAMAGE — s, fiery blast wave expanding to the splash radius
   COMBO_SHIELD_THRESHOLD: 10,    // VITALITY — combo crossing this grants a shield
   COMBO_SHIELD_COOLDOWN: 30,     // s after a shield breaks before another can be granted
