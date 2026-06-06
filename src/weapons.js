@@ -223,9 +223,8 @@ window.Tethered = window.Tethered || {};
 
   // Weapon pass, run before the body-collision loop: each enemy takes at
   // most one weapon hit per tick; resolveSmash kills (flagging dead for the
-  // sweep) or knocks the survivor flush against the weapon (a poker pierce
-  // grants brief invuln instead), so the body loop can't land a second hit
-  // the same step.
+  // sweep) or knocks the survivor flush against the weapon, so the body
+  // loop can't land a second hit the same step.
   S.updateWeaponCollisions = function (game) {
     if (!game.weaponState.active) return;
     const segs = S.weaponSegments(game);
@@ -235,6 +234,10 @@ window.Tethered = window.Tethered || {};
     for (const e of game.enemies) {
       if (e.dead || e.invuln > 0) continue;
       for (const s of segs) {
+        // The poker pierces — it never bounces the ball away from what it
+        // pokes — so without a guard it would re-hit a survivor it's still
+        // plowing toward every tick. The hit flash doubles as the cooldown.
+        if (s.kind === 'poker' && e.flash > 0) continue;
         const p = segClosest(s.x1, s.y1, s.x2, s.y2, e.x, e.y);
         const gap = Math.hypot(e.x - p.x, e.y - p.y);
         if (gap >= s.r + e.r) continue;

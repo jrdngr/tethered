@@ -325,10 +325,9 @@ window.Tethered = window.Tethered || {};
   // BASH_HP_FACTOR × max HP — plows through instead (deflected but never
   // bounced backwards) and pops with BASH_POP_PUSH × force. opts:
   //   dmgBonus     extra damage on top of smashDamage (weapon hits)
-  //   pierce       fly straight through: the ball keeps its heading (no
-  //                bounce or deflection), and a survivor gets brief invuln
-  //                instead of flush separation so the ball passes cleanly
-  //                without re-hitting it (poker)
+  //   pierce       the hit never redirects the ball — it keeps its heading
+  //                (poker). The enemy is resolved normally, so a survivor
+  //                still blocks and bounces the ball's body.
   //   bashOverride force a bash regardless of the damage threshold
   //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
   //   ax/ay/ar     separation anchor a survivor is pushed flush against
@@ -353,20 +352,14 @@ window.Tethered = window.Tethered || {};
       // so the next physics step doesn't land a second hit. No combo —
       // that only counts kills.
       const knock = T.KNOCKBACK_SPEED * (opts.knockMult || 1);
+      const ax = opts.ax !== undefined ? opts.ax : b.x;
+      const ay = opts.ay !== undefined ? opts.ay : b.y;
+      const ar = opts.ar !== undefined ? opts.ar : b.r;
       e.flash = T.HIT_FLASH_DURATION;
       e.kx = -nx * knock;
       e.ky = -ny * knock;
-      if (opts.pierce) {
-        // No separation — the ball flies through; the invuln keeps the
-        // weapon and body passes from landing again mid-traversal.
-        e.invuln = T.WEAPON_POKER_PIERCE_INVULN;
-      } else {
-        const ax = opts.ax !== undefined ? opts.ax : b.x;
-        const ay = opts.ay !== undefined ? opts.ay : b.y;
-        const ar = opts.ar !== undefined ? opts.ar : b.r;
-        e.x = ax - nx * (ar + e.r);
-        e.y = ay - ny * (ar + e.r);
-      }
+      e.x = ax - nx * (ar + e.r);
+      e.y = ay - ny * (ar + e.r);
     }
     // KILL SURGE: pops feed speed back into the ball (capped next step);
     // its special pays out on every smash, kill or not. A bash plows

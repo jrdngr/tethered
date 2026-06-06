@@ -182,7 +182,6 @@ Tethered.TUNING = {
   WEAPON_POKER_REACH: 48,      // px front spike length (1.5× ball diameter)
   WEAPON_POKER_WIDTH: 6,       // px hit-capsule radius / half-width at the base
   WEAPON_POKER_DMG: 1,         // bonus damage per level (1-4)
-  WEAPON_POKER_PIERCE_INVULN: 0.25, // s a pierced survivor can't be re-hit — long enough for the ball to fly through
   WEAPON_TAIL_REACH: 72,       // px rear cone length (2.25× ball diameter)
   WEAPON_TAIL_WIDTH: 12,       // px hit-capsule radius / half-width at the wide tip
   WEAPON_TAIL_DMG: 1,
