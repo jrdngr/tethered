@@ -13,6 +13,7 @@ window.Tethered = window.Tethered || {};
     const m = game.mouse;
     const d = Math.hypot(m.x - b.x, m.y - b.y);
     if (d <= b.r + T.GRAB_RADIUS) {
+      game.combo = 1; // grabbing the ball breaks the combo
       const tether = game.tether;
       tether.active = true;
       tether.restLength = Math.min(d, T.ROPE_MAX_REST);

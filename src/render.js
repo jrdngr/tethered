@@ -171,7 +171,7 @@ window.Tethered = window.Tethered || {};
     // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
     // while fast. Just above the threshold it flashes the vulnerable dark
     // blue as an "about to drop out" warning. The glow is cyan when free
-    // and tether-red while held (a smash still works but costs the combo).
+    // and tether-red while held (grabbing breaks the combo).
     // Flash during i-frames. Once it pops, there's no ball to draw.
     if (game.state !== 'dying' && game.state !== 'gameover') {
       const speed = S.ballSpeed(b);
