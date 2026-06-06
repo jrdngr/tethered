@@ -222,10 +222,18 @@ window.Tethered = window.Tethered || {};
     ctx.font = '16px monospace';
     ctx.textBaseline = 'top';
 
-    // Combo, top-left.
+    // Combo, top-left, with a bar draining over COMBO_TIMEOUT — the time
+    // left before an idle combo resets.
     ctx.textAlign = 'left';
     ctx.fillStyle = game.combo > 1 ? '#56e8ff' : '#6b6f80';
     ctx.fillText(`COMBO x${game.combo}`, 16, 14);
+    if (game.combo > 1) {
+      const left = Math.max(1 - game.comboIdle / T.COMBO_TIMEOUT, 0);
+      ctx.fillStyle = '#1c1f2a';
+      ctx.fillRect(16, 33, 100, 4);
+      ctx.fillStyle = '#56e8ff';
+      ctx.fillRect(16, 33, 100 * left, 4);
+    }
 
     // HP bar below.
     const hpW = 160;
