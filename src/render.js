@@ -7,7 +7,7 @@ window.Tethered = window.Tethered || {};
     tank: '#b558f6',     // purple
     splitter: '#f76b15', // orange
     orbiter: '#e93d82',  // pink
-    runner: '#ffc53d',   // coin gold — it's the payday target
+    runner: '#cc9a1f',   // dark gold — it's the payday target
   };
 
   S.drawGame = function (ctx, game) {
