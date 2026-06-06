@@ -65,7 +65,7 @@ Tethered.TUNING = {
 
   // Health pickups: occasional heart drops from dead enemies. They use the
   // same physics/magnetism as coins but heal instead of leveling.
-  HEALTH_DROP_CHANCE: 0.3, // fraction of enemy deaths that drop one
+  HEALTH_DROP_CHANCE: 0.1, // fraction of enemy deaths that drop one
   HEALTH_HEAL: 20,         // HP restored on pickup (capped at max HP)
   HEALTH_RADIUS: 15,       // px — 3× coin radius
   HEALTH_FLING_SPEED: 500, // px/s — flung away from the pop harder than coins
