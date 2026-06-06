@@ -9,6 +9,12 @@ window.Tethered = window.Tethered || {};
     return Math.round(T.LEVEL_COINS_BASE * Math.pow(T.LEVEL_COINS_GROWTH, level - 1));
   };
 
+  // Coin radius grows with denomination so the merged tiers read at a glance.
+  function coinRadius(value) {
+    const T = S.TUNING;
+    return T.COIN_RADIUS * Math.pow(value, T.COIN_SIZE_GROWTH);
+  }
+
   // Scatter a burst of coins where an enemy was popped, × the current combo
   // (and × an optional per-enemy multiplier — tanks pay out more).
   S.spawnCoinBurst = function (game, x, y, mult) {
@@ -25,7 +31,8 @@ window.Tethered = window.Tethered || {};
         vy: Math.sin(angle) * speed,
         r: T.COIN_RADIUS,
         age: 0,
-        spin: Math.random() * Math.PI * 2, // render phase for the spin shimmer
+        value: 1,
+        spin: Math.random() * Math.PI * 2, // render phase for the pulse
       });
     }
   };
@@ -101,6 +108,27 @@ window.Tethered = window.Tethered || {};
       p.y += p.vy * dt;
     }
 
+    // Slow pairwise attraction between same-value coins that can still merge
+    // up, so clusters drift together. Reaches double the coin's diameter.
+    for (let i = 0; i < game.coins.length; i++) {
+      const a = game.coins[i];
+      if (a.heal || !T.COIN_MERGE_COUNTS[a.value]) continue;
+      const range = a.r * T.COIN_ATTRACT_RADIUS_MULT;
+      for (let j = i + 1; j < game.coins.length; j++) {
+        const o = game.coins[j];
+        if (o.heal || o.value !== a.value) continue;
+        const dx = o.x - a.x;
+        const dy = o.y - a.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d >= range) continue;
+        const pull = T.COIN_ATTRACT_ACCEL * (1 - d / range) * dt;
+        a.vx += (dx / d) * pull;
+        a.vy += (dy / d) * pull;
+        o.vx -= (dx / d) * pull;
+        o.vy -= (dy / d) * pull;
+      }
+    }
+
     for (let i = game.coins.length - 1; i >= 0; i--) {
       const c = game.coins[i];
       c.age += dt;
@@ -125,7 +153,7 @@ window.Tethered = window.Tethered || {};
           spawnHealParticles(game, c.x, c.y);
           continue;
         }
-        game.coinProgress += 1;
+        game.coinProgress += c.value;
         while (game.coinProgress >= S.coinsForLevel(game.level)) {
           game.coinProgress -= S.coinsForLevel(game.level);
           game.level += 1;
@@ -155,6 +183,46 @@ window.Tethered = window.Tethered || {};
       else if (c.x + c.r > game.width) { c.x = game.width - c.r; c.vx = -c.vx * 0.6; }
       if (c.y - c.r < 0) { c.y = c.r; c.vy = -c.vy * 0.6; }
       else if (c.y + c.r > game.height) { c.y = game.height - c.r; c.vy = -c.vy * 0.6; }
+    }
+
+    // Merge clusters: when enough same-value coins nearly overlap, replace
+    // them with one coin of the next denomination at their centroid. Merged
+    // coins push onto the end of the array, so a fresh 5 can chain straight
+    // into a 25 in the same pass.
+    let anyMerged = false;
+    for (let i = 0; i < game.coins.length; i++) {
+      const c = game.coins[i];
+      if (c.heal || c.merged) continue;
+      const need = T.COIN_MERGE_COUNTS[c.value];
+      if (!need) continue;
+      const group = [c];
+      for (let j = i + 1; j < game.coins.length && group.length < need; j++) {
+        const o = game.coins[j];
+        if (o.heal || o.merged || o.value !== c.value) continue;
+        const d = Math.hypot(o.x - c.x, o.y - c.y);
+        if (d < (c.r + o.r) * T.COIN_MERGE_DIST_MULT) group.push(o);
+      }
+      if (group.length < need) continue;
+      let mx = 0, my = 0, mvx = 0, mvy = 0;
+      for (const g of group) {
+        mx += g.x; my += g.y; mvx += g.vx; mvy += g.vy;
+        g.merged = true;
+      }
+      anyMerged = true;
+      const value = c.value * need;
+      game.coins.push({
+        x: mx / need, y: my / need,
+        vx: mvx / need, vy: mvy / need,
+        r: coinRadius(value),
+        age: 0, // the new coin lives a full term
+        value,
+        spin: Math.random() * Math.PI * 2,
+      });
+    }
+    if (anyMerged) {
+      for (let i = game.coins.length - 1; i >= 0; i--) {
+        if (game.coins[i].merged) game.coins.splice(i, 1);
+      }
     }
   };
 })(Tethered);

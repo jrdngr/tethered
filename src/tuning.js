@@ -119,6 +119,14 @@ Tethered.TUNING = {
   LEVEL_COINS_BASE: 25,    // coins to clear level 1
   LEVEL_COINS_GROWTH: 1.2, // × per level
 
+  // Coin merging: same-value coins drift together and combine into a higher
+  // denomination — 5×1 → 5, 5×5 → 25, 4×25 → 100 (the highest coin).
+  COIN_MERGE_COUNTS: { 1: 5, 5: 5, 25: 4 }, // coins of this value needed to merge up
+  COIN_ATTRACT_RADIUS_MULT: 4, // × coin radius — double the coin's diameter
+  COIN_ATTRACT_ACCEL: 120,     // px/s^2 pull at point-blank; vs drag ≈ 40 px/s drift
+  COIN_MERGE_DIST_MULT: 0.5,   // × combined radii — "nearly overlapping" to merge
+  COIN_SIZE_GROWTH: 0.25,      // coin radius = COIN_RADIUS × value^this
+
   // Health pickups: occasional heart drops from dead enemies. They use the
   // same physics/magnetism as coins but heal instead of leveling.
   HEALTH_DROP_CHANCE: 0.05, // fraction of enemy deaths that drop one
