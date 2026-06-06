@@ -174,20 +174,20 @@ window.Tethered = window.Tethered || {};
       game.weaponState.active = false;
     }
     // Floppy-tail spring: the tail's world angle chases straight-behind
-    // with rotational force. Damping scales with forward speed — like a
-    // streamer in the wind: slow, it's underdamped and wags freely; at
-    // smash speeds it's near critically damped and barely wags, so the
-    // wobble mostly shows when the heading changes (the target jumps and
-    // the deflection has to play out). Integrated every tick, armed or
+    // with rotational force. The spring is underdamped, so it overshoots
+    // and keeps swinging — it (almost) never sits still. On top of the
+    // base spring, the ball's velocity is a headwind: a speed-proportional
+    // pull toward straight-behind, so a fast ball recenters its tail
+    // quickly without losing the wag. Integrated every tick, armed or
     // not, so it's already trailing when the weapons deploy.
     const T = S.TUNING;
     const ws = game.weaponState;
     const b = game.ball;
     const target = Math.atan2(-b.vy, -b.vx);
     const dev = Math.atan2(Math.sin(target - ws.tailAngle), Math.cos(target - ws.tailAngle));
-    const damping = T.WEAPON_TAIL_TURN_DAMPING + T.WEAPON_TAIL_DAMP_PER_SPEED * S.ballSpeed(b);
-    ws.tailVel += T.WEAPON_TAIL_TURN_K * dev * dt;
-    ws.tailVel *= Math.exp(-damping * dt);
+    const k = T.WEAPON_TAIL_TURN_K + T.WEAPON_TAIL_WIND_PER_SPEED * S.ballSpeed(b);
+    ws.tailVel += k * dev * dt;
+    ws.tailVel *= Math.exp(-T.WEAPON_TAIL_TURN_DAMPING * dt);
     const a = ws.tailAngle + ws.tailVel * dt;
     ws.tailAngle = Math.atan2(Math.sin(a), Math.cos(a)); // keep wrapped
   };
