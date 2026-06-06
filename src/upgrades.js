@@ -24,6 +24,10 @@ window.Tethered = window.Tethered || {};
       surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills
       paddleWide: false,      // PADDLE: every paddle is double length
       comboShield: false,     // VITALITY: crossing the combo threshold grants a shield
+      pokerSkewer: false,     // POKER: the spike doubles in length
+      earsBoxer: false,       // EARS: ear hits knock back harder
+      hornsGore: false,       // HORNS: horn hits always bash
+      tailWake: false,        // TAIL: tail hits fire a shockwave
     };
   };
 
@@ -96,6 +100,36 @@ window.Tethered = window.Tethered || {};
       apply: (game) => S.addPaddle(game),
       specialDesc: () => '2× paddle width',
       special: (game) => { game.stats.paddleWide = true; },
+    },
+    // Weapons (see weapons.js): apply is a no-op because damage and size
+    // derive straight from the upgrade level.
+    {
+      name: 'POKER',
+      desc: () => `+${S.TUNING.WEAPON_POKER_DMG} dmg front spike`,
+      apply: () => {},
+      specialDesc: () => '2× spike length',
+      special: (game) => { game.stats.pokerSkewer = true; },
+    },
+    {
+      name: 'EARS',
+      desc: () => `+${S.TUNING.WEAPON_EARS_DMG} dmg side fins`,
+      apply: () => {},
+      specialDesc: () => '2× ear knockback',
+      special: (game) => { game.stats.earsBoxer = true; },
+    },
+    {
+      name: 'HORNS',
+      desc: () => `+${S.TUNING.WEAPON_HORNS_DMG} dmg front horns`,
+      apply: () => {},
+      specialDesc: () => 'horns always bash',
+      special: (game) => { game.stats.hornsGore = true; },
+    },
+    {
+      name: 'TAIL',
+      desc: () => `+${S.TUNING.WEAPON_TAIL_DMG} dmg rear cone`,
+      apply: () => {},
+      specialDesc: () => 'tail hits shockwave',
+      special: (game) => { game.stats.tailWake = true; },
     },
   ];
 

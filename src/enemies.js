@@ -391,6 +391,11 @@ window.Tethered = window.Tethered || {};
       }
     }
 
+    // Weapon pass first: kills are flagged dead and survivors are knocked
+    // out of body range, so the body-collision loop below can't land a
+    // second hit the same step.
+    if (game.state === S.STATE.PLAYING) S.updateWeaponCollisions(game);
+
     const b = game.ball;
     for (let i = game.enemies.length - 1; i >= 0; i--) {
       const e = game.enemies[i];

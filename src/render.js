@@ -172,6 +172,8 @@ window.Tethered = window.Tethered || {};
       const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
       ctx.save();
       if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
+      // Weapons draw first, under the ball, so the shapes emerge from its rim.
+      if (game.weaponState.active) S.drawWeapons(ctx, game);
       if (speed > T.SPEED_THRESHOLD && !flashDark) {
         const f = Math.min(
           (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);

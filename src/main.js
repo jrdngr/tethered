@@ -37,6 +37,7 @@ window.Tethered = window.Tethered || {};
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       particles: [], // green sparks from grabbed health pickups
+      weaponState: { active: false }, // weapons arm on tether release, expire when slow
 
       mouse: { x: canvas.width / 2, y: playHeight() / 2 },
       combo: 1,
@@ -90,6 +91,7 @@ window.Tethered = window.Tethered || {};
       game.time += dt;
       S.updateTether(game, dt);
       S.updateBall(game, dt);
+      S.updateWeapons(game);
     }
     S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);

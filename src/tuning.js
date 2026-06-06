@@ -174,6 +174,28 @@ Tethered.TUNING = {
   PADDLE_THICKNESS: 14,  // px into the arena
   PADDLE_SPEED: 200,     // px/s patrol speed
 
+  // Weapons: upgrade-granted shapes attached to the ball that arm on tether
+  // release while fast and expire once it slows into the warning flash. Each
+  // adds its bonus damage on top of the base smash; levels 1-4 add the
+  // per-level damage and grow the shape, the 5th pick is the special.
+  WEAPON_POKER_REACH: 48,      // px front spike length (1.5× ball diameter)
+  WEAPON_POKER_WIDTH: 6,       // px hit-capsule radius / half-width at the base
+  WEAPON_POKER_DMG: 1,         // bonus damage per level (1-4)
+  WEAPON_TAIL_REACH: 48,       // px rear cone length (1.5× ball diameter)
+  WEAPON_TAIL_WIDTH: 8,
+  WEAPON_TAIL_DMG: 1,
+  WEAPON_EARS_REACH: 16,       // px the side crescents extend (0.5× ball diameter)
+  WEAPON_EARS_WIDTH: 8,
+  WEAPON_EARS_DMG: 1,
+  WEAPON_EARS_SPAN: 70,        // ° of ball circumference each crescent covers
+  WEAPON_HORNS_REACH: 16,      // px horn length (0.5× ball diameter)
+  WEAPON_HORNS_WIDTH: 5,
+  WEAPON_HORNS_DMG: 1,
+  WEAPON_HORN_ANGLE: 45,       // ° off the heading per horn
+  WEAPON_SIZE_GROWTH: 0.1,     // size × (1 + this × (level-1)), levels 1-4
+  WEAPON_POKER_SKEWER_MULT: 2, // POKER special — × spike length
+  WEAPON_EARS_KNOCK_MULT: 2,   // EARS special — × knockback on ear hits
+
   // Level-up upgrades (gain per pick; the damage upgrade is +1). Each tops
   // out at UPGRADE_LEVEL_MAX: levels 1-4 are the normal gain, the 5th pick
   // grants only that upgrade's special effect, then it leaves the pool.

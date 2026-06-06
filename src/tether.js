@@ -38,6 +38,7 @@ window.Tethered = window.Tethered || {};
     game.tether.active = false;
     game.tether.stretch = 0;
     game.tether.wraps.length = 0;
+    S.triggerWeapons(game); // every release while fast (re)arms the weapons
   };
 
   function cross(ax, ay, bx, by) {
