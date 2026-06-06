@@ -31,7 +31,7 @@ Tethered.TUNING = {
   // Enemies
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
-  ENEMY_HP: 1,            // basic enemies die to one base-damage hit
+  ENEMY_HP: 2,            // basic enemies die to two base-damage hits
   ENEMY_DAMAGE: 10,       // HP the ball loses to a basic enemy touch
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
   PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
@@ -42,8 +42,8 @@ Tethered.TUNING = {
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
   // basic chaser.
 
-  // Tanks: rarer armored enemies that take two base-damage hits
-  TANK_HP: 2,
+  // Tanks: rarer armored enemies that take four base-damage hits
+  TANK_HP: 4,
   TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
   TANK_SPEED: 80,         // px/s — slower than chasers
@@ -52,7 +52,7 @@ Tethered.TUNING = {
   TANK_COIN_MULT: 2,      // tanks drop this × the base coin burst
 
   // Splitters: tank-tough enemies that break into two basic chasers on death
-  SPLITTER_HP: 2,            // same starting HP as tanks
+  SPLITTER_HP: 4,            // same starting HP as tanks
   SPLITTER_DAMAGE: 15,
   SPLITTER_RADIUS: 17,       // px
   SPLITTER_SPEED: 90,        // px/s
@@ -108,8 +108,8 @@ Tethered.TUNING = {
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
   // Spawning
-  SPAWN_INTERVAL_START: 2.5, // s
-  SPAWN_INTERVAL_MIN: 0.6,   // s
+  SPAWN_INTERVAL_START: 5.0, // s
+  SPAWN_INTERVAL_MIN: 1.2,   // s
   SPAWN_RAMP_TIME: 120,      // s of survival to reach min interval
 
   // Coins & leveling
