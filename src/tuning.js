@@ -45,12 +45,13 @@ Tethered.TUNING = {
   // Enemy death pop animation
   POP_DURATION: 0.25,     // s — how long the pop ring lasts
   POP_SCALE: 2.4,         // final pop ring radius, × enemy radius
-  ENEMY_POP_PUSH: 160,        // px/s — small shove to nearby enemies when one dies...
+  ENEMY_POP_PUSH: 320,        // px/s — shove to nearby enemies when one dies...
   ENEMY_POP_PUSH_RADIUS: 120, // ...fading to 0 at this range
 
   // Player death: a far bigger pop than an enemy's — staggered shockwave
   // rings, a spark burst, and a screen flash — plus an arena-wide blast
-  // that flings every enemy away with health-pickup fling force.
+  // that flings every enemy away.
+  PLAYER_POP_PUSH: 1500,          // px/s — 3× the health-pickup fling force
   PLAYER_POP_DURATION: 1.0,       // s — each ring expands and fades over this
   PLAYER_POP_SCALE: 14,           // final ring radius, × ball radius
   PLAYER_POP_RINGS: 3,            // staggered expanding rings

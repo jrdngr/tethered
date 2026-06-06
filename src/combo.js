@@ -45,9 +45,8 @@ window.Tethered = window.Tethered || {};
         size: 2,
       });
     }
-    // Shockwave: every enemy in the arena is flung away from the dying
-    // player with the same force a health pickup is flung with.
-    S.pushEnemies(game, b.x, b.y, T.HEALTH_FLING_SPEED, Infinity);
+    // Shockwave: every enemy in the arena is flung away from the dying player.
+    S.pushEnemies(game, b.x, b.y, T.PLAYER_POP_PUSH, Infinity);
   };
 
   S.updateCombo = function (game) {
