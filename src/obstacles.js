@@ -16,12 +16,12 @@ window.Tethered = window.Tethered || {};
     return { x, y, _px: x, _py: y, r, obstacle: true };
   }
 
-  // (Re)derive world positions from the layout's arena fractions — run at
-  // reset and again on resize, so obstacles track the arena.
+  // Derive world positions from the layout's fractions, now of the world
+  // rect (M6 replaces these hand layouts with generated chamber pillars).
   S.layoutObstacles = function (game) {
     const defs = S.TUNING.OBSTACLE_LAYOUTS[game.obstacleLayout] || [];
     game.obstacles = defs.map((d) => {
-      const o = { ...d, x: d.fx * game.width, y: d.fy * game.height };
+      const o = { ...d, x: d.fx * game.world.w, y: d.fy * game.world.h };
       // The rope hugs pillar edges. Rects are capsules (stadium silhouette,
       // end radius = half the short side): one fat peg per rounded end, and
       // the rope's tangent line between them lies exactly on the flat faces

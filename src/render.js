@@ -2,13 +2,15 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  // The world's draw order, bottom to top. The array *is* the z-order: each
-  // layer is one (ctx, game) function, drawn inside the HUD translate and
-  // arena clip. Adding a visual means one function plus an index here.
-  // Like update()'s ordering contract (see main.js), the order is
-  // load-bearing — overlays must cover the world, the ball sits above the
-  // things it smashes, etc.
-  const LAYERS = [
+  // Draw order, bottom to top, in two passes. WORLD_LAYERS render under the
+  // camera translate (world coordinates — gameplay); SCREEN_LAYERS render
+  // after it, in viewport coordinates (full-screen flashes, overlay cards —
+  // things that must cover the view, not a patch of world). The arrays *are*
+  // the z-order: each layer is one (ctx, game) function. Adding a visual
+  // means one function plus an index in the right pass. Like update()'s
+  // ordering contract (see main.js), the order is load-bearing — overlays
+  // must cover the world, the ball sits above the things it smashes, etc.
+  const WORLD_LAYERS = [
     drawArena,
     drawTether,
     drawObstacles, // above the rope, so a wrapped rope tucks behind the pillar
@@ -19,8 +21,11 @@ window.Tethered = window.Tethered || {};
     drawEnemies,
     drawPops,
     drawFloaters,
-    drawPlayerPop,
+    drawPlayerPop, // the shockwave rings; the death flash is a screen layer
     drawBall,
+  ];
+  const SCREEN_LAYERS = [
+    drawPlayerPopFlash,
     drawFlash,
     drawOverlays,
   ];
@@ -28,20 +33,28 @@ window.Tethered = window.Tethered || {};
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
 
-    // Background (HUD band + arena), then the HUD in its own band up top.
+    // Background (HUD band + viewport), then the HUD in its own band up top.
     ctx.fillStyle = '#0d0e14';
     ctx.fillRect(0, 0, game.width, T.HUD_HEIGHT + game.height);
     drawHud(ctx, game);
 
-    // The world renders translated below the HUD and clipped to the arena,
-    // so game elements never draw under the UI. Screen shake rides the
-    // translate (the world jolts, the HUD stays planted).
+    // Everything below renders translated under the HUD and clipped to the
+    // viewport, so game elements never draw under the UI.
     ctx.save();
-    ctx.translate(game.shake.x, T.HUD_HEIGHT + game.shake.y);
+    ctx.translate(0, T.HUD_HEIGHT);
     ctx.beginPath();
     ctx.rect(0, 0, game.width, game.height);
     ctx.clip();
-    for (const layer of LAYERS) layer(ctx, game);
+
+    // World pass: camera scroll + screen shake on the same translate (the
+    // world jolts, the HUD and overlays stay planted).
+    ctx.save();
+    ctx.translate(game.shake.x - game.camera.x, game.shake.y - game.camera.y);
+    for (const layer of WORLD_LAYERS) layer(ctx, game);
+    ctx.restore();
+
+    // Screen pass: viewport coordinates, still clipped to the play area.
+    for (const layer of SCREEN_LAYERS) layer(ctx, game);
     ctx.restore();
 
     // Dev panel column on the right, in raw canvas coordinates. The arena
@@ -49,11 +62,11 @@ window.Tethered = window.Tethered || {};
     S.drawDevPanel(ctx, game);
   };
 
-  // Arena border.
+  // World border.
   function drawArena(ctx, game) {
     ctx.strokeStyle = '#2a2d3a';
     ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, game.width - 4, game.height - 4);
+    ctx.strokeRect(2, 2, game.world.w - 4, game.world.h - 4);
   }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
@@ -272,7 +285,8 @@ window.Tethered = window.Tethered || {};
   }
 
   // Player death pop: staggered white-hot shockwave rings, far bigger and
-  // longer than an enemy pop, with a screen flash at the moment of death.
+  // longer than an enemy pop. World layer — the rings expand where the ball
+  // died; the companion flash is the screen layer below.
   function drawPlayerPop(ctx, game) {
     const T = S.TUNING;
     if (!game.playerPop) return;
@@ -287,10 +301,15 @@ window.Tethered = window.Tethered || {};
       ctx.arc(p.x, p.y, T.BALL_RADIUS * (1 + (T.PLAYER_POP_SCALE - 1) * ease), 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (p.t < T.PLAYER_POP_FLASH) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * (1 - p.t / T.PLAYER_POP_FLASH)})`;
-      ctx.fillRect(0, 0, game.width, game.height);
-    }
+  }
+
+  // The white flash at the moment of death — screen layer, so it covers the
+  // viewport regardless of where the camera is.
+  function drawPlayerPopFlash(ctx, game) {
+    const T = S.TUNING;
+    if (!game.playerPop || game.playerPop.t >= T.PLAYER_POP_FLASH) return;
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * (1 - game.playerPop.t / T.PLAYER_POP_FLASH)})`;
+    ctx.fillRect(0, 0, game.width, game.height);
   }
 
   // Ball color tracks speed (tethered or not): dark blue while slow, a
@@ -337,7 +356,7 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Bash screen flash: a brief white pop over the whole arena, fading out.
+  // Bash screen flash: a brief white pop over the whole viewport, fading out.
   function drawFlash(ctx, game) {
     const T = S.TUNING;
     if (game.flash <= 0) return;
@@ -345,8 +364,9 @@ window.Tethered = window.Tethered || {};
     ctx.fillRect(0, 0, game.width, game.height);
   }
 
-  // Overlays share the world's (translated) coordinate space so their
-  // card/click rects line up with the mouse; the HUD stays visible above.
+  // Overlays render in the screen pass (viewport coordinates), so their
+  // card/click rects line up with game.mouseScreen; the HUD stays visible
+  // above.
   function drawOverlays(ctx, game) {
     if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
     if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
@@ -459,8 +479,8 @@ window.Tethered = window.Tethered || {};
     const rects = S.upgradeCardRects(game);
     game.upgradeChoices.forEach((u, i) => {
       const r = rects[i];
-      const hover = game.mouse.x >= r.x && game.mouse.x <= r.x + r.w &&
-        game.mouse.y >= r.y && game.mouse.y <= r.y + r.h;
+      const hover = game.mouseScreen.x >= r.x && game.mouseScreen.x <= r.x + r.w &&
+        game.mouseScreen.y >= r.y && game.mouseScreen.y <= r.y + r.h;
       ctx.fillStyle = hover ? '#242838' : '#1c1f2a';
       ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = hover ? '#ffc53d' : '#2a2d3a';

@@ -62,9 +62,10 @@ window.Tethered = window.Tethered || {};
     if (b.iframes > 0) b.iframes -= dt;
     if (b.shieldCooldown > 0) b.shieldCooldown -= dt;
 
-    // Walls: clamp position, reflect velocity with restitution (upgradable
-    // stat — ELASTICITY can push it past 1, which is safe: drag and the
-    // speed cap dominate between bounces).
+    // World-border walls: clamp position, reflect velocity with restitution
+    // (upgradable stat — ELASTICITY can push it past 1, which is safe: drag
+    // and the speed cap dominate between bounces). M2 replaces these with
+    // wall-tile collision; the border rect stays as the outermost backstop.
     // Velocity-direction guards prevent re-bouncing while still overlapping.
     const rest = game.stats.wallRestitution;
     const preSpeed = S.ballSpeed(b);
@@ -72,15 +73,15 @@ window.Tethered = window.Tethered || {};
     if (b.x - b.r < 0) {
       b.x = b.r;
       if (b.vx < 0) { b.vx = -b.vx * rest; bounced = true; }
-    } else if (b.x + b.r > game.width) {
-      b.x = game.width - b.r;
+    } else if (b.x + b.r > game.world.w) {
+      b.x = game.world.w - b.r;
       if (b.vx > 0) { b.vx = -b.vx * rest; bounced = true; }
     }
     if (b.y - b.r < 0) {
       b.y = b.r;
       if (b.vy < 0) { b.vy = -b.vy * rest; bounced = true; }
-    } else if (b.y + b.r > game.height) {
-      b.y = game.height - b.r;
+    } else if (b.y + b.r > game.world.h) {
+      b.y = game.world.h - b.r;
       if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
     }
 

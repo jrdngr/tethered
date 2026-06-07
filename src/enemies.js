@@ -54,8 +54,8 @@ window.Tethered = window.Tethered || {};
       e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
       e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
     }
-    e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
-    e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
+    e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
+    e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
   }
 
   // Orbiter brain. Drift: creep toward the ball, bleeding speed. Stalled:
@@ -118,8 +118,8 @@ window.Tethered = window.Tethered || {};
     const seek = d > T.SPITTER_RANGE ? 1 : d < T.SPITTER_RANGE * 0.7 ? -1 : 0;
     e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
     e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
-    e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
-    e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
+    e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
+    e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
     e.brainState.fire -= dt;
     if (e.brainState.fire <= 0 && game.state === S.STATE.PLAYING) {
       e.brainState.fire = T.SPITTER_FIRE_INTERVAL;
@@ -412,15 +412,28 @@ window.Tethered = window.Tethered || {};
     for (let attempt = 0; attempt < 5; attempt++) {
       const side = Math.floor(Math.random() * 4);
       const t = Math.random();
-      if (side === 0) { x = t * game.width; y = r; }
-      else if (side === 1) { x = t * game.width; y = game.height - r; }
-      else if (side === 2) { x = r; y = t * game.height; }
-      else { x = game.width - r; y = t * game.height; }
+      if (side === 0) { x = t * game.world.w; y = r; }
+      else if (side === 1) { x = t * game.world.w; y = game.world.h - r; }
+      else if (side === 2) { x = r; y = t * game.world.h; }
+      else { x = game.world.w - r; y = t * game.world.h; }
       if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
     }
     const e = makeEnemy(game, type, x, y);
     game.enemies.push(e);
     S.grid.insert(e); // queryable this step — broadphase rebuilds are per-pass, not per-spawn
+  };
+
+  // Spawn a forced type at a world point — the dev panel drops one just
+  // outside the ball's reach; M5's generation placement spawns populations
+  // through it.
+  S.spawnEnemyAt = function (game, type, x, y) {
+    const r = S.ENEMY_TYPES[type].stats(S.TUNING).r;
+    const e = makeEnemy(game, type,
+      Math.max(r, Math.min(x, game.world.w - r)),
+      Math.max(r, Math.min(y, game.world.h - r)));
+    game.enemies.push(e);
+    S.grid.insert(e);
+    return e;
   };
 
   // A dead splitter breaks into its children (two chasers; a super-splitter
@@ -657,7 +670,7 @@ window.Tethered = window.Tethered || {};
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       let gone = p.age >= T.PROJECTILE_LIFETIME ||
-        p.x < -p.r || p.x > game.width + p.r || p.y < -p.r || p.y > game.height + p.r;
+        p.x < -p.r || p.x > game.world.w + p.r || p.y < -p.r || p.y > game.world.h + p.r;
       for (const o of game.obstacles) {
         if (gone) break;
         if (S.obstacleHit(o, p.x, p.y, p.r)) gone = true;

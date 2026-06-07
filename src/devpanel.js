@@ -89,7 +89,14 @@ window.Tethered = window.Tethered || {};
       button({
         label: type.toUpperCase(),
         icon: (ctx, cx, cy) => drawMiniEnemy(ctx, type, cx, cy),
-        action: () => S.spawnEnemy(game, type),
+        // Near the ball, not at a world edge — a dev spawn should be
+        // testable immediately, not after a 20-second walk into view.
+        action: () => {
+          const a = Math.random() * Math.PI * 2;
+          S.spawnEnemyAt(game, type,
+            game.ball.x + Math.cos(a) * 480,
+            game.ball.y + Math.sin(a) * 480);
+        },
       });
     }
 

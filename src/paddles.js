@@ -7,7 +7,9 @@ window.Tethered = window.Tethered || {};
   const EDGES = [0, 1, 2, 3];
 
   function edgeLength(game, edge) {
-    return edge < 2 ? game.width : game.height;
+    // World-border edges (paddles leave the pool entirely in M6 — dungeon
+    // walls have no patrol edges).
+    return edge < 2 ? game.world.w : game.world.h;
   }
 
   // Paddle length along its edge; the PADDLE special doubles every paddle.
@@ -38,9 +40,9 @@ window.Tethered = window.Tethered || {};
     const L = paddleLen(game);
     const K = T.PADDLE_THICKNESS;
     if (p.edge === 0) return { x: p.pos - L / 2, y: 0, w: L, h: K };
-    if (p.edge === 1) return { x: p.pos - L / 2, y: game.height - K, w: L, h: K };
+    if (p.edge === 1) return { x: p.pos - L / 2, y: game.world.h - K, w: L, h: K };
     if (p.edge === 2) return { x: 0, y: p.pos - L / 2, w: K, h: L };
-    return { x: game.width - K, y: p.pos - L / 2, w: K, h: L };
+    return { x: game.world.w - K, y: p.pos - L / 2, w: K, h: L };
   };
 
   S.updatePaddles = function (game, dt) {

@@ -384,6 +384,10 @@ Tethered.TUNING = {
   WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
   PEG_DP_EPSILON: 0.8,      // tiles — Douglas-Peucker tolerance simplifying wall contours
 
+  // Camera (src/camera.js): smoothed follow on the ball over the scrolling
+  // world; the viewport (game.width/height) stays the canvas play area.
+  CAM_LERP: 8,              // 1/s — exponential ease toward the ball-centered target
+
   // Broadphase (src/grid.js)
   GRID_CELL: 64,          // px — uniform-grid cell, ≥ the largest enemy diameter so pair queries scan one neighbor ring
 

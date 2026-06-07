@@ -6,22 +6,23 @@ window.Tethered = window.Tethered || {};
   const ctx = canvas.getContext('2d');
   let game;
 
-  // The game's coordinate space is the play area: the canvas minus the HUD
-  // band reserved at the top and the dev panel column on the right (when
-  // open). Rendering translates the world down by HUD_HEIGHT so game
-  // elements never pass under the UI.
+  // Two coordinate spaces. The WORLD (game.world, scrolled over by
+  // game.camera) is where gameplay lives — ball, enemies, tether anchor.
+  // The VIEWPORT (game.width/height: the canvas minus the HUD band and the
+  // dev panel column) is where UI lives — HUD, overlay cards, flashes.
+  // Rendering translates world layers by the camera; input converts the
+  // other way at event time.
   function playHeight() {
     return canvas.height - S.TUNING.HUD_HEIGHT;
   }
 
-  // Recompute the arena from the canvas and the dev panel — called on window
-  // resize and when the panel toggles. A shrink self-corrects: the ball's
-  // wall clamp snaps it back in, and enemies steer toward the (in-bounds)
-  // ball.
+  // Recompute the viewport from the canvas and the dev panel — called on
+  // window resize and when the panel toggles. The world is untouched; the
+  // camera just re-clamps to the new view size.
   function applyArenaSize() {
     game.width = S.arenaWidth(canvas.width);
     game.height = playHeight();
-    S.layoutObstacles(game); // obstacles sit at arena fractions — re-place them
+    S.updateCamera(game, 0); // pure re-clamp (dt 0): no drift while paused
   }
 
   function resize() {
@@ -34,11 +35,20 @@ window.Tethered = window.Tethered || {};
 
   function reset() {
     const w = S.arenaWidth(canvas.width);
+    // M1 placeholder world: a fixed 3×3-screen empty box, so the camera and
+    // coordinate split can be felt before generation lands. M2 swaps in the
+    // generated map's dimensions.
+    const world = {
+      w: 3 * S.TUNING.MAP_SCREEN_W,
+      h: 3 * S.TUNING.MAP_SCREEN_H,
+    };
     // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
-      width: w,
+      width: w, // viewport — see the coordinate-spaces note above
       height: playHeight(),
-      ball: S.createBall(w, playHeight()),
+      world,
+      camera: null, // created below — needs the ball to aim at
+      ball: S.createBall(world.w, world.h),
       tether: S.createTether(),
       enemies: [],
       pops: [], // enemy death pop animations
@@ -54,7 +64,12 @@ window.Tethered = window.Tethered || {};
       // keeps its own sprung world angle and angular velocity.
       weaponState: { active: false, tailAngle: 0, tailVel: 0 },
 
-      mouse: { x: w / 2, y: playHeight() / 2 },
+      // World point the tether anchors to, captured at event time (never
+      // recomputed per frame — a still hand must mean a still anchor even
+      // while the camera slides). mouseScreen is the raw viewport point,
+      // for UI picking (upgrade cards, game-over click).
+      mouse: { x: world.w / 2, y: world.h / 2 },
+      mouseScreen: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
       comboIdle: 0, // s since the combo last changed; COMBO_TIMEOUT resets it
       level: 1,
@@ -71,6 +86,7 @@ window.Tethered = window.Tethered || {};
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
+    game.camera = S.createCamera(game);
     S.cycleObstacles(game); // each run gets a random hand-placed layout
   }
 
@@ -82,10 +98,15 @@ window.Tethered = window.Tethered || {};
 
   function updateMouse(e) {
     const p = canvasPoint(e);
-    // Play-area coordinates; clamp so a cursor over the HUD (or the dev
-    // panel) anchors the tether at the arena's edge instead of inside the UI.
-    game.mouse.x = Math.min(p.x, game.width);
-    game.mouse.y = Math.max(p.y - S.TUNING.HUD_HEIGHT, 0);
+    // Viewport coordinates; clamp so a cursor over the HUD (or the dev
+    // panel) anchors the tether at the view's edge instead of inside the UI.
+    game.mouseScreen.x = Math.max(Math.min(p.x, game.width), 0);
+    game.mouseScreen.y = Math.max(p.y - S.TUNING.HUD_HEIGHT, 0);
+    // World anchor = camera + screen, captured NOW (event time) and clamped
+    // into the world. Recomputing this per frame would make a parked cursor
+    // drift with the camera — the anchor must stay planted.
+    game.mouse.x = Math.max(0, Math.min(game.camera.x + game.mouseScreen.x, game.world.w));
+    game.mouse.y = Math.max(0, Math.min(game.camera.y + game.mouseScreen.y, game.world.h));
   }
 
   canvas.addEventListener('mousemove', (e) => {
@@ -108,7 +129,9 @@ window.Tethered = window.Tethered || {};
       return;
     }
     if (game.state === S.STATE.LEVELUP) {
-      S.pickUpgradeAt(game, game.mouse.x, game.mouse.y);
+      // Cards live in screen space — pick with the viewport point, not the
+      // world anchor.
+      S.pickUpgradeAt(game, game.mouseScreen.x, game.mouseScreen.y);
       return;
     }
     if (game.state !== S.STATE.PLAYING) return; // no grabbing the popped ball
@@ -175,6 +198,9 @@ window.Tethered = window.Tethered || {};
     S.updateEnemies(game, dt);
     S.updateCoins(game, dt);
     S.updateCombo(game, dt);
+    // Camera last, on this step's (scaled) time: render sees the settled
+    // ball, and a bash slow-mo holds the frame instead of panning through it.
+    S.updateCamera(game, dt);
   }
 
   // Fixed-timestep physics accumulated from rAF; render every frame.
