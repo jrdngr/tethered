@@ -352,14 +352,19 @@ Tethered.TUNING = {
   TILE_SIZE: 32,            // px — ball radius = 1 tile; 3-tile corridors = 96px
   MAP_SCREEN_W: 1600,       // px — reference screen for map sizing
   MAP_SCREEN_H: 900,
-  MAP_SCREENS_BASE: 2,      // depth 1 is a 2×2-screen map...
-  MAP_SCREENS_PER_DEPTH: 1, // ...growing one screen per depth...
-  MAP_SCREENS_CAP: 6,       // ...capped at 6×6 (depth 5+)
+  // Maps are sized to give long corridors between rooms: rooms are capped
+  // small enough (below) that the extra map space becomes corridor instead
+  // of being reabsorbed by bigger rooms. ~2× the corridor length of the
+  // tightly-packed version.
+  MAP_SCREENS_BASE: 2.5,    // depth 1 ≈ 2.5×2.5 screens...
+  MAP_SCREENS_PER_DEPTH: 1.5, // ...growing 1.5 screens per depth...
+  MAP_SCREENS_CAP: 9,       // ...capped at 9×9 (depth 5+)
   MAX_DEPTH: 10,            // clearing this depth's exit wins the run
   MAP_BORDER_TILES: 2,      // solid wall band around the map, never carved
   CHAMBER_COUNT_BY_DEPTH: [2, 4, 6, 8, 10, 12, 13, 14, 15, 16], // sub-linear — no encounter-count cliffs
-  CHAMBER_RADIUS_MIN: 22.5, // tiles — stamped chamber blob radius (720px)...
-  CHAMBER_RADIUS_MAX: 27.5, // ...to 880px: rooms 25% bigger than the original
+  CHAMBER_RADIUS_MIN: 16,   // tiles — stamped chamber blob radius (1024px)...
+  CHAMBER_RADIUS_MAX: 19,   // ...to 1216px: rooms ~25% bigger than the original,
+                            // capped so corridors stay long (rooms don't eat the map)
   CHAMBER_GAP_TILES: 6,     // tiles of wall kept between stamped chambers
   MIN_PASSAGE_TILES: 6,     // tiles — corridor width floor (192px; 2× the original 96px)
   CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
