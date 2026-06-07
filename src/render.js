@@ -123,33 +123,37 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Enemies: the base disc in the type's color (flashing white when a hit
-  // doesn't kill), the type's own decoration (tank armor ring), and seams
-  // hinting how a splitter breaks — one diameter line per pair of pieces
-  // it ultimately yields (a super-splitter shows a four-piece cross).
-  function drawEnemies(ctx, game) {
-    for (const e of game.enemies) {
-      const def = S.ENEMY_TYPES[e.type];
-      ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color;
+  // One enemy body: the base disc in the type's color (flashing white when
+  // a hit doesn't kill), the type's own decoration (tank armor ring), and
+  // seams hinting how a splitter breaks — one diameter line per pair of
+  // pieces it ultimately yields (a super-splitter shows a four-piece cross).
+  // Shared by the enemy layer and the dev panel's mini spawn glyphs (which
+  // pass a fake, scaled-down `e`) — one definition, no drifting copies.
+  S.drawEnemyBody = function (ctx, type, e) {
+    const def = S.ENEMY_TYPES[type];
+    ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.fill();
+    if (def.draw) def.draw(ctx, e);
+    if (e.pieces) {
+      const seams = e.pieces / 2;
+      ctx.strokeStyle = '#0d0e14';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-      ctx.fill();
-      if (def.draw) def.draw(ctx, e);
-      if (e.pieces) {
-        const seams = e.pieces / 2;
-        ctx.strokeStyle = '#0d0e14';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (let k = 0; k < seams; k++) {
-          const a = Math.PI / 2 + (k * Math.PI) / seams;
-          const sx = Math.cos(a) * e.r;
-          const sy = Math.sin(a) * e.r;
-          ctx.moveTo(e.x + sx, e.y + sy);
-          ctx.lineTo(e.x - sx, e.y - sy);
-        }
-        ctx.stroke();
+      for (let k = 0; k < seams; k++) {
+        const a = Math.PI / 2 + (k * Math.PI) / seams;
+        const sx = Math.cos(a) * e.r;
+        const sy = Math.sin(a) * e.r;
+        ctx.moveTo(e.x + sx, e.y + sy);
+        ctx.lineTo(e.x - sx, e.y - sy);
       }
+      ctx.stroke();
     }
+  };
+
+  function drawEnemies(ctx, game) {
+    for (const e of game.enemies) S.drawEnemyBody(ctx, e.type, e);
   }
 
   // Death pops: an expanding, fading ring where an enemy was smashed.

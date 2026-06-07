@@ -28,29 +28,18 @@ window.Tethered = window.Tethered || {};
   const ROW_GAP = 3;
   const HEADER_H = 22;
 
-  // A mini fake enemy for the spawn buttons: render.js's enemy pass at glyph
+  // A mini fake enemy for the spawn buttons: the shared enemy body at glyph
   // scale — type-colored disc (proportionate, so a tank reads bigger than a
   // runner), the type's decoration (tank armor ring), and splitter seams.
   function drawMiniEnemy(ctx, type, x, y) {
     const def = S.ENEMY_TYPES[type];
-    const r = def.stats(S.TUNING).r * 0.45;
-    ctx.fillStyle = def.color;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    if (def.draw) def.draw(ctx, { x, y, r, hp: 2 }); // hp 2: armor intact
-    if (def.splitCount) {
-      const seams = (def.pieces || def.splitCount) / 2;
-      ctx.strokeStyle = '#0d0e14';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      for (let k = 0; k < seams; k++) {
-        const a = Math.PI / 2 + (k * Math.PI) / seams;
-        ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-        ctx.lineTo(x - Math.cos(a) * r, y - Math.sin(a) * r);
-      }
-      ctx.stroke();
-    }
+    S.drawEnemyBody(ctx, type, {
+      x, y,
+      r: def.stats(S.TUNING).r * 0.45,
+      flash: 0,
+      hp: 2, // armor intact
+      pieces: def.splitCount ? (def.pieces || def.splitCount) : 0,
+    });
   }
 
   // The full item list — section headers and buttons — with rects in raw

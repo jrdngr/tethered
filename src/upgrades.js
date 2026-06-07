@@ -54,31 +54,29 @@ window.Tethered = window.Tethered || {};
   // setting their own colors; both the level-up cards and the dev panel
   // call them, so they can't depend on a live game.
 
-  // A weapon icon: the weapon shape in its in-game pale cyan emerging from a
-  // mini ball disc, +x forward like the real ball-local frame. `shape` gets
-  // (ctx, r0, u) — the mini ball radius and the box half-extent.
-  function ballIcon(ctx, x, y, size, shape) {
+  // A weapon icon: the weapon's own registry draw() — the same path code the
+  // game renders — at glyph scale, in its in-game pale cyan, emerging from a
+  // mini ball disc, +x forward like the real ball-local frame. The scale
+  // keeps the true TUNING proportions relative to the mini ball, so a shape
+  // tweak can't silently desync its icon. The stub game pins the state the
+  // shapes read: specials off, tail hanging straight back. `offsetX` (× size)
+  // recenters the glyph's visual mass in its box.
+  function weaponIcon(ctx, x, y, size, kind, offsetX) {
     const r0 = size * 0.22;
+    const stub = {
+      ball: { r: r0, vx: 1, vy: 0 },
+      stats: { specials: {} },
+      weaponState: { tailAngle: Math.PI },
+    };
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(x + offsetX * size, y);
     ctx.fillStyle = '#aef4ff';
-    shape(ctx, r0, size / 2);
+    S.WEAPONS[kind].draw(ctx, stub, r0 / S.TUNING.BALL_RADIUS);
     ctx.fillStyle = '#568cc8'; // the fast-ball gradient's dark end
     ctx.beginPath();
     ctx.arc(0, 0, r0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-  }
-
-  // A spike triangle pointing +x from under the mini ball out to its tip
-  // (weapons.js spike(), icon-local so icons don't couple to weapon code).
-  function iconSpike(ctx, r0, reach, halfWidth) {
-    ctx.beginPath();
-    ctx.moveTo(0, -halfWidth);
-    ctx.lineTo(r0 + reach, 0);
-    ctx.lineTo(0, halfWidth);
-    ctx.closePath();
-    ctx.fill();
   }
 
   // The full pool; each level-up offers three of these at random.
@@ -251,19 +249,16 @@ window.Tethered = window.Tethered || {};
       },
     },
     // Weapons (see weapons.js): apply is a no-op because damage and size
-    // derive straight from the upgrade level. Icons mirror each weapon's
-    // in-game draw at glyph scale.
+    // derive straight from the upgrade level. Icons are the weapons' own
+    // registry draws at glyph scale — one shape definition, no copied
+    // constants.
     {
       name: 'POKER',
       desc: () => `+${S.TUNING.WEAPON_POKER_DMG} dmg front spike`,
       apply: () => {},
       specialDesc: () => '2× spike length',
       special: (game) => { game.stats.specials.pokerSkewer = true; },
-      icon(ctx, x, y, size) {
-        ballIcon(ctx, x - size * 0.18, y, size, (c, r0, u) => {
-          iconSpike(c, r0, u * 0.85, r0 * 0.45);
-        });
-      },
+      icon(ctx, x, y, size) { weaponIcon(ctx, x, y, size, 'poker', -0.3); },
     },
     {
       name: 'EARS',
@@ -271,20 +266,7 @@ window.Tethered = window.Tethered || {};
       apply: () => {},
       specialDesc: () => '2× ear knockback',
       special: (game) => { game.stats.specials.earsBoxer = true; },
-      icon(ctx, x, y, size) {
-        ballIcon(ctx, x, y, size, (c, r0, u) => {
-          const outer = u * 0.85;
-          const h = (35 * Math.PI) / 180; // WEAPON_EARS_SPAN/2 at glyph scale
-          for (const side of [1, -1]) {
-            const a = side * Math.PI / 2;
-            c.beginPath();
-            c.arc(0, 0, outer, a - h, a + h);
-            c.arc(0, 0, r0 - 1, a + h, a - h, true);
-            c.closePath();
-            c.fill();
-          }
-        });
-      },
+      icon(ctx, x, y, size) { weaponIcon(ctx, x, y, size, 'ears', 0); },
     },
     {
       name: 'HORNS',
@@ -292,16 +274,7 @@ window.Tethered = window.Tethered || {};
       apply: () => {},
       specialDesc: () => 'horns always bash',
       special: (game) => { game.stats.specials.hornsGore = true; },
-      icon(ctx, x, y, size) {
-        ballIcon(ctx, x - size * 0.12, y, size, (c, r0, u) => {
-          for (const side of [1, -1]) {
-            c.save();
-            c.rotate(side * Math.PI / 4); // WEAPON_HORN_ANGLE
-            iconSpike(c, r0, u * 0.65, r0 * 0.55);
-            c.restore();
-          }
-        });
-      },
+      icon(ctx, x, y, size) { weaponIcon(ctx, x, y, size, 'horns', -0.12); },
     },
     {
       name: 'TAIL',
@@ -309,18 +282,7 @@ window.Tethered = window.Tethered || {};
       apply: () => {},
       specialDesc: () => 'tail hits shockwave',
       special: (game) => { game.stats.specials.tailWake = true; },
-      icon(ctx, x, y, size) {
-        ballIcon(ctx, x + size * 0.22, y, size, (c, r0, u) => {
-          // Reverse taper: a point under the ball flaring wide at the tip.
-          const tip = r0 + u * 1.05;
-          c.beginPath();
-          c.moveTo(0, 0);
-          c.lineTo(-tip, -r0 * 0.8);
-          c.lineTo(-tip, r0 * 0.8);
-          c.closePath();
-          c.fill();
-        });
-      },
+      icon(ctx, x, y, size) { weaponIcon(ctx, x, y, size, 'tail', 0.35); },
     },
   ];
 
