@@ -382,7 +382,8 @@ Tethered.TUNING = {
   // room into a slingshot playground. Sized to play off of, not to wall the
   // room off.
   OBSTACLE_PER_CHAMBER: [2, 5], // circles per room (inclusive range)
-  OBSTACLE_CIRCLE_R: [40, 80],  // px radius range
+  OBSTACLE_CIRCLE_R: [20, 40],  // px radius range
+  OBSTACLE_GAP_RADII: 2,        // circles never overlap: ≥ this × the larger radius of clear floor between any two
   OBSTACLE_CLEAR_PAD: 28,       // px of floor required around a circle's surface
 
   // Camera (src/camera.js): smoothed follow on the ball over the scrolling

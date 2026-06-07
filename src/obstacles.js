@@ -81,7 +81,7 @@ window.Tethered = window.Tethered || {};
           const off = Math.random() * rw * 0.55; // stay well inside the room
           const oa = Math.random() * Math.PI * 2;
           const shape = circleShape(cx + Math.cos(oa) * off, cy + Math.sin(oa) * off);
-          if (onFloor(map, shape) && !overlapsExisting(game, shape) && !nearReserved(map, shape)) {
+          if (onFloor(map, shape) && !tooClose(game, shape) && !nearReserved(map, shape)) {
             game.obstacles.push(shape);
             break;
           }
@@ -90,13 +90,15 @@ window.Tethered = window.Tethered || {};
     }
   };
 
-  // Cheap spacing test: a new shape's pegs shouldn't sit inside an existing
-  // shape (keeps two circles from fusing into a confusing blob).
-  function overlapsExisting(game, shape) {
+  // Spacing test: circles never overlap, and keep OBSTACLE_GAP_RADII × the
+  // larger radius of clear floor between any two — room to swing the rope
+  // between them, not a confusing cluster.
+  function tooClose(game, shape) {
+    const a = shape.parts[0];
     for (const o of game.obstacles) {
-      for (const p of shape.pegs) {
-        if (S.obstacleHit(o, p.x, p.y, p.r)) return true;
-      }
+      const b = o.parts[0];
+      const gap = Math.hypot(a.x - b.x, a.y - b.y) - a.r - b.r;
+      if (gap < S.TUNING.OBSTACLE_GAP_RADII * Math.max(a.r, b.r)) return true;
     }
     return false;
   }
