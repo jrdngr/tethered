@@ -63,37 +63,49 @@ window.Tethered = window.Tethered || {};
   };
 
   // Cave walls: the smooth contour polygons are the source of truth (same
-  // curves the ball and rope collide with). Paint the world wall-colored,
-  // then punch the floor back out with an even-odd fill of every loop —
-  // nesting (a wall island inside a chamber) resolves automatically — and
-  // stroke the loops so the organic edge reads crisp. Only loops whose bbox
-  // meets the camera view are traced.
+  // curves the ball and rope collide with). Fill ONLY the wall region —
+  // even-odd of (viewport rect + visible loops) leaves the floor
+  // transparent, so the rope drawn underneath shows on floor but tucks
+  // behind a wall it crosses. The viewport rect as the base makes the
+  // bbox cull safe: a loop enclosing the view has a bbox covering it (kept);
+  // a loop off to the side encloses no visible point (dropping it is fine).
   function drawWalls(ctx, game) {
     const map = game.map;
     if (!map || !map.wallLoops) return;
     const cam = game.camera;
-    const vx0 = cam.x;
-    const vy0 = cam.y;
-    const vx1 = cam.x + game.width;
-    const vy1 = cam.y + game.height;
+    const vx0 = cam.x - 4;
+    const vy0 = cam.y - 4;
+    const vw = game.width + 8;
+    const vh = game.height + 8;
+    const vx1 = vx0 + vw;
+    const vy1 = vy0 + vh;
 
-    ctx.fillStyle = '#1c1f2a';
-    ctx.fillRect(vx0 - 4, vy0 - 4, game.width + 8, game.height + 8);
-
-    ctx.beginPath();
+    const visible = [];
     for (const loop of map.wallLoops) {
       if (loop.maxX < vx0 || loop.minX > vx1 || loop.maxY < vy0 || loop.minY > vy1) continue;
-      const pts = loop.pts;
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-      ctx.closePath();
+      visible.push(loop);
     }
-    ctx.fillStyle = '#0d0e14';
+
+    // Wall fill: viewport rect minus the floor loops (even-odd).
+    ctx.beginPath();
+    ctx.rect(vx0, vy0, vw, vh);
+    for (const loop of visible) tracePath(ctx, loop.pts);
+    ctx.fillStyle = '#1c1f2a';
     ctx.fill('evenodd');
+
+    // Edge stroke (loops only — not the viewport rect).
+    ctx.beginPath();
+    for (const loop of visible) tracePath(ctx, loop.pts);
     ctx.strokeStyle = '#3a3f52';
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.stroke();
+  }
+
+  function tracePath(ctx, pts) {
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
   }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player

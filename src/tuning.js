@@ -389,7 +389,7 @@ Tethered.TUNING = {
   // into organic curves, and those curves — not the tiles — are what
   // renders, what the ball/enemies collide with, and where wrap pegs sit.
   // The tile grid remains the generation/AI domain (BFS, clearance, spawn).
-  WALL_SMOOTH_ITERS: 2,     // Chaikin corner-cutting passes (each halves the corner angle)
+  WALL_SMOOTH_ITERS: 3,     // Chaikin corner-cutting passes (each halves the corner angle)
   WALL_SIMPLIFY_PX: 2.5,    // px — post-smoothing simplification (cuts segment count, keeps bumps)
   WALL_PEG_RADIUS: 10,      // px — wrap peg at each convex wall corner
   WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
