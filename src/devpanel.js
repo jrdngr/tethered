@@ -10,6 +10,7 @@ window.Tethered = window.Tethered || {};
     open: false,
     paused: false,     // freezes the physics accumulator; rendering continues
     invincible: false, // damageBall no-ops while set
+    bruteForce: false, // broadphase A/B: grid queries return the full enemy list
     hover: -1,         // devItems index under the cursor, -1 = none
   };
 
@@ -76,6 +77,11 @@ window.Tethered = window.Tethered || {};
       label: 'INVINCIBLE',
       on: S.dev.invincible,
       action: () => { S.dev.invincible = !S.dev.invincible; },
+    });
+    button({
+      label: 'BRUTE FORCE',
+      on: S.dev.bruteForce,
+      action: () => { S.dev.bruteForce = !S.dev.bruteForce; },
     });
 
     header('SPAWN');

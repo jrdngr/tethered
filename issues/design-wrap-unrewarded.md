@@ -27,4 +27,4 @@ Note: tethered kills continue to reset combo (`src/enemies.js:342`) — wraps ar
 
 ## Interactions
 
-- [physics-slingshot](physics-slingshot.md) gives wraps a mechanical payoff; this gives them a legible, economic one. Ship the visuals with whichever lands first.
+- The landed slingshot (`releaseTether`, src/tether.js — wraps multiply the release impulse) gives wraps a mechanical payoff; this gives them a legible, economic one. The visuals are now overdue: the slingshot deepens the tension the player can't see.

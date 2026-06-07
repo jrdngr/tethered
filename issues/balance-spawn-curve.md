@@ -23,7 +23,7 @@ All four levers:
 1. **Faster ramp:** `SPAWN_DOUBLE_TIME: 600 → 90`. One enemy/sec arrives at ~3.5 min (t = 90 × log₂5 ≈ 209 s) instead of ~23 min.
 2. **Concurrent-enemy floor:** clearing the board triggers an immediate refill so there's never dead air. Floor can itself grow with time (e.g. `2 + minutes`).
 3. **Per-minute stat scaling:** multiply enemy HP/speed by ~+8%/min so late game is *harder* enemies, not just more of them.
-4. **Concurrent-enemy cap:** an upper bound on live enemies so the O(N²) separation pass (see [physics-broadphase](physics-broadphase.md)) can't blow up frame time before the broadphase fix lands. Excess spawns queue.
+4. **Concurrent-enemy cap:** an upper bound on live enemies as a frame-time safety net. Excess spawns queue. (The broadphase has landed in src/grid.js, so the cap can be generous.)
 
 ## Implementation
 
@@ -34,5 +34,5 @@ All four levers:
 ## Interactions
 
 - Stat scaling changes hits-to-kill over time — tune alongside [balance-base-damage](balance-base-damage.md).
-- The cap is a stopgap; remove or raise it once [physics-broadphase](physics-broadphase.md) ships.
+- The broadphase (`S.grid`, src/grid.js) already keeps separation ~O(N), so the cap guards render/AI cost, not collision — verify whether it's still needed with a dev-panel stress spawn.
 - A denser arena makes the static 70%-chaser mix more visible — see [balance-enemy-mix](balance-enemy-mix.md).

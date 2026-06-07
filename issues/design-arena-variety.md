@@ -18,9 +18,9 @@ Add interior obstacles: static shapes (rects/circles) that the ball bounces off 
 - Wrap support: obstacles join enemies as wrap-pivot candidates in `updateActiveTether` (`src/tether.js:109-132`) — for circles this is the same math; rects can wrap at corners
 - Start with 1–2 hand-placed layouts cycled per run; random placement can come later
 - Rendering slots in as a layer in render.js's `LAYERS` table
-- New TUNING constants: obstacle sizes, restitution (ties into [physics-elasticity-mass](physics-elasticity-mass.md))
+- New TUNING constants: obstacle sizes, restitution (obstacle bounces should read `game.stats.wallRestitution` so the ELASTICITY upgrade applies, like the walls in `src/ball.js`)
 
 ## Interactions
 
-- Multiplies the value of [physics-slingshot](physics-slingshot.md) (fixed anchors enable deliberate, repeatable slingshots) and [design-wrap-unrewarded](design-wrap-unrewarded.md) (more things to wrap)
-- Obstacles must join the broadphase from [physics-broadphase](physics-broadphase.md) rather than adding bespoke scans
+- Multiplies the value of the landed slingshot release (`releaseTether`, src/tether.js) — fixed anchors enable deliberate, repeatable slingshots — and [design-wrap-unrewarded](design-wrap-unrewarded.md) (more things to wrap)
+- Obstacles must join the shared broadphase (`S.grid`, src/grid.js) rather than adding bespoke scans

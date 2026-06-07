@@ -14,7 +14,7 @@ Three new archetypes (a periodic boss was considered and declined for now):
 
 1. **Ranged/zoning enemy** — fires slow projectiles or drops area-denial zones that ball speed alone can't dodge; forces pathing decisions while swinging
 2. **Speed-punisher** — a spiky shell that's dangerous specifically *to fast balls*: fast contact costs the player (damage or a hard speed bleed), inverting the speed=safety rule locally. Must be killable some other way (slow precise hit, bash, weapon)
-3. **Shielded enemy** — only vulnerable from behind or after a bash stuns it; forces angle play and makes wraps/slingshots ([physics-slingshot](physics-slingshot.md)) tactically valuable
+3. **Shielded enemy** — only vulnerable from behind or after a bash stuns it; forces angle play and makes wraps and the landed slingshot release (src/tether.js) tactically valuable
 
 ## Implementation
 

@@ -247,8 +247,17 @@ window.Tethered = window.Tethered || {};
     const segs = S.weaponSegments(game);
     if (!segs.length) return;
     const b = game.ball;
+    // Broadphase: only enemies near some capsule can be hit. Collecting into
+    // a set up front keeps the enemies-outer iteration below — and with it
+    // the hit order and the one-hit-per-enemy rule — identical to a full
+    // scan. (A survivor only ever relocates toward the weapon that hit it,
+    // so nothing can be knocked *into* range mid-pass.)
+    const near = new Set();
+    for (const s of segs) {
+      for (const e of S.grid.querySegment(s.x1, s.y1, s.x2, s.y2, s.r + S.grid.maxR)) near.add(e);
+    }
     for (const e of game.enemies) {
-      if (e.dead || e.invuln > 0) continue;
+      if (!near.has(e) || e.dead || e.invuln > 0) continue;
       for (const s of segs) {
         const def = S.WEAPONS[s.kind];
         const p = S.geom.segClosest(s.x1, s.y1, s.x2, s.y2, e.x, e.y);

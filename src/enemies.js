@@ -201,7 +201,9 @@ window.Tethered = window.Tethered || {};
       else { x = game.width - r; y = t * game.height; }
       if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
     }
-    game.enemies.push(makeEnemy(type, x, y));
+    const e = makeEnemy(type, x, y);
+    game.enemies.push(e);
+    S.grid.insert(e); // queryable this step — broadphase rebuilds are per-pass, not per-spawn
   };
 
   // A dead splitter breaks into its children (two chasers; a super-splitter
@@ -217,6 +219,7 @@ window.Tethered = window.Tethered || {};
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
       game.enemies.push(child);
+      S.grid.insert(child);
     }
   }
 
@@ -230,14 +233,22 @@ window.Tethered = window.Tethered || {};
   }
 
   // Enemies don't stack: overlapping pairs separate and trade a light bounce
-  // through the same decaying knockback a hit applies.
+  // through the same decaying knockback a hit applies. Pairs come from the
+  // broadphase (rebuilt just before this pass) instead of an O(N²) walk;
+  // sorting candidates by _gi keeps resolution order identical to the
+  // brute-force i<j loop — shifts accumulate, so order matters. The query
+  // pads by a cell to cover enemies already shifted by earlier pairs.
+  const pairScratch = [];
   function resolveEnemyOverlaps(game) {
     const T = S.TUNING;
     const list = game.enemies;
     for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length; j++) {
-        const a = list[i];
-        const b = list[j];
+      const a = list[i];
+      const candidates = S.grid.queryCircle(a.x, a.y, a.r + S.grid.maxR + T.GRID_CELL);
+      pairScratch.length = 0;
+      for (const b of candidates) if (b._gi > a._gi) pairScratch.push(b);
+      pairScratch.sort((p, q) => p._gi - q._gi);
+      for (const b of pairScratch) {
         const hit = S.geom.circleOverlap(a.x, a.y, a.r, b.x, b.y, b.r);
         if (!hit) continue;
         const { nx, ny, overlap } = hit;
@@ -480,6 +491,13 @@ window.Tethered = window.Tethered || {};
     // only flag them, so mid-iteration kills can't corrupt the indices.
     game.enemies = game.enemies.filter((e) => !e.dead);
 
+    // While the death pop plays out, enemies just coast: nothing can be hit
+    // and the blast is flinging them apart anyway — skip separation (and
+    // its rebuild) entirely.
+    if (game.state === S.STATE.DYING) return;
+    // Re-bucket before the pair pass: brains and knockback moved everyone
+    // since the step-start rebuild.
+    S.grid.rebuild(game.enemies);
     resolveEnemyOverlaps(game);
   };
 })(Tethered);

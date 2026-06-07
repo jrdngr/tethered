@@ -72,11 +72,22 @@ window.Tethered = window.Tethered || {};
   // brackets every position mutation (ball integration, enemy AI, knockback,
   // cursor motion) without instrumenting the movers, because updateTether
   // runs first in the physics step.
+  // One path array and point pool, mutated in place — buildPath runs up to
+  // 3×/step in the hot loop and the rope caps at ROPE_MAX_WRAPS pivots, so
+  // there's nothing worth reallocating.
+  const path = [];
+  const pathPool = [];
+  function pathPoint(i, x, y, px, py) {
+    const p = pathPool[i] || (pathPool[i] = { x: 0, y: 0, px: 0, py: 0 });
+    p.x = x; p.y = y; p.px = px; p.py = py;
+    return p;
+  }
   function buildPath(game) {
     const tether = game.tether;
-    const path = [{ x: game.mouse.x, y: game.mouse.y, px: tether.pmx, py: tether.pmy }];
-    for (const w of tether.wraps) path.push({ x: w.e.x, y: w.e.y, px: w.e._px, py: w.e._py });
-    path.push({ x: game.ball.x, y: game.ball.y, px: tether.pbx, py: tether.pby });
+    path.length = 0;
+    path.push(pathPoint(0, game.mouse.x, game.mouse.y, tether.pmx, tether.pmy));
+    for (const w of tether.wraps) path.push(pathPoint(path.length, w.e.x, w.e.y, w.e._px, w.e._py));
+    path.push(pathPoint(path.length, game.ball.x, game.ball.y, tether.pbx, tether.pby));
     return path;
   }
 
@@ -135,7 +146,15 @@ window.Tethered = window.Tethered || {};
       const sy = B.y - A.y;
       const segLen = Math.hypot(sx, sy);
       if (segLen < T.ROPE_MIN_SEG) continue;
-      for (const e of game.enemies) {
+      // Broadphase: only enemies near the swept segment can have crossed it.
+      // The box spans this step's and last step's endpoints (a segment can
+      // jump arbitrarily far in one frame — the mouse teleports); one cell
+      // of margin covers an enemy's own motion since its sweep stamp.
+      const m = T.GRID_CELL;
+      const candidates = S.grid.queryRect(
+        Math.min(A.x, A.px, B.x, B.px) - m, Math.min(A.y, A.py, B.y, B.py) - m,
+        Math.max(A.x, A.px, B.x, B.px) + m, Math.max(A.y, A.py, B.y, B.py) + m);
+      for (const e of candidates) {
         if (e._px === undefined) continue; // spawned this step: no sweep yet
         // Skip the segment's own endpoints (wraps[i-1] and wraps[i] flank segment i).
         if ((i > 0 && wraps[i - 1].e === e) || (i < wraps.length && wraps[i].e === e)) continue;

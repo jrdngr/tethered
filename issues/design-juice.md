@@ -31,5 +31,5 @@ All four elements:
 
 ## Interactions
 
-- [physics-slowmo](physics-slowmo.md) layers on the same loop machinery — implement hit-stop and slow-mo together (`freeze` is just `timeScale 0` with a timer)
+- Slow-mo has landed as `game.timeScale` scaling the fixed step (src/main.js) — hit-stop is the same machinery (`freeze` is just `timeScale 0` with a timer); build it on that system
 - Shake/flash hooks slot into render.js's `LAYERS` table

@@ -233,6 +233,9 @@ Tethered.TUNING = {
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
   MOMENTUM_BASH_HP_FACTOR: 1,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
+  // Broadphase (src/grid.js)
+  GRID_CELL: 64,          // px — uniform-grid cell, ≥ the largest enemy diameter so pair queries scan one neighbor ring
+
   // Dev panel: a reserved column on the right (like the HUD band up top)
   // with debug buttons — pause, heal, invincibility, spawners, upgrades.
   // Hidden by default; the toggle key shrinks the arena to make room.
