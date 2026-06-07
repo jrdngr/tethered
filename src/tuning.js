@@ -346,24 +346,22 @@ Tethered.TUNING = {
   // corridors carved along a spanning tree, then organic-ized edges. Sizes
   // are in 32px tiles; a "screen" is the reference viewport below, so map
   // size reads in screens-of-play-area.
-  // Geometry scale: 1.5× the original after playtests (1× read cramped
-  // against the 192px rope, 2× read empty). Tiles stay 32px so wall edges
-  // keep their grain — the scaling lives in the tile-denominated knobs
-  // below, so a "screen" stays an honest viewport.
-  TILE_SIZE: 32,            // px — ball radius = 1 tile; 4.5-tile corridors ≈ 144px
+  // Geometry scale: back to 1× the original after playtests (1.5× and 2×
+  // both read too big). Tiles stay 32px; the scale lives in the
+  // tile-denominated knobs below, so a "screen" stays an honest viewport.
+  TILE_SIZE: 32,            // px — ball radius = 1 tile; 3-tile corridors = 96px
   MAP_SCREEN_W: 1600,       // px — reference screen for map sizing
   MAP_SCREEN_H: 900,
-  MAP_SCREENS_BASE: 3,      // depth 1 is a 3×3-screen map...
-  MAP_SCREENS_PER_DEPTH: 1.5, // ...growing 1.5 screens per depth...
-  MAP_SCREENS_CAP: 9,       // ...capped at 9×9 (depth 5+)
+  MAP_SCREENS_BASE: 2,      // depth 1 is a 2×2-screen map...
+  MAP_SCREENS_PER_DEPTH: 1, // ...growing one screen per depth...
+  MAP_SCREENS_CAP: 6,       // ...capped at 6×6 (depth 5+)
   MAX_DEPTH: 10,            // clearing this depth's exit wins the run
   MAP_BORDER_TILES: 2,      // solid wall band around the map, never carved
   CHAMBER_COUNT_BY_DEPTH: [2, 4, 6, 8, 10, 12, 13, 14, 15, 16], // sub-linear — no encounter-count cliffs
-  CHAMBER_RADIUS_MIN: 27,   // tiles — stamped chamber blob radius (864px)...
-  CHAMBER_RADIUS_MAX: 33,   // ...to 1056px: arena-scale swing room guaranteed
-  CHAMBER_GAP_TILES: 9,     // tiles of wall kept between stamped chambers
-  MIN_PASSAGE_TILES: 4.5,   // tiles — corridor width floor (~144px; the spine
-                            // guarantee rounds up, so pinches settle ≥ 5 tiles)
+  CHAMBER_RADIUS_MIN: 18,   // tiles — stamped chamber blob radius (576px)...
+  CHAMBER_RADIUS_MAX: 22,   // ...to 704px: arena-scale swing room
+  CHAMBER_GAP_TILES: 6,     // tiles of wall kept between stamped chambers
+  MIN_PASSAGE_TILES: 3,     // tiles — corridor width floor (96px ≥ 3× enemy diameter)
   CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
   CA_NOISE_FLOOR_P: 0.35,   // boundary wall→floor flip chance (erosion-biased...)
   CA_NOISE_WALL_P: 0.22,    // ...vs floor→wall, so organic-izing never seals space)
@@ -378,18 +376,14 @@ Tethered.TUNING = {
   WALL_SMOOTH_ITERS: 3,     // Chaikin corner-cutting passes (each halves the corner angle)
   WALL_SIMPLIFY_PX: 2.5,    // px — post-smoothing simplification (cuts segment count, keeps bumps)
 
-  // Interior shapes (src/obstacles.js): freestanding circles, pills
-  // (capsules), and rounded-L pairs generated into chambers — the ball
-  // bounces off them (combo credit, ELASTICITY restitution) and the rope
-  // wraps them, turning each chamber into a slingshot playground. Sized to
-  // play off of, not to wall the room off.
-  OBSTACLE_CHANCE: 0.75,        // chance a non-spawn chamber gets any shapes
-  OBSTACLE_MAX_PER_CHAMBER: 2,  // up to this many per chamber
-  OBSTACLE_CIRCLE_R: [44, 84],  // px radius range
-  OBSTACLE_PILL_LEN: [150, 300],// px end-to-end length range
-  OBSTACLE_PILL_R: [24, 40],    // px capsule radius range
-  OBSTACLE_L_ARM: [120, 220],   // px arm length range (rounded-L)
-  OBSTACLE_CLEAR_PAD: 28,       // px of floor required around a shape's surface
+  // Interior shapes (src/obstacles.js): freestanding circles generated into
+  // every room (the start room too) — the ball bounces off them (combo
+  // credit, ELASTICITY restitution) and the rope wraps them, turning each
+  // room into a slingshot playground. Sized to play off of, not to wall the
+  // room off.
+  OBSTACLE_PER_CHAMBER: [2, 5], // circles per room (inclusive range)
+  OBSTACLE_CIRCLE_R: [40, 80],  // px radius range
+  OBSTACLE_CLEAR_PAD: 28,       // px of floor required around a circle's surface
 
   // Camera (src/camera.js): smoothed follow on the ball over the scrolling
   // world; the viewport (game.width/height) stays the canvas play area.

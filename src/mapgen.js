@@ -590,11 +590,47 @@ window.Tethered = window.Tethered || {};
     return dist;
   }
 
-  // Spawn is the reserved left chamber. The exit starts as the reserved
-  // right chamber, but a failed distance gate retargets it to the chamber
-  // farthest by BFS path — depth-aware: tiny early maps only need "the two
-  // most separated chambers, at least a screen apart"; bigger maps demand
-  // ~60% of the diagonal so the run crosses the map.
+  // The player spawns at the edge of the start room furthest from the
+  // corridor — approximated as the room edge pointing away from the rest of
+  // the map's chambers (which is where the corridor leads) — pulled slightly
+  // off the wall (the outermost floor with ≥2 tiles of clearance, so the
+  // ball is clear of the rock but still hugging the back of the room).
+  function farEdgeSpawn(map, spawnC) {
+    const T = S.TUNING;
+    let ax = 0;
+    let ay = 0;
+    let n = 0;
+    for (const c of map.chambers) {
+      if (c === spawnC) continue;
+      ax += c.cx; ay += c.cy; n++;
+    }
+    let dx;
+    let dy;
+    if (n) { dx = spawnC.cx - ax / n; dy = spawnC.cy - ay / n; }
+    else { dx = -1; dy = 0; } // lone room: head for the outer wall
+    const dl = Math.hypot(dx, dy) || 1;
+    dx /= dl; dy /= dl;
+    const cxw = spawnC.cx * T.TILE_SIZE;
+    const cyw = spawnC.cy * T.TILE_SIZE;
+    const step = T.TILE_SIZE * 0.5;
+    const maxT = spawnC.r * 1.7 * T.TILE_SIZE;
+    let best = { x: cxw, y: cyw };
+    for (let t = 0; t <= maxT; t += step) {
+      const x = cxw + dx * t;
+      const y = cyw + dy * t;
+      const tx = Math.floor(x / T.TILE_SIZE);
+      const ty = Math.floor(y / T.TILE_SIZE);
+      if (tx < 0 || ty < 0 || tx >= map.tw || ty >= map.th || map.isWall(tx, ty)) break;
+      if (map.clearance[ty * map.tw + tx] >= 2) best = { x, y };
+    }
+    return best;
+  }
+
+  // Spawn is the far edge of the reserved left chamber (above). The exit
+  // starts as the reserved right chamber, but a failed distance gate
+  // retargets it to the chamber farthest by BFS path — depth-aware: tiny
+  // early maps only need "the two most separated chambers, at least a screen
+  // apart"; bigger maps demand ~60% of the diagonal so the run crosses the map.
   function placeSpawnExit(map) {
     const T = S.TUNING;
     const spawnC = map.chambers.find((c) => c.reserved === 'spawn') || map.chambers[0];
@@ -625,7 +661,7 @@ window.Tethered = window.Tethered || {};
       gatePass = d >= need;
     }
 
-    map.spawn = map.tileToWorld(s.tx, s.ty);
+    map.spawn = farEdgeSpawn(map, spawnC);
     map.exit = map.tileToWorld(e.tx, e.ty);
     map.stats.spawnExitPathPx = d > 0 ? d * T.TILE_SIZE : 0;
     map.stats.gateNeedPx = need * T.TILE_SIZE;
