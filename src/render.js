@@ -5,6 +5,9 @@ window.Tethered = window.Tethered || {};
   // The world's draw order, bottom to top. The array *is* the z-order: each
   // layer is one (ctx, game) function, drawn inside the HUD translate and
   // arena clip. Adding a visual means one function plus an index here.
+  // Like update()'s ordering contract (see main.js), the order is
+  // load-bearing — overlays must cover the world, the ball sits above the
+  // things it smashes, etc.
   const LAYERS = [
     drawArena,
     drawTether,

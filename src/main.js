@@ -115,6 +115,28 @@ window.Tethered = window.Tethered || {};
     applyArenaSize();
   });
 
+  // ORDERING CONTRACT — the call order below (and within the callees) is
+  // load-bearing. Violations produce subtle, hard-to-bisect bugs (stale
+  // positions, double-hits, one-step-late pickups), so don't reorder during
+  // a refactor without rechecking each invariant:
+  //
+  // 1. Tether snapshot first. updateTether runs before every mover and
+  //    stamps prev-step positions (mouse, ball, enemies) when it finishes,
+  //    so next step's wrap sweep tests compare consistent prev/cur pairs
+  //    that bracket all position mutations. The stamp is intentionally
+  //    always-on, even untethered — a fresh grab must never compare against
+  //    stale positions (see tether.js).
+  // 2. Weapon pass before body collisions. Inside updateEnemies, the weapon
+  //    collision pass runs first: kills are flagged dead and survivors are
+  //    knocked out of body range, so the body-contact loop can't land a
+  //    second hit on the same enemy in the same step.
+  // 3. Corpse sweep last within updateEnemies. Kills (including pop-chain
+  //    kills mid-loop) only flag `dead`; the single end-of-update filter
+  //    removes them, so mid-iteration kills can't corrupt loop indices.
+  // 4. Coins after enemies. Pickups spawned by this step's deaths are
+  //    integrated (and scoopable) the same step, never one step late.
+  //
+  // render.js's LAYERS table has the matching draw-order contract.
   function update(dt) {
     const T = S.TUNING;
     if (game.state === S.STATE.DYING) {
