@@ -56,10 +56,10 @@ Tethered.TUNING = {
   // Enemies
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
-  ENEMY_HP: 4,            // basic enemies die to four base-damage hits (weapons speed this up)
+  ENEMY_HP: 4,            // basic enemies die to two base-damage hits (weapons speed this up)
   ENEMY_DAMAGE: 10,       // HP the ball loses to a basic enemy touch
   KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
-  PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
+  PLAYER_DAMAGE: 2,       // base damage per smash (upgradable) — base play smashes; upgrades accelerate
   HIT_FLASH_DURATION: 0.15, // s — enemy flashes white when a hit doesn't kill
   ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (no stacking)
   ENEMY_KNOCKBACK_DECAY: 4, // 1/s — exponential decay of every shove (hits, splits, pops, bumps)
@@ -70,7 +70,7 @@ Tethered.TUNING = {
   // rarest), and even the most common special stays well under the chaser
   // rate: with all eight unlocked the specials total 0.46, chasers 0.54.
 
-  // Tanks: rarer armored enemies that take eight base-damage hits
+  // Tanks: rarer armored enemies that take four base-damage hits
   TANK_HP: 8,
   TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
