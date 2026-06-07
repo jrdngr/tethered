@@ -2,15 +2,28 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  // The world's draw order, bottom to top. The array *is* the z-order: each
+  // layer is one (ctx, game) function, drawn inside the HUD translate and
+  // arena clip. Adding a visual means one function plus an index here.
+  const LAYERS = [
+    drawArena,
+    drawTether,
+    drawCoins,
+    drawParticles,
+    drawPaddles,
+    drawEnemies,
+    drawPops,
+    drawPlayerPop,
+    drawBall,
+    drawOverlays,
+  ];
+
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
-    const b = game.ball;
-    const w = game.width;
-    const h = game.height;
 
     // Background (HUD band + arena), then the HUD in its own band up top.
     ctx.fillStyle = '#0d0e14';
-    ctx.fillRect(0, 0, w, T.HUD_HEIGHT + h);
+    ctx.fillRect(0, 0, game.width, T.HUD_HEIGHT + game.height);
     drawHud(ctx, game);
 
     // The world renders translated below the HUD and clipped to the arena,
@@ -18,16 +31,29 @@ window.Tethered = window.Tethered || {};
     ctx.save();
     ctx.translate(0, T.HUD_HEIGHT);
     ctx.beginPath();
-    ctx.rect(0, 0, w, h);
+    ctx.rect(0, 0, game.width, game.height);
     ctx.clip();
+    for (const layer of LAYERS) layer(ctx, game);
+    ctx.restore();
 
-    // Arena border.
+    // Dev panel column on the right, in raw canvas coordinates. The arena
+    // fills above only cover game.width, so the two tile exactly.
+    S.drawDevPanel(ctx, game);
+  };
+
+  // Arena border.
+  function drawArena(ctx, game) {
     ctx.strokeStyle = '#2a2d3a';
     ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, w - 4, h - 4);
+    ctx.strokeRect(2, 2, game.width - 4, game.height - 4);
+  }
 
-    // Rope (cursor anchor -> wrap pivots -> ball), brighter the more it's
-    // stretched; it bends at each enemy it has wrapped around.
+  // Rope (cursor anchor -> wrap pivots -> ball), brighter the more it's
+  // stretched; it bends at each enemy it has wrapped around. Untethered,
+  // a grab hint ring shows when hovering near the ball.
+  function drawTether(ctx, game) {
+    const T = S.TUNING;
+    const b = game.ball;
     if (game.tether.active) {
       const tension = Math.min(game.tether.stretch / 200, 1);
       ctx.strokeStyle = `rgba(255, ${Math.round(230 - 130 * tension)}, ${Math.round(230 - 200 * tension)}, 0.9)`;
@@ -52,10 +78,13 @@ window.Tethered = window.Tethered || {};
         ctx.stroke();
       }
     }
+  }
 
-    // Coins: pulsating gold discs, fading out at the end of their life;
-    // merged denominations read by size alone.
-    // Health pickups share the array: a green disc with a white cross.
+  // Coins: pulsating gold discs, fading out at the end of their life;
+  // merged denominations read by size alone.
+  // Health pickups share the array: a green disc with a white cross.
+  function drawCoins(ctx, game) {
+    const T = S.TUNING;
     for (const c of game.coins) {
       ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
       if (c.heal) {
@@ -77,9 +106,11 @@ window.Tethered = window.Tethered || {};
       }
     }
     ctx.globalAlpha = 1;
+  }
 
-    // Spark bursts (green heal sparks by default; the player death burst
-    // overrides color and size), shrinking and fading as they die.
+  // Spark bursts (green heal sparks by default; the player death burst
+  // overrides color and size), shrinking and fading as they die.
+  function drawParticles(ctx, game) {
     for (const p of game.particles) {
       const t = p.age / p.life;
       ctx.globalAlpha = 1 - t;
@@ -89,8 +120,10 @@ window.Tethered = window.Tethered || {};
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
 
-    // Paddles: cyan launch pads patrolling the edges.
+  // Paddles: cyan launch pads patrolling the edges.
+  function drawPaddles(ctx, game) {
     for (const p of game.paddles) {
       const r = S.paddleRect(game, p);
       ctx.fillStyle = '#3aa7c9';
@@ -102,11 +135,13 @@ window.Tethered = window.Tethered || {};
       else if (p.edge === 2) ctx.fillRect(r.x + r.w - 2, r.y, 2, r.h);
       else ctx.fillRect(r.x, r.y, 2, r.h);
     }
+  }
 
-    // Enemies: the base disc in the type's color (flashing white when a hit
-    // doesn't kill), the type's own decoration (tank armor ring), and seams
-    // hinting how a splitter breaks — one diameter line per pair of pieces
-    // it ultimately yields (a super-splitter shows a four-piece cross).
+  // Enemies: the base disc in the type's color (flashing white when a hit
+  // doesn't kill), the type's own decoration (tank armor ring), and seams
+  // hinting how a splitter breaks — one diameter line per pair of pieces
+  // it ultimately yields (a super-splitter shows a four-piece cross).
+  function drawEnemies(ctx, game) {
     for (const e of game.enemies) {
       const def = S.ENEMY_TYPES[e.type];
       ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color;
@@ -129,11 +164,14 @@ window.Tethered = window.Tethered || {};
         ctx.stroke();
       }
     }
+  }
 
-    // Death pops: an expanding, fading ring where an enemy was smashed.
-    // DAMAGE-special explosions (`explode`) render as a fiery blast wave
-    // instead — a filled flash plus a hot ring expanding to the splash
-    // radius (p.r holds the radius itself, not an enemy radius to scale).
+  // Death pops: an expanding, fading ring where an enemy was smashed.
+  // DAMAGE-special explosions (`explode`) render as a fiery blast wave
+  // instead — a filled flash plus a hot ring expanding to the splash
+  // radius (p.r holds the radius itself, not an enemy radius to scale).
+  function drawPops(ctx, game) {
+    const T = S.TUNING;
     for (const p of game.pops) {
       if (p.explode) {
         const t = p.t / T.POP_EXPLODE_DURATION;
@@ -158,78 +196,80 @@ window.Tethered = window.Tethered || {};
       ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE - 1) * ease), 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
 
-    // Player death pop: staggered white-hot shockwave rings, far bigger and
-    // longer than an enemy pop, with a screen flash at the moment of death.
-    if (game.playerPop) {
-      const p = game.playerPop;
-      for (let i = 0; i < T.PLAYER_POP_RINGS; i++) {
-        const t = (p.t - i * T.PLAYER_POP_RING_LAG) / T.PLAYER_POP_DURATION;
-        if (t < 0 || t >= 1) continue;
-        const ease = 1 - (1 - t) * (1 - t);
-        ctx.strokeStyle = `rgba(174, 244, 255, ${1 - t})`;
-        ctx.lineWidth = 2 + 6 * (1 - t);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, T.BALL_RADIUS * (1 + (T.PLAYER_POP_SCALE - 1) * ease), 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      if (p.t < T.PLAYER_POP_FLASH) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * (1 - p.t / T.PLAYER_POP_FLASH)})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-    }
-
-    // Ball color tracks speed (tethered or not): dark blue while slow, a
-    // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
-    // while fast. Just above the threshold it flashes the vulnerable dark
-    // blue as an "about to drop out" warning. The glow is cyan when free
-    // and tether-red while held (grabbing breaks the combo).
-    // Flash during i-frames. Once it pops, there's no ball to draw.
-    if (game.state !== S.STATE.DYING && game.state !== S.STATE.GAMEOVER) {
-      const speed = S.ballSpeed(b);
-      const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
-      const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
-      ctx.save();
-      if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
-      // Weapons draw first, under the ball, so the shapes emerge from its rim.
-      // Armed weapons at full size; while tethered, a small faded preview
-      // hints that they'll deploy on release.
-      if (game.weaponState.active) S.drawWeapons(ctx, game);
-      else if (game.tether.active) S.drawWeapons(ctx, game, true);
-      if (speed > T.SPEED_THRESHOLD && !flashDark) {
-        const f = Math.min(
-          (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
-        ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
-        ctx.shadowColor = game.tether.active ? '#ff641e' : '#56e8ff';
-        ctx.shadowBlur = 10 + 22 * f;
-      } else {
-        ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
-      }
+  // Player death pop: staggered white-hot shockwave rings, far bigger and
+  // longer than an enemy pop, with a screen flash at the moment of death.
+  function drawPlayerPop(ctx, game) {
+    const T = S.TUNING;
+    if (!game.playerPop) return;
+    const p = game.playerPop;
+    for (let i = 0; i < T.PLAYER_POP_RINGS; i++) {
+      const t = (p.t - i * T.PLAYER_POP_RING_LAG) / T.PLAYER_POP_DURATION;
+      if (t < 0 || t >= 1) continue;
+      const ease = 1 - (1 - t) * (1 - t);
+      ctx.strokeStyle = `rgba(174, 244, 255, ${1 - t})`;
+      ctx.lineWidth = 2 + 6 * (1 - t);
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // VITALITY special: the held one-hit shield is a cyan ring.
-      if (b.shield) {
-        ctx.strokeStyle = '#aef4ff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      ctx.arc(p.x, p.y, T.BALL_RADIUS * (1 + (T.PLAYER_POP_SCALE - 1) * ease), 0, Math.PI * 2);
+      ctx.stroke();
     }
+    if (p.t < T.PLAYER_POP_FLASH) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * (1 - p.t / T.PLAYER_POP_FLASH)})`;
+      ctx.fillRect(0, 0, game.width, game.height);
+    }
+  }
 
-    // Overlays share the world's (translated) coordinate space so their
-    // card/click rects line up with the mouse; the HUD stays visible above.
-    if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
-    if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
+  // Ball color tracks speed (tethered or not): dark blue while slow, a
+  // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
+  // while fast. Just above the threshold it flashes the vulnerable dark
+  // blue as an "about to drop out" warning. The glow is cyan when free
+  // and tether-red while held (grabbing breaks the combo).
+  // Flash during i-frames. Once it pops, there's no ball to draw.
+  function drawBall(ctx, game) {
+    const T = S.TUNING;
+    const b = game.ball;
+    if (game.state === S.STATE.DYING || game.state === S.STATE.GAMEOVER) return;
+    const speed = S.ballSpeed(b);
+    const nearThreshold = speed < T.SPEED_THRESHOLD + T.SPEED_FLASH_WINDOW;
+    const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
+    ctx.save();
+    if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
+    // Weapons draw first, under the ball, so the shapes emerge from its rim.
+    // Armed weapons at full size; while tethered, a small faded preview
+    // hints that they'll deploy on release.
+    if (game.weaponState.active) S.drawWeapons(ctx, game);
+    else if (game.tether.active) S.drawWeapons(ctx, game, true);
+    if (speed > T.SPEED_THRESHOLD && !flashDark) {
+      const f = Math.min(
+        (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
+      ctx.fillStyle = lerpColor([86, 140, 200], [174, 244, 255], f);
+      ctx.shadowColor = game.tether.active ? '#ff641e' : '#56e8ff';
+      ctx.shadowBlur = 10 + 22 * f;
+    } else {
+      ctx.fillStyle = '#33557a'; // vulnerable dark blue (also the warning flash)
+    }
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 
-    // Dev panel column on the right, in raw canvas coordinates. The arena
-    // fills above only cover game.width, so the two tile exactly.
-    S.drawDevPanel(ctx, game);
-  };
+    // VITALITY special: the held one-hit shield is a cyan ring.
+    if (b.shield) {
+      ctx.strokeStyle = '#aef4ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Overlays share the world's (translated) coordinate space so their
+  // card/click rects line up with the mouse; the HUD stays visible above.
+  function drawOverlays(ctx, game) {
+    if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
+    if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
+  }
 
   function lerpColor(a, b, t) {
     const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
