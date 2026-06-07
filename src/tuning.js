@@ -50,7 +50,7 @@ Tethered.TUNING = {
 
   // Health
   MAX_HP: 100,
-  IFRAME_DURATION: 0.5,   // s of post-hit invulnerability — short enough that being swarmed kills
+  IFRAME_DURATION: 0.75,  // s of post-hit invulnerability — short enough that being swarmed kills
   KNOCKBACK_SPEED: 320,   // px/s applied to ball and enemy on a hit
 
   // Enemies
