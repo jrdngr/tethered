@@ -135,9 +135,13 @@ window.Tethered = window.Tethered || {};
   }
 
   // Shieldbearer: seeks like a chaser with its guard raised toward the
-  // ball. A bash breaks the guard open (stun): it stands dazed — knockback
-  // only — and is vulnerable from every side until it recovers.
+  // ball. The guard turns at SHIELD_TURN_RATE rather than snapping, so a
+  // quick swing around it beats the tracking — rear hits are earned by
+  // movement, not just wraps. A bash breaks the guard open (stun): it
+  // stands dazed — knockback only — and is vulnerable from every side
+  // until it recovers.
   function shieldBrain(game, e, dt) {
+    const T = S.TUNING;
     const bs = e.brainState;
     if (bs.glint > 0) bs.glint -= dt;
     if (bs.stun > 0) {
@@ -148,9 +152,20 @@ window.Tethered = window.Tethered || {};
     }
     const dx = game.ball.x - e.x;
     const dy = game.ball.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
-    bs.fx = dx / d; // the guard tracks the ball
-    bs.fy = dy / d;
+    const want = Math.atan2(dy, dx);
+    if (bs.fx === 0 && bs.fy === 0) {
+      // First tick: raise the guard toward the ball, no swing-around.
+      bs.fx = Math.cos(want);
+      bs.fy = Math.sin(want);
+    } else {
+      let diff = want - Math.atan2(bs.fy, bs.fx);
+      if (diff > Math.PI) diff -= Math.PI * 2;
+      else if (diff < -Math.PI) diff += Math.PI * 2;
+      const max = (T.SHIELD_TURN_RATE * Math.PI / 180) * dt;
+      const a = want - diff + Math.max(-max, Math.min(max, diff));
+      bs.fx = Math.cos(a);
+      bs.fy = Math.sin(a);
+    }
     e.x += (bs.fx * e.speed + e.kx) * dt;
     e.y += (bs.fy * e.speed + e.ky) * dt;
   }

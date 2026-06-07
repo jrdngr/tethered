@@ -173,6 +173,7 @@ Tethered.TUNING = {
   SHIELD_RADIUS: 16,          // px
   SHIELD_SPEED: 95,           // px/s
   SHIELD_ARC: 150,            // ° of frontal coverage
+  SHIELD_TURN_RATE: 90,       // °/s the guard tracks — a quick swing outflanks it
   SHIELD_STUN: 2.5,           // s a bash leaves the guard broken open
   SHIELD_CHANCE: 0.05,
   SHIELD_SPAWN_DELAY: 45,     // s
