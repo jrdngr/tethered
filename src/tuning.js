@@ -164,6 +164,20 @@ Tethered.TUNING = {
   PLAYER_POP_PARTICLE_SPEED: 700, // px/s — max scatter speed
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
+  // Interior obstacles: static geometry the ball bounces off (combo credit
+  // like walls; restitution reads the ELASTICITY stat) and the rope can
+  // wrap — pillars wrap at their center, blocks at their corners — turning
+  // the arena itself into slingshot anchors. One layout per run, cycling
+  // across runs. Positions are arena fractions (fx/fy); sizes are px.
+  OBSTACLE_LAYOUTS: [
+    // Twin pillars flanking the spawn point.
+    [{ kind: 'circle', fx: 0.3, fy: 0.5, r: 30 },
+     { kind: 'circle', fx: 0.7, fy: 0.5, r: 30 }],
+    // Upper and lower bars: corner wraps and bounce alleys.
+    [{ kind: 'rect', fx: 0.5, fy: 0.26, w: 170, h: 26 },
+     { kind: 'rect', fx: 0.5, fy: 0.74, w: 170, h: 26 }],
+  ],
+
   // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
   SPAWN_INTERVAL_START: 5.0,  // s
   SPAWN_DOUBLE_TIME: 600,     // s of survival for the spawn rate to double

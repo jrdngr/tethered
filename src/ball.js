@@ -84,6 +84,10 @@ window.Tethered = window.Tethered || {};
       if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
     }
 
+    // Interior obstacles bounce like walls — same restitution stat, same
+    // combo credit below.
+    if (S.collideBallObstacles(game)) bounced = true;
+
     // Combo only counts for fast bounces — no farming with slow dribbles.
     if (bounced && preSpeed > T.SPEED_THRESHOLD) {
       S.bumpCombo(game);

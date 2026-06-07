@@ -124,8 +124,10 @@ window.Tethered = window.Tethered || {};
     const b = game.ball;
 
     // Drop pivots whose enemy died: the rope rejoins its neighbors straight.
+    // Obstacle pegs never die, so they hold until the rope unwinds.
     for (let i = wraps.length - 1; i >= 0; i--) {
-      if (wraps[i].e.dead || !game.enemies.includes(wraps[i].e)) wraps.splice(i, 1);
+      const pe = wraps[i].e;
+      if (!pe.obstacle && (pe.dead || !game.enemies.includes(pe))) wraps.splice(i, 1);
     }
 
     // Unwrap any pivot the rope has straightened back across. Any pivot can

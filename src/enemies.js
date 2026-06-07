@@ -520,5 +520,15 @@ window.Tethered = window.Tethered || {};
     // since the step-start rebuild.
     S.grid.rebuild(game.enemies);
     resolveEnemyOverlaps(game);
+
+    // Obstacles are solid to enemies too: push any overlapper out flush
+    // (anchor-aware, so the shove sticks on an orbiting orbiter). A handful
+    // of obstacles per layout keeps this a cheap O(N) pass.
+    for (const e of game.enemies) {
+      for (const o of game.obstacles) {
+        const hit = S.obstacleHit(o, e.x, e.y, e.r);
+        if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
+      }
+    }
   };
 })(Tethered);

@@ -19,7 +19,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 | Issue | Impact | Decision |
 |---|---|---|
 | [No counter to "stay fast"](issues/design-enemy-roster.md) | Medium | Ranged/zoning + speed-punisher + shielded enemies |
-| [Single static arena](issues/design-arena-variety.md) | Low | Interior obstacles the rope can wrap |
 
 ## Engine
 

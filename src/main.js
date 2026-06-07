@@ -21,6 +21,7 @@ window.Tethered = window.Tethered || {};
   function applyArenaSize() {
     game.width = S.arenaWidth(canvas.width);
     game.height = playHeight();
+    S.layoutObstacles(game); // obstacles sit at arena fractions — re-place them
   }
 
   function resize() {
@@ -44,6 +45,8 @@ window.Tethered = window.Tethered || {};
       playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
+      obstacles: [], // interior geometry; filled by cycleObstacles below
+      obstacleLayout: 0, // index into OBSTACLE_LAYOUTS, set by cycleObstacles
       particles: [], // green sparks from grabbed health pickups
       floaters: [], // floating reward text (wrap bonuses)
       // Weapons arm on tether release, expire when slow; the floppy tail
@@ -67,6 +70,7 @@ window.Tethered = window.Tethered || {};
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
+    S.cycleObstacles(game); // each run gets the next hand-placed layout
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).
@@ -159,6 +163,7 @@ window.Tethered = window.Tethered || {};
     } else {
       game.time += dt;
       S.grid.rebuild(game.enemies); // broadphase for this step's wrap + weapon queries
+      S.insertObstaclePegs(game); // obstacle wrap pivots ride the same queries
       S.updateTether(game, dt);
       S.updateBall(game, dt);
       S.updateWeapons(game, dt);

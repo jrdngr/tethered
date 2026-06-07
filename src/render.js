@@ -11,6 +11,7 @@ window.Tethered = window.Tethered || {};
   const LAYERS = [
     drawArena,
     drawTether,
+    drawObstacles, // above the rope, so a wrapped rope tucks behind the pillar
     drawCoins,
     drawParticles,
     drawPaddles,
@@ -97,6 +98,25 @@ window.Tethered = window.Tethered || {};
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r + T.GRAB_RADIUS, 0, Math.PI * 2);
         ctx.stroke();
+      }
+    }
+  }
+
+  // Interior obstacles: solid pillars/blocks in the arena-chrome palette,
+  // so they read as architecture, not actors.
+  function drawObstacles(ctx, game) {
+    ctx.fillStyle = '#1c1f2a';
+    ctx.strokeStyle = '#3a3f52';
+    ctx.lineWidth = 3;
+    for (const o of game.obstacles) {
+      if (o.kind === 'circle') {
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
+        ctx.strokeRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
       }
     }
   }
