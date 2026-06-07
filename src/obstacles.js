@@ -22,12 +22,21 @@ window.Tethered = window.Tethered || {};
     const defs = S.TUNING.OBSTACLE_LAYOUTS[game.obstacleLayout] || [];
     game.obstacles = defs.map((d) => {
       const o = { ...d, x: d.fx * game.width, y: d.fy * game.height };
-      // The rope hugs pillar edges; blocks wrap at their corners, which act
-      // as small rounded posts.
-      o.pegs = o.kind === 'circle'
-        ? [peg(o.x, o.y, o.r)]
-        : [-1, 1].flatMap((sx) => [-1, 1].map((sy) =>
-            peg(o.x + sx * o.w / 2, o.y + sy * o.h / 2, S.TUNING.WRAP_RECT_CORNER_R)));
+      // The rope hugs pillar edges. Rects are capsules (stadium silhouette,
+      // end radius = half the short side): one fat peg per rounded end, and
+      // the rope's tangent line between them lies exactly on the flat faces
+      // — so a wrap visibly hugs the end and slides along the face, instead
+      // of pinching at sharp-corner points.
+      if (o.kind === 'circle') {
+        o.pegs = [peg(o.x, o.y, o.r)];
+      } else {
+        const R = Math.min(o.w, o.h) / 2;
+        const dx = o.w / 2 - R; // one of dx/dy is 0: the caps sit on the long axis
+        const dy = o.h / 2 - R;
+        o.pegs = dx || dy
+          ? [peg(o.x - dx, o.y - dy, R), peg(o.x + dx, o.y + dy, R)]
+          : [peg(o.x, o.y, R)];
+      }
       return o;
     });
   };
@@ -52,23 +61,21 @@ window.Tethered = window.Tethered || {};
   // the penetration depth. Null when apart.
   S.obstacleHit = function (o, x, y, r) {
     if (o.kind === 'circle') return S.geom.circleOverlap(o.x, o.y, o.r, x, y, r);
-    // Rect: closest point on the (centered) box to the circle center.
-    const cx = Math.max(o.x - o.w / 2, Math.min(x, o.x + o.w / 2));
-    const cy = Math.max(o.y - o.h / 2, Math.min(y, o.y + o.h / 2));
+    // Rect: capsule, the same silhouette the rope wraps and the renderer
+    // draws. Clamp to the spine (the rect deflated by the end radius), then
+    // it's a circle test against the cap radius.
+    const R = Math.min(o.w, o.h) / 2;
+    const cx = Math.max(o.x - (o.w / 2 - R), Math.min(x, o.x + (o.w / 2 - R)));
+    const cy = Math.max(o.y - (o.h / 2 - R), Math.min(y, o.y + (o.h / 2 - R)));
     const dx = x - cx;
     const dy = y - cy;
     const d = Math.hypot(dx, dy);
-    if (d >= r) return null;
-    if (d > 1e-6) return { nx: dx / d, ny: dy / d, overlap: r - d };
-    // Center inside the box: push out through the nearest face.
-    const faces = [
-      { nx: -1, ny: 0, depth: x - (o.x - o.w / 2) },
-      { nx: 1, ny: 0, depth: (o.x + o.w / 2) - x },
-      { nx: 0, ny: -1, depth: y - (o.y - o.h / 2) },
-      { nx: 0, ny: 1, depth: (o.y + o.h / 2) - y },
-    ];
-    const f = faces.reduce((a, b) => (b.depth < a.depth ? b : a));
-    return { nx: f.nx, ny: f.ny, overlap: f.depth + r };
+    if (d >= r + R) return null;
+    if (d > 1e-6) return { nx: dx / d, ny: dy / d, overlap: r + R - d };
+    // Center exactly on the spine: push out through the short axis.
+    return o.w >= o.h
+      ? { nx: 0, ny: y >= o.y ? 1 : -1, overlap: r + R }
+      : { nx: x >= o.x ? 1 : -1, ny: 0, overlap: r + R };
   };
 
   // Ball vs every obstacle: position correction plus reflection at the wall

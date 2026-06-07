@@ -122,8 +122,13 @@ window.Tethered = window.Tethered || {};
         ctx.fill();
         ctx.stroke();
       } else {
-        ctx.fillRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
-        ctx.strokeRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
+        // Capsule, matching the wrap/collision silhouette exactly — the
+        // rope's contact arcs must visibly hug the drawn shape.
+        const R = Math.min(o.w, o.h) / 2;
+        ctx.beginPath();
+        ctx.roundRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h, R);
+        ctx.fill();
+        ctx.stroke();
       }
     }
   }

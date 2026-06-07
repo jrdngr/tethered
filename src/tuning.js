@@ -27,7 +27,6 @@ Tethered.TUNING = {
   WRAP_UNWRAP_EPS: 0.02,      // rad — a pivot whose contact arc shrinks below this releases
   WRAP_SAFETY_MAX_PIVOTS: 16, // degenerate-state cap on simultaneous pivots (not a balance knob)
   WRAP_MAX_PIVOT_ANGLE: 6 * Math.PI, // per-pivot accumulated contact-angle clamp (3 full turns)
-  WRAP_RECT_CORNER_R: 6,      // px — wrap radius of rect-corner pegs (small rounded corners)
   WRAP_DRAG_K: 0.6,           // scale on rope tension dragging wrapped live enemies
 
   // Wrap rewards: the rope reads like a drawn bow (thicker + glowing with
@@ -214,14 +213,16 @@ Tethered.TUNING = {
 
   // Interior obstacles: static geometry the ball bounces off (combo credit
   // like walls; restitution reads the ELASTICITY stat) and the rope can
-  // wrap — the rope hugs pillar edges and block corners — turning
-  // the arena itself into slingshot anchors. One layout per run, cycling
-  // across runs. Positions are arena fractions (fx/fy); sizes are px.
+  // wrap — the rope hugs the silhouette's edge — turning the arena itself
+  // into slingshot anchors. Rects are capsules (rounded ends, radius = half
+  // the short side) so wraps hug a fat arc instead of pinching at sharp
+  // corners. One layout per run, cycling across runs. Positions are arena
+  // fractions (fx/fy); sizes are px.
   OBSTACLE_LAYOUTS: [
     // Twin pillars flanking the spawn point.
     [{ kind: 'circle', fx: 0.3, fy: 0.5, r: 30 },
      { kind: 'circle', fx: 0.7, fy: 0.5, r: 30 }],
-    // Upper and lower bars: corner wraps and bounce alleys.
+    // Upper and lower bars: end wraps and bounce alleys.
     [{ kind: 'rect', fx: 0.5, fy: 0.26, w: 170, h: 26 },
      { kind: 'rect', fx: 0.5, fy: 0.74, w: 170, h: 26 }],
   ],
