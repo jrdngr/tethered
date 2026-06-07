@@ -113,12 +113,21 @@ Tethered.TUNING = {
   ORBITER_SPAWN_DELAY: 40,    // s
 
   // Runners: chase like a chaser at double speed, but bolt once the ball
-  // gets close; worth triple coins
+  // gets close; worth triple coins. The 3× is a skill-shot bounty, so
+  // collecting it costs something: a ball closing in at smash speed
+  // triggers a telegraphed panic dash — an unpredictable burst whose
+  // contact stings — making the chase a real pursuit, not a free pickup.
   RUNNER_HP: 4,             // basic HP — the payout is the point, not the fight
   RUNNER_DAMAGE: 5,
   RUNNER_RADIUS: 12,        // px
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
   RUNNER_FLEE_RADIUS: 240,  // px from the ball where chasing flips to fleeing
+  RUNNER_DASH_TRIGGER_DIST: 140, // px — a smash-speed ball this close triggers the panic dash
+  RUNNER_DASH_WINDUP: 0.2,  // s of telegraphed freeze (white blink) before the burst
+  RUNNER_DASH_SPEED: 700,   // px/s burst, decaying like any knockback
+  RUNNER_DASH_DANGER: 0.4,  // s after the burst that contact deals the dash damage
+  RUNNER_DASH_DAMAGE: 15,   // HP a dashing runner's touch costs (vs the usual 5)
+  RUNNER_DASH_COOLDOWN: 2.5, // s before it can panic again
   RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
   RUNNER_CHANCE: 0.10,      // weakest special, so most common
   RUNNER_SPAWN_DELAY: 20,   // s

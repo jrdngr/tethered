@@ -14,15 +14,46 @@ window.Tethered = window.Tethered || {};
   }
 
   // Runner: chase like a chaser, but bolt once the ball gets close — pinned
-  // inside the arena so fleeing can't leave the screen.
+  // inside the arena so fleeing can't leave the screen. A smash-speed ball
+  // closing inside the trigger distance sets off a panic dash: a telegraphed
+  // freeze (the blink), then an unpredictable burst through the knockback
+  // plumbing whose contact stings (the dash damage) while the danger window
+  // runs — collecting the 3× bounty is a pursuit with a mistake cost.
   function runnerBrain(game, e, dt) {
     const T = S.TUNING;
+    const bs = e.brainState;
     const dx = game.ball.x - e.x;
     const dy = game.ball.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
-    const seek = d < T.RUNNER_FLEE_RADIUS ? -1 : 1;
-    e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
-    e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
+    if (bs.cooldown > 0) bs.cooldown -= dt;
+    if (bs.danger > 0) {
+      bs.danger -= dt;
+      if (bs.danger <= 0) e.damage = bs.baseDamage;
+    }
+    if (bs.windup > 0) {
+      bs.windup -= dt;
+      if (bs.windup <= 0) {
+        // Burst away from the ball ± up to 75° of scatter — readable as
+        // panic, unpredictable enough that the chaser can't pre-aim.
+        const a = Math.atan2(-dy, -dx) + (Math.random() - 0.5) * (150 * Math.PI / 180);
+        e.kx += Math.cos(a) * T.RUNNER_DASH_SPEED;
+        e.ky += Math.sin(a) * T.RUNNER_DASH_SPEED;
+        e.damage = T.RUNNER_DASH_DAMAGE;
+        bs.danger = T.RUNNER_DASH_DANGER;
+        bs.cooldown = T.RUNNER_DASH_COOLDOWN;
+      }
+      // Frozen mid-windup (knockback still applies): the telegraph beat.
+      e.x += e.kx * dt;
+      e.y += e.ky * dt;
+    } else {
+      if (bs.cooldown <= 0 && d < T.RUNNER_DASH_TRIGGER_DIST &&
+          S.ballSpeed(game.ball) > T.SPEED_THRESHOLD) {
+        bs.windup = T.RUNNER_DASH_WINDUP;
+      }
+      const seek = d < T.RUNNER_FLEE_RADIUS ? -1 : 1;
+      e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
+      e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
+    }
     e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
     e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
   }
@@ -208,7 +239,31 @@ window.Tethered = window.Tethered || {};
       color: '#cc9a1f', // dark gold — it's the payday target
       stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT }),
       spawnGate: (T) => ({ delay: T.RUNNER_SPAWN_DELAY, chance: T.RUNNER_CHANCE }),
+      onSpawn(e) {
+        e.brainState = { windup: 0, danger: 0, cooldown: 0, baseDamage: e.damage };
+      },
       brain: runnerBrain,
+      // Panic-dash telegraph: a hard white blink through the wind-up, then a
+      // red danger ring while contact stings. (The dev panel's mini glyph
+      // has no brainState — calm runner, no decoration.)
+      draw(ctx, e) {
+        const T = S.TUNING;
+        const bs = e.brainState || { windup: 0, danger: 0 };
+        if (bs.windup > 0) {
+          if (Math.floor(bs.windup / (T.RUNNER_DASH_WINDUP / 3)) % 2 === 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (bs.danger > 0) {
+          ctx.strokeStyle = '#e5484d';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.r + 3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      },
     },
     spitter: {
       color: '#3dd68c', // mint — the zoner
