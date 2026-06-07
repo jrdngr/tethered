@@ -19,8 +19,8 @@ Three new archetypes (a periodic boss was considered and declined for now):
 ## Implementation
 
 - One `ENEMY_TYPES` entry each, with brains following the existing orbiter/runner patterns
-- Ranged enemy needs a projectile pool — keep it on the shared particle/geometry helpers from [refactor-shared-helpers](refactor-shared-helpers.md)
-- The speed-punisher's fast-contact rule hooks the same collision site that currently grants fast-ball immunity (`src/enemies.js:456`) — it's an exception branch in the type def, which [refactor-weapon-specials](refactor-weapon-specials.md)-style hooks would keep tidy
+- Ranged enemy needs a projectile pool — keep it on the shared particle/geometry helpers in src/geom.js
+- The speed-punisher's fast-contact rule hooks the same collision site that currently grants fast-ball immunity (`src/enemies.js:456`) — it's an exception branch in the type def, which `WEAPONS`-registry-style `onHit` hooks (src/weapons.js) would keep tidy
 - New TUNING constants per type (HP, damage, speeds, projectile params, shield arc)
 - Fold all three into the spawn-mix ramp from [balance-enemy-mix](balance-enemy-mix.md) with late-run weights
 

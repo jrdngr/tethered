@@ -21,7 +21,7 @@ Note: tethered kills continue to reset combo (`src/enemies.js:342`) — wraps ar
 
 ## Implementation
 
-- **Visuals** (`src/render.js:36-39`): line width and glow alpha as functions of `tether.stretch` and `wraps.length`; small pulse ring on each wrap pivot. Lands naturally after [refactor-render-layers](refactor-render-layers.md).
+- **Visuals** (`src/render.js:36-39`): line width and glow alpha as functions of `tether.stretch` and `wraps.length`; small pulse ring on each wrap pivot. Lands naturally in render.js's `LAYERS` table.
 - **Bonus**: in the kill path, if the dead enemy is a wrap pivot or the rope has ≥1 wrap, add `WRAP_KILL_BONUS × wraps.length` coins through the normal payout path (so `coinMult` and the [sublinear combo factor](balance-coin-economy.md) apply consistently). Floating "+N WRAP" text at the kill site so the reward is legible.
 - New TUNING constants: `WRAP_KILL_BONUS`, `WRAP_GLOW_*` visual params.
 

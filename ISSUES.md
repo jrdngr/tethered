@@ -41,18 +41,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 |---|---|---|
 | [Post-PoC engine choice](issues/engine-migration.md) | Strategic | TypeScript + Vite, in-place incremental migration; Bevy demoted |
 
-## Refactoring
-
-| Issue | Impact | Decision |
-|---|---|---|
-| [Extract render.js into ordered draw layers](issues/refactor-render-layers.md) | High (enabler) | `LAYERS` table; do first |
-| [Co-locate weapon specials with weapons](issues/refactor-weapon-specials.md) | High | `onHit`/`afterHit` hooks in `WEAPONS` registry |
-| [Shared geometry/particle helpers](issues/refactor-shared-helpers.md) | Medium (enabler) | `circleOverlap` / `radialPush` / `advanceParticles` |
-| [PICKUP_TYPES registry](issues/refactor-pickup-registry.md) | Medium | One table row per pickup type |
-| [Document update-ordering contract](issues/refactor-update-contract.md) | Medium | Header comment block in `main.js` |
-| [Shared drawShape for icons](issues/refactor-draw-shape.md) | Medium | Registry-owned `drawShape(ctx, scale)` |
-| [Naming/structure cleanup](issues/refactor-naming.md) | Low | `e.brainState` grouping; `stats.specials` lands with weapon-specials |
-
 ## Consciously excluded
 
 Reviewed and decided **not** to track (from the same report):

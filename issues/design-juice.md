@@ -32,4 +32,4 @@ All four elements:
 ## Interactions
 
 - [physics-slowmo](physics-slowmo.md) layers on the same loop machinery — implement hit-stop and slow-mo together (`freeze` is just `timeScale 0` with a timer)
-- Shake/flash hooks land cleaner after [refactor-render-layers](refactor-render-layers.md), but don't block on it
+- Shake/flash hooks slot into render.js's `LAYERS` table

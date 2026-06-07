@@ -20,7 +20,7 @@ Sweep the ball's prev→current segment against enemy circles, mirroring the wea
 
 - In the ball-vs-enemy pass (`src/enemies.js:443-444`), replace the point-overlap test with closest-point-on-segment (`pbx,pby → ball.x,ball.y`) vs enemy center, threshold `ball.r + enemy.r` — same math `segClosest` already uses in `src/weapons.js`
 - On hit, resolve at the impact point along the segment so bounce direction stays correct at high speed
-- Extract the shared segment-distance helper as part of [refactor-shared-helpers](refactor-shared-helpers.md) rather than duplicating it a sixth time
+- Use the shared `S.geom.segClosest` segment-distance helper (src/geom.js) rather than duplicating it
 
 ## Verification
 

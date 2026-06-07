@@ -17,7 +17,7 @@ Add interior obstacles: static shapes (rects/circles) that the ball bounces off 
 - `game.obstacles = []` of simple shapes; ball collision reuses the paddle circle-vs-rect path; wall-bounce combo credit applies to obstacle bounces too
 - Wrap support: obstacles join enemies as wrap-pivot candidates in `updateActiveTether` (`src/tether.js:109-132`) — for circles this is the same math; rects can wrap at corners
 - Start with 1–2 hand-placed layouts cycled per run; random placement can come later
-- Rendering slots in as a layer once [refactor-render-layers](refactor-render-layers.md) lands
+- Rendering slots in as a layer in render.js's `LAYERS` table
 - New TUNING constants: obstacle sizes, restitution (ties into [physics-elasticity-mass](physics-elasticity-mass.md))
 
 ## Interactions
