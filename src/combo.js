@@ -10,7 +10,7 @@ window.Tethered = window.Tethered || {};
     // VITALITY special: crossing the threshold grants a one-hit shield
     // (max 1 held — losing it means rebuilding the combo for another, and
     // a broken shield keeps a fresh one away for the cooldown).
-    if (game.stats.comboShield && game.combo >= S.TUNING.COMBO_SHIELD_THRESHOLD &&
+    if (game.stats.specials.comboShield && game.combo >= S.TUNING.COMBO_SHIELD_THRESHOLD &&
         !game.ball.shield && game.ball.shieldCooldown <= 0) {
       game.ball.shield = true;
     }

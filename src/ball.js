@@ -38,7 +38,7 @@ window.Tethered = window.Tethered || {};
     // TOP SPEED special: at the cap, bend gently toward the nearest enemy.
     // The cap below re-clamps, so it reads as a homing curve, not a speedup.
     // Suppressed while tethered — it would fight the player's steering.
-    if (game.stats.homing && !game.tether.active && S.atMaxSpeed(game)) {
+    if (game.stats.specials.homing && !game.tether.active && S.atMaxSpeed(game)) {
       const e = S.nearestEnemy(game, b.x, b.y);
       if (e) {
         const dx = e.x - b.x;

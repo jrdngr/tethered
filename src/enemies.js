@@ -323,7 +323,7 @@ window.Tethered = window.Tethered || {};
     if (tethered) game.combo = 1;
     const dmg = S.smashDamage(game) + (opts.dmgBonus || 0);
     // MOMENTUM special: bashing comes easier at top speed.
-    const bashFactor = game.stats.bashEasy && S.atMaxSpeed(game)
+    const bashFactor = game.stats.specials.bashEasy && S.atMaxSpeed(game)
       ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
     const bash = opts.bashOverride || dmg > e.maxHp * bashFactor;
     e.hp -= dmg;
@@ -331,7 +331,7 @@ window.Tethered = window.Tethered || {};
     if (killed) {
       e.dead = true;
       popEnemy(game, e, bash, !tethered);
-      if (game.stats.popExplode) explodePop(game, e);
+      if (game.stats.specials.popExplode) explodePop(game, e);
     } else {
       // Armor absorbed the hit: flash, knock the enemy back, and separate
       // so the next physics step doesn't land a second hit. No combo —
@@ -352,7 +352,7 @@ window.Tethered = window.Tethered || {};
     // — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
     // ball always keeps forward momentum. Otherwise it bounces off along
     // the normal.
-    const surge = killed || game.stats.surgeEverySmash ? game.stats.killBoost : 0;
+    const surge = killed || game.stats.specials.surgeEverySmash ? game.stats.killBoost : 0;
     const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
     if (opts.pierce) {
       // Pierce: straight through — the heading never changes.

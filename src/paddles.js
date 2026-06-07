@@ -12,7 +12,7 @@ window.Tethered = window.Tethered || {};
 
   // Paddle length along its edge; the PADDLE special doubles every paddle.
   function paddleLen(game) {
-    return S.TUNING.PADDLE_LENGTH * (game.stats.paddleWide ? 2 : 1);
+    return S.TUNING.PADDLE_LENGTH * (game.stats.specials.paddleWide ? 2 : 1);
   }
 
   // The PADDLE upgrade: fill empty edges first, then double up (one paddle

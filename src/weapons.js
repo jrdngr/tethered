@@ -38,13 +38,22 @@ window.Tethered = window.Tethered || {};
   // collision capsules, and its visual — capsules and draw both in the
   // ball-local frame where +x is the travel direction (callers rotate).
   // Sizes read TUNING live so console tuning shows up immediately.
+  // Hit hooks, both optional, keep each weapon's quirks and special in its
+  // own entry (updateWeaponCollisions calls them generically):
+  //   onHit(game, e)    -> extra resolveSmash opts for this hit, or null to
+  //                        decline it (the poker's re-hit cooldown)
+  //   afterHit(game, e) -> side effects after the smash resolves
   S.WEAPONS = {
     poker: {
       name: 'POKER',
       dmg: () => S.TUNING.WEAPON_POKER_DMG,
       // POKER special: skewer — the spike doubles in length.
       reach: (game, scale) => S.TUNING.WEAPON_POKER_REACH * scale *
-        (game.stats.pokerSkewer ? S.TUNING.WEAPON_POKER_SKEWER_MULT : 1),
+        (game.stats.specials.pokerSkewer ? S.TUNING.WEAPON_POKER_SKEWER_MULT : 1),
+      // The poker pierces — its hits never bounce the ball away from what it
+      // pokes — so without a cooldown it would re-hit a survivor it's still
+      // plowing toward every tick. The hit flash doubles as the cooldown.
+      onHit: (game, e) => (e.flash > 0 ? null : { pierce: true }),
       capsules(game, scale) {
         const r0 = game.ball.r;
         return [{ x1: r0, y1: 0, x2: r0 + this.reach(game, scale), y2: 0,
@@ -58,6 +67,10 @@ window.Tethered = window.Tethered || {};
     ears: {
       name: 'EARS',
       dmg: () => S.TUNING.WEAPON_EARS_DMG,
+      // EARS special: boxer — ear hits knock survivors back harder.
+      onHit: (game) => ({
+        knockMult: game.stats.specials.earsBoxer ? S.TUNING.WEAPON_EARS_KNOCK_MULT : 1,
+      }),
       // Each ear's hitbox is a capsule along the crescent's chord at its
       // mid radius — close enough to the drawn annular sector.
       capsules(game, scale) {
@@ -92,6 +105,8 @@ window.Tethered = window.Tethered || {};
     horns: {
       name: 'HORNS',
       dmg: () => S.TUNING.WEAPON_HORNS_DMG,
+      // HORNS special: gore — horn hits always bash through.
+      onHit: (game) => ({ bashOverride: game.stats.specials.hornsGore }),
       capsules(game, scale) {
         const T = S.TUNING;
         const r0 = game.ball.r;
@@ -119,6 +134,13 @@ window.Tethered = window.Tethered || {};
     tail: {
       name: 'TAIL',
       dmg: () => S.TUNING.WEAPON_TAIL_DMG,
+      // TAIL special: wake — a tail hit also shoves everything nearby.
+      afterHit(game) {
+        if (!game.stats.specials.tailWake) return;
+        const T = S.TUNING;
+        const b = game.ball;
+        S.geom.radialPush(game.enemies, b.x, b.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
+      },
       // The tail is floppy: it points along its own sprung world angle
       // (integrated in updateWeapons) rather than snapping straight behind.
       // Capsules and draw work in the ball-local frame (callers rotate by
@@ -224,18 +246,18 @@ window.Tethered = window.Tethered || {};
     if (!game.weaponState.active) return;
     const segs = S.weaponSegments(game);
     if (!segs.length) return;
-    const T = S.TUNING;
     const b = game.ball;
     for (const e of game.enemies) {
       if (e.dead || e.invuln > 0) continue;
       for (const s of segs) {
-        // The poker pierces — it never bounces the ball away from what it
-        // pokes — so without a guard it would re-hit a survivor it's still
-        // plowing toward every tick. The hit flash doubles as the cooldown.
-        if (s.kind === 'poker' && e.flash > 0) continue;
+        const def = S.WEAPONS[s.kind];
         const p = S.geom.segClosest(s.x1, s.y1, s.x2, s.y2, e.x, e.y);
         const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, s.r);
         if (!hit) continue;
+        // The weapon's own hit options (pierce, bash/knock overrides); null
+        // declines the hit (the poker's re-hit cooldown).
+        const opts = def.onHit ? def.onHit(game, e) : {};
+        if (!opts) continue;
         // Same normal convention as the body collision: from the enemy
         // toward the contact, so a tip hit bounces the ball back along the
         // weapon's axis and a side hit deflects it laterally.
@@ -252,19 +274,10 @@ window.Tethered = window.Tethered || {};
         }
         S.resolveSmash(game, e, nx, ny, false, {
           dmgBonus: S.weaponDamage(game, s.kind),
-          // The poker pierces: its hits never bounce the ball.
-          pierce: s.kind === 'poker',
-          // HORNS special: gore — horn hits always bash through.
-          bashOverride: s.kind === 'horns' && game.stats.hornsGore,
-          // EARS special: boxer — ear hits knock survivors back harder.
-          knockMult: s.kind === 'ears' && game.stats.earsBoxer
-            ? T.WEAPON_EARS_KNOCK_MULT : 1,
           ax: p.x, ay: p.y, ar: s.r,
+          ...opts,
         });
-        // TAIL special: wake — a tail hit also shoves everything nearby.
-        if (s.kind === 'tail' && game.stats.tailWake) {
-          S.geom.radialPush(game.enemies, b.x, b.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
-        }
+        if (def.afterHit) def.afterHit(game, e);
         break;
       }
     }
@@ -283,7 +296,7 @@ window.Tethered = window.Tethered || {};
     ctx.rotate(Math.atan2(b.vy, b.vx));
     ctx.fillStyle = '#aef4ff';
     if (preview) ctx.globalAlpha *= 0.5; // faded ghost (× any i-frame flash fade)
-    const g = preview ? { ball: game.ball, stats: {}, weaponState: game.weaponState } : game;
+    const g = preview ? { ball: game.ball, stats: { specials: {} }, weaponState: game.weaponState } : game;
     for (const kind in S.WEAPONS) {
       if (!weaponLevel(game, kind)) continue;
       S.WEAPONS[kind].draw(ctx, g, preview ? S.TUNING.WEAPON_PREVIEW_SCALE : weaponScale(game, kind));

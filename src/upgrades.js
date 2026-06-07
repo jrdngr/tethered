@@ -7,7 +7,7 @@ window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Per-run stats that upgrades raise. Gameplay code reads these instead of
-  // the corresponding TUNING base values. The booleans are level-5 specials.
+  // the corresponding TUNING base values.
   S.createStats = function () {
     const T = S.TUNING;
     return {
@@ -18,16 +18,21 @@ window.Tethered = window.Tethered || {};
       maxSpeed: T.BALL_MAX_SPEED,
       speedDamage: 1, // × damage at the speed cap (MOMENTUM); 1 = speed has no effect
       killBoost: 0,   // px/s the ball gains per popped enemy (KILL SURGE)
-      popExplode: false,      // DAMAGE: pops splash-damage nearby enemies, chaining
-      homing: false,          // TOP SPEED: bend toward the nearest enemy at top speed
-      bashEasy: false,        // MOMENTUM: lower bash threshold at top speed
-      surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills
-      paddleWide: false,      // PADDLE: every paddle is double length
-      comboShield: false,     // VITALITY: crossing the combo threshold grants a shield
-      pokerSkewer: false,     // POKER: the spike doubles in length
-      earsBoxer: false,       // EARS: ear hits knock back harder
-      hornsGore: false,       // HORNS: horn hits always bash
-      tailWake: false,        // TAIL: tail hits fire a shockwave
+      // Level-5 special unlocks. Each boolean is set by its upgrade's
+      // `special` here and read somewhere else entirely — the comment names
+      // the consumer (weapon specials live on their WEAPONS entry's hooks).
+      specials: {
+        popExplode: false,      // DAMAGE: pops splash-damage nearby enemies, chaining — consumed at enemies.js:resolveSmash
+        homing: false,          // TOP SPEED: bend toward the nearest enemy at top speed — consumed at ball.js:updateBall
+        bashEasy: false,        // MOMENTUM: lower bash threshold at top speed — consumed at enemies.js:resolveSmash
+        surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills — consumed at enemies.js:resolveSmash
+        paddleWide: false,      // PADDLE: every paddle is double length — consumed at paddles.js:paddleLen
+        comboShield: false,     // VITALITY: crossing the combo threshold grants a shield — consumed at combo.js:bumpCombo
+        pokerSkewer: false,     // POKER: the spike doubles in length — consumed at weapons.js:WEAPONS.poker.reach
+        earsBoxer: false,       // EARS: ear hits knock back harder — consumed at weapons.js:WEAPONS.ears.onHit
+        hornsGore: false,       // HORNS: horn hits always bash — consumed at weapons.js:WEAPONS.horns.onHit
+        tailWake: false,        // TAIL: tail hits fire a shockwave — consumed at weapons.js:WEAPONS.tail.afterHit
+      },
     };
   };
 
@@ -113,7 +118,7 @@ window.Tethered = window.Tethered || {};
         game.ball.hp += S.TUNING.UPGRADE_MAX_HP;
       },
       specialDesc: () => `shield at combo x${S.TUNING.COMBO_SHIELD_THRESHOLD}`,
-      special: (game) => { game.stats.comboShield = true; },
+      special: (game) => { game.stats.specials.comboShield = true; },
       // The in-game health pickup: green disc, white cross.
       icon(ctx, x, y, size) {
         const r = size * 0.42;
@@ -133,7 +138,7 @@ window.Tethered = window.Tethered || {};
       desc: () => '+1 damage per smash',
       apply: (game) => { game.stats.damage += 1; },
       specialDesc: () => 'your kills explode',
-      special: (game) => { game.stats.popExplode = true; },
+      special: (game) => { game.stats.specials.popExplode = true; },
       // Impact burst: a gold core with radiating shards.
       icon(ctx, x, y, size) {
         ctx.fillStyle = '#ffc53d';
@@ -156,7 +161,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.UPGRADE_MAX_SPEED} max ball speed`,
       apply: (game) => { game.stats.maxSpeed += S.TUNING.UPGRADE_MAX_SPEED; },
       specialDesc: () => 'home in at top speed',
-      special: (game) => { game.stats.homing = true; },
+      special: (game) => { game.stats.specials.homing = true; },
       // Double chevron pointing forward.
       icon(ctx, x, y, size) {
         const u = size / 2;
@@ -178,7 +183,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.UPGRADE_SPEED_DAMAGE}× dmg at top speed`,
       apply: (game) => { game.stats.speedDamage += S.TUNING.UPGRADE_SPEED_DAMAGE; },
       specialDesc: () => 'easier bash at top speed',
-      special: (game) => { game.stats.bashEasy = true; },
+      special: (game) => { game.stats.specials.bashEasy = true; },
       // A ball with fading motion-trail arcs behind it.
       icon(ctx, x, y, size) {
         const u = size / 2;
@@ -203,7 +208,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.UPGRADE_KILL_BOOST} speed per pop`,
       apply: (game) => { game.stats.killBoost += S.TUNING.UPGRADE_KILL_BOOST; },
       specialDesc: () => 'boost on every smash',
-      special: (game) => { game.stats.surgeEverySmash = true; },
+      special: (game) => { game.stats.specials.surgeEverySmash = true; },
       // An up arrow bursting inside a pop ring.
       icon(ctx, x, y, size) {
         const u = size / 2;
@@ -229,7 +234,7 @@ window.Tethered = window.Tethered || {};
       desc: () => '+1 top-speed wall paddle',
       apply: (game) => S.addPaddle(game),
       specialDesc: () => '2× paddle width',
-      special: (game) => { game.stats.paddleWide = true; },
+      special: (game) => { game.stats.specials.paddleWide = true; },
       // A launch pad with its bright launching face up.
       icon(ctx, x, y, size) {
         const w = size * 0.8;
@@ -253,7 +258,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.WEAPON_POKER_DMG} dmg front spike`,
       apply: () => {},
       specialDesc: () => '2× spike length',
-      special: (game) => { game.stats.pokerSkewer = true; },
+      special: (game) => { game.stats.specials.pokerSkewer = true; },
       icon(ctx, x, y, size) {
         ballIcon(ctx, x - size * 0.18, y, size, (c, r0, u) => {
           iconSpike(c, r0, u * 0.85, r0 * 0.45);
@@ -265,7 +270,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.WEAPON_EARS_DMG} dmg side fins`,
       apply: () => {},
       specialDesc: () => '2× ear knockback',
-      special: (game) => { game.stats.earsBoxer = true; },
+      special: (game) => { game.stats.specials.earsBoxer = true; },
       icon(ctx, x, y, size) {
         ballIcon(ctx, x, y, size, (c, r0, u) => {
           const outer = u * 0.85;
@@ -286,7 +291,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.WEAPON_HORNS_DMG} dmg front horns`,
       apply: () => {},
       specialDesc: () => 'horns always bash',
-      special: (game) => { game.stats.hornsGore = true; },
+      special: (game) => { game.stats.specials.hornsGore = true; },
       icon(ctx, x, y, size) {
         ballIcon(ctx, x - size * 0.12, y, size, (c, r0, u) => {
           for (const side of [1, -1]) {
@@ -303,7 +308,7 @@ window.Tethered = window.Tethered || {};
       desc: () => `+${S.TUNING.WEAPON_TAIL_DMG} dmg rear cone`,
       apply: () => {},
       specialDesc: () => 'tail hits shockwave',
-      special: (game) => { game.stats.tailWake = true; },
+      special: (game) => { game.stats.specials.tailWake = true; },
       icon(ctx, x, y, size) {
         ballIcon(ctx, x + size * 0.22, y, size, (c, r0, u) => {
           // Reverse taper: a point under the ball flaring wide at the tip.
