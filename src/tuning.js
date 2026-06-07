@@ -228,9 +228,19 @@ Tethered.TUNING = {
   ],
 
   // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
+  // (one enemy/sec at ~3.5 min). A growing concurrent-enemy floor refills a
+  // cleared board immediately (no dead air), a cap bounds live enemies as a
+  // frame-time safety net (excess spawns wait for a free slot), and enemies
+  // spawn with per-minute HP/speed multipliers so the late game is harder
+  // enemies, not just more of them.
   SPAWN_INTERVAL_START: 5.0,  // s
-  SPAWN_DOUBLE_TIME: 600,     // s of survival for the spawn rate to double
+  SPAWN_DOUBLE_TIME: 90,      // s of survival for the spawn rate to double
   SPAWN_MIN_BALL_DIST: 150,   // px — edge spawns re-roll if closer to the ball
+  SPAWN_FLOOR_BASE: 2,        // live enemies the board never drops below...
+  SPAWN_FLOOR_PER_MIN: 1,     // ...growing this much per minute of survival
+  ENEMY_CAP: 150,             // max live enemies (frame-time guard, not a balance knob)
+  ENEMY_SCALE_HP_PER_MIN: 0.08,    // spawn HP × (1 + this × minutes), rounded
+  ENEMY_SCALE_SPEED_PER_MIN: 0.08, // spawn speed × (1 + this × minutes)
 
   // Combo
   COMBO_TIMEOUT: 10,       // s without a combo change before it resets to ×1

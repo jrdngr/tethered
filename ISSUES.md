@@ -6,7 +6,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 
 | Issue | Impact | Decision |
 |---|---|---|
-| [Spawn curve too slow; no scaling](issues/balance-spawn-curve.md) | High | `SPAWN_DOUBLE_TIME → 90` + floor + per-minute stat scaling + interim cap |
 | [Combo coin economy runaway](issues/balance-coin-economy.md) | High | Sublinear payout (×√combo) |
 | [MOMENTUM multiplicative outlier](issues/balance-momentum-outlier.md) | Medium | Make MOMENTUM additive (+4 cap) |
 | [Risk-inverted economy (runner farming)](issues/balance-risk-reward.md) | Medium | Runners get a panic dash that stings; 3× payout stays |

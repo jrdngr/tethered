@@ -288,17 +288,23 @@ window.Tethered = window.Tethered || {};
     return 'chaser';
   }
 
-  function makeEnemy(type, x, y) {
+  function makeEnemy(game, type, x, y) {
+    const T = S.TUNING;
     const def = S.ENEMY_TYPES[type];
-    const stats = def.stats(S.TUNING);
+    const stats = def.stats(T);
+    // Per-minute stat scaling, baked in at spawn time so existing logic is
+    // untouched: late game is harder enemies, not just more of them. HP
+    // rounds so hits-to-kill stays a clean integer step.
+    const minutes = game.time / 60;
+    const hp = Math.round(stats.hp * (1 + T.ENEMY_SCALE_HP_PER_MIN * minutes));
     const e = {
       x, y, type,
       kx: 0, ky: 0,
       r: stats.r,
-      hp: stats.hp,
-      maxHp: stats.hp,
+      hp,
+      maxHp: hp,
       damage: stats.damage,
-      speed: stats.speed,
+      speed: stats.speed * (1 + T.ENEMY_SCALE_SPEED_PER_MIN * minutes),
       coinMult: stats.coinMult,
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
@@ -329,7 +335,7 @@ window.Tethered = window.Tethered || {};
       else { x = game.width - r; y = t * game.height; }
       if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
     }
-    const e = makeEnemy(type, x, y);
+    const e = makeEnemy(game, type, x, y);
     game.enemies.push(e);
     S.grid.insert(e); // queryable this step — broadphase rebuilds are per-pass, not per-spawn
   };
@@ -342,7 +348,7 @@ window.Tethered = window.Tethered || {};
     const base = Math.random() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
       const a = base + (i / count) * Math.PI * 2;
-      const child = makeEnemy(e.splitChild || 'chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
+      const child = makeEnemy(game, e.splitChild || 'chaser', e.x + Math.cos(a) * e.r * 0.6, e.y + Math.sin(a) * e.r * 0.6);
       child.kx = Math.cos(a) * T.SPLIT_FLING;
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
@@ -595,14 +601,26 @@ window.Tethered = window.Tethered || {};
     }
 
     // Spawn rate climbs exponentially: it doubles every SPAWN_DOUBLE_TIME of
-    // survival. Paused while the player's death pop plays out.
+    // survival. Paused while the player's death pop plays out. At the enemy
+    // cap the timer holds at zero instead of resetting, so the next free
+    // slot spawns immediately. Below the (growing) floor, refill one enemy
+    // per step — a cleared board repopulates within a few frames, never
+    // leaving dead air.
     if (game.state === S.STATE.PLAYING) {
       const interval = T.SPAWN_INTERVAL_START * Math.pow(2, -game.time / T.SPAWN_DOUBLE_TIME);
       game.spawnTimer -= dt;
       if (game.spawnTimer <= 0) {
-        S.spawnEnemy(game);
-        game.spawnTimer = interval;
+        if (game.enemies.length < T.ENEMY_CAP) {
+          S.spawnEnemy(game);
+          game.spawnTimer = interval;
+        } else {
+          game.spawnTimer = 0;
+        }
       }
+      const floor = Math.min(
+        Math.floor(T.SPAWN_FLOOR_BASE + (game.time / 60) * T.SPAWN_FLOOR_PER_MIN),
+        T.ENEMY_CAP);
+      if (game.enemies.length < floor) S.spawnEnemy(game);
     }
 
     // Weapon pass first: kills are flagged dead and survivors are knocked
