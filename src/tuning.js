@@ -16,7 +16,7 @@ Tethered.TUNING = {
   GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
   ROPE_K: 12,             // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
-  ROPE_MAX_REST: 120,     // px — max rest length at grab time
+  ROPE_MAX_REST: 192,     // px — max rest length at grab time; = BALL_RADIUS + GRAB_RADIUS, so no grab starts pre-stretched (a clamp below the grab reach yanks the ball at grab and starves wraps of rope)
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
   WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
   SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
