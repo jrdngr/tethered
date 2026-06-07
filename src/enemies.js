@@ -13,46 +13,20 @@ window.Tethered = window.Tethered || {};
     e.y += (dir.y * e.speed + e.ky) * dt;
   }
 
-  // Walk back toward the home position the enemy was placed at (deaggro).
-  // Straight-line; the wall pass slides it along obstructions and the
-  // return timeout sleeps it in place if a concave pocket dead-sticks it.
-  function steerHome(game, e, dt) {
-    const dx = e.home.x - e.x;
-    const dy = e.home.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
-    e.x += ((dx / d) * e.speed + e.kx) * dt;
-    e.y += ((dy / d) * e.speed + e.ky) * dt;
-  }
-
-  // Advance the aggro state machine; returns false when the enemy is dormant
-  // (caller skips it entirely this step). dormant→awake when the ball comes
-  // within AGGRO_RADIUS; awake→returning past DEAGGRO_RADIUS; returning
-  // re-aggros if the ball comes back, sleeps on reaching home, or sleeps in
-  // place after RETURN_TIMEOUT if a wall dead-sticks the walk back.
-  function updateAggro(game, e, dt) {
-    const T = S.TUNING;
+  // Advance the aggro state. An enemy idles until the ball comes within
+  // AGGRO_RADIUS, then it's awake for good — it chases forever, no deaggro.
+  // Returns false while dormant (the caller skips it entirely this step).
+  function updateAggro(game, e) {
+    if (e.aggro === 'awake') return true;
     const d = Math.hypot(game.ball.x - e.x, game.ball.y - e.y);
-    if (e.aggro === 'dormant') {
-      if (d <= T.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
-      return false;
-    }
-    if (e.aggro === 'awake') {
-      if (d > T.DEAGGRO_RADIUS) { e.aggro = 'returning'; e.returnTimer = 0; }
-      return true;
-    }
-    // returning
-    if (d <= T.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
-    e.returnTimer += dt;
-    const dh = Math.hypot(e.home.x - e.x, e.home.y - e.y);
-    if (dh < T.TILE_SIZE || e.returnTimer >= T.RETURN_TIMEOUT) { e.aggro = 'dormant'; return false; }
-    return true;
+    if (d <= S.TUNING.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
+    return false;
   }
 
-  // Contact aggro: anything that touches an enemy wakes it (covers the
-  // returning→awake case the proximity check would otherwise miss for a
-  // step). Proximity already covers dormant — contact can't reach a sleeper.
+  // Contact aggro: anything that touches an enemy wakes it (a wrap can reach
+  // a sleeper the proximity check hasn't tripped yet).
   S.wakeEnemy = function (e) {
-    if (e.aggro !== 'awake') { e.aggro = 'awake'; e.returnTimer = 0; }
+    e.aggro = 'awake';
   };
 
   // Runner: chase like a chaser, but bolt once the ball gets close — pinned
@@ -489,11 +463,9 @@ window.Tethered = window.Tethered || {};
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
       // Aggro: placed enemies idle until the ball nears (proximity is always
-      // a wider net than contact, so a dormant enemy can't be touched). home
-      // is where it returns to and sleeps when the ball leaves.
-      aggro: 'dormant', // 'dormant' | 'awake' | 'returning'
-      home: { x, y },
-      returnTimer: 0,
+      // a wider net than contact, so a dormant enemy can't be touched), then
+      // chase for good.
+      aggro: 'dormant', // 'dormant' | 'awake'
     };
     if (def.splitCount) {
       e.splitCount = def.splitCount;
@@ -703,10 +675,7 @@ window.Tethered = window.Tethered || {};
       child.kx = Math.cos(a) * T.SPLIT_FLING;
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
-      // Children of a fight are awake, and inherit the parent's home so they
-      // leash back to it rather than to wherever the parent happened to die.
-      child.aggro = 'awake';
-      child.home = { x: e.home.x, y: e.home.y };
+      child.aggro = 'awake'; // born into a fight, already chasing
       game.enemies.push(child);
       S.grid.insert(child);
     }
@@ -983,16 +952,14 @@ window.Tethered = window.Tethered || {};
 
       // Aggro gate. Dormant enemies do nothing but a distance check — and
       // can't be touched, since the wake radius is far wider than contact.
-      if (!updateAggro(game, e, dt)) continue;
+      if (!updateAggro(game, e)) continue;
 
       // Per-type steering brain (default: seek the ball), plus decaying
-      // knockback integrated by each brain. A returning enemy ignores its
-      // brain and walks home instead.
+      // knockback integrated by each brain.
       const decay = Math.exp(-T.ENEMY_KNOCKBACK_DECAY * dt);
       e.kx *= decay;
       e.ky *= decay;
-      if (e.aggro === 'returning') steerHome(game, e, dt);
-      else (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);
+      (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);
 
       // Collision with the ball (skipped while the death pop plays out —
       // the ball is already gone — and while a fresh split child's
@@ -1006,7 +973,7 @@ window.Tethered = window.Tethered || {};
       const p = S.geom.segClosest(game.tether.pbx, game.tether.pby, b.x, b.y, e.x, e.y);
       const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, b.r);
       if (!hit) continue;
-      S.wakeEnemy(e); // touched — wake a returning enemy (proximity covers dormant)
+      S.wakeEnemy(e); // touched — wake it (proximity usually already has)
       let { nx, ny } = hit; // unit normal from enemy to the impact point
       // An enemy dead on the sweep line has no contact direction (the same
       // degenerate case the weapon capsules guard against) — a zero normal

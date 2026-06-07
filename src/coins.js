@@ -224,11 +224,7 @@ window.Tethered = window.Tethered || {};
 
     for (let i = game.coins.length - 1; i >= 0; i--) {
       const c = game.coins[i];
-      c.age += dt;
-      if (c.age >= T.COIN_LIFETIME) {
-        game.coins.splice(i, 1);
-        continue;
-      }
+      c.age += dt; // still tracked for the merge/scoop grace — but never expires
 
       const dx = b.x - c.x;
       const dy = b.y - c.y;

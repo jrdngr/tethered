@@ -289,7 +289,6 @@ Tethered.TUNING = {
   COIN_DRAG: 3,            // 1/s — coins settle quickly
   COIN_MAGNET_RADIUS: 200, // px from ball center (wider for the scrolling world)
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
-  COIN_LIFETIME: 45,       // s before an uncollected coin fades away (longer — bigger rooms)
   PICKUP_RESTITUTION: 0.6, // wall-bounce energy retention for coins/pickups
   // Tuned so a full depth-1→10 clear yields ~32 (rush) to ~42 (chain) of
   // the 60-pick pool: a rich build that never fully exhausts, ~3.5 picks per
@@ -426,9 +425,7 @@ Tethered.TUNING = {
   // Flow field + aggro (src/flowfield.js, src/enemies.js): a BFS field from
   // the ball's tile steers enemies around walls; enemies idle until the ball
   // comes near, chase while it's in range, then walk home and sleep again.
-  AGGRO_RADIUS: 900,        // px — a dormant enemy this close to the ball wakes
-  DEAGGRO_RADIUS: 1400,     // px — an awake enemy this far from the ball heads home
-  RETURN_TIMEOUT: 5,        // s — a returning enemy that can't reach home sleeps in place
+  AGGRO_RADIUS: 900,        // px — a dormant enemy this close to the ball wakes (then chases for good)
   FLOW_MIN_INTERVAL: 0.15,  // s — min gap between flow-field recomputes (on ball tile change)
   LOS_RANGE: 600,           // px — within this, an enemy with line of sight steers straight
 

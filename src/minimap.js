@@ -37,7 +37,7 @@ window.Tethered = window.Tethered || {};
     fog.width = mw;
     fog.height = mh;
     const fc = fog.getContext('2d');
-    fc.fillStyle = 'rgba(13, 14, 20, 0.94)';
+    fc.fillStyle = '#0d0e14'; // fully opaque — unexplored map is blacked out
     fc.fillRect(0, 0, mw, mh);
 
     return { seed: map.seed, walls, fog, fc, scale, mw, mh, exitSeen: false };
@@ -66,10 +66,8 @@ window.Tethered = window.Tethered || {};
     const x0 = game.width - m.mw - 12;
     const y0 = game.height - m.mh - 12;
     ctx.save();
-    ctx.globalAlpha = 0.9;
     ctx.drawImage(m.walls, x0, y0);
-    ctx.drawImage(m.fog, x0, y0);
-    ctx.globalAlpha = 1;
+    ctx.drawImage(m.fog, x0, y0); // opaque black over the unexplored map
     ctx.strokeStyle = '#3a3f52';
     ctx.lineWidth = 1;
     ctx.strokeRect(x0 - 0.5, y0 - 0.5, m.mw + 1, m.mh + 1);
@@ -80,9 +78,9 @@ window.Tethered = window.Tethered || {};
       ctx.arc(x0 + wx * m.scale, y0 + wy * m.scale, r, 0, Math.PI * 2);
       ctx.fill();
     };
-    // Awake/returning enemies as faint red ticks (only the active ones).
+    // Awake enemies as faint red ticks (sleeping ones stay hidden).
     for (const e of game.enemies) {
-      if (e.aggro && e.aggro !== 'dormant') dot(e.x, e.y, 'rgba(229, 72, 77, 0.8)', 1.5);
+      if (e.aggro === 'awake') dot(e.x, e.y, 'rgba(229, 72, 77, 0.8)', 1.5);
     }
     dot(map.spawn.x, map.spawn.y, '#5dffa0', 2.5); // start
     if (m.exitSeen) dot(game.exit.x, game.exit.y, '#ff5d6e', 3); // exit, once found

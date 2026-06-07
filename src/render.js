@@ -254,12 +254,9 @@ window.Tethered = window.Tethered || {};
   // Pickups, each drawn by its PICKUP_TYPES entry, fading out at the end of
   // their life.
   function drawCoins(ctx, game) {
-    const T = S.TUNING;
     for (const c of game.coins) {
-      ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
-      S.PICKUP_TYPES[c.type].draw(ctx, c, game);
+      S.PICKUP_TYPES[c.type].draw(ctx, c, game); // coins persist — no lifetime fade
     }
-    ctx.globalAlpha = 1;
   }
 
   // Spark bursts (green heal sparks by default; the player death burst

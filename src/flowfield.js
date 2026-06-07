@@ -48,7 +48,10 @@ window.Tethered = window.Tethered || {};
     }
 
     const stamp = ++f.stamp;
-    const maxSteps = Math.ceil(T.DEAGGRO_RADIUS / T.TILE_SIZE) + 3;
+    // Window generously past the wake radius so chasing enemies that have
+    // followed the ball out beyond it still get a gradient (else they fall
+    // back to straight-line wall-slide, fine for far stragglers).
+    const maxSteps = Math.ceil((T.AGGRO_RADIUS * 1.6) / T.TILE_SIZE) + 3;
     const { dist, dirx, diry, seen, qx, qy } = f;
     let head = 0;
     let tail = 0;
