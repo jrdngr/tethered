@@ -184,7 +184,7 @@ Tethered.TUNING = {
   BASH_POP_SCALE: 1.8,      // × POP_SCALE — a bash pop's ring grows this much bigger
   BASH_FLASH_DURATION: 0.09, // s of white screen flash on a bash kill
   BASH_FLASH_ALPHA: 0.22,   // peak flash opacity
-  AUDIO_VOLUME: 0.5,        // master SFX volume (0 = mute)
+  AUDIO_VOLUME: 0,          // master SFX volume (0 = mute) — disabled for now
 
   // Slow-mo: a bash kill drops the global time scale for a cinematic beat.
   // Every integrator is dt-parameterized, so the whole world slows together
