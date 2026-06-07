@@ -35,20 +35,19 @@ window.Tethered = window.Tethered || {};
 
   function reset() {
     const w = S.arenaWidth(canvas.width);
-    // M1 placeholder world: a fixed 3×3-screen empty box, so the camera and
-    // coordinate split can be felt before generation lands. M2 swaps in the
-    // generated map's dimensions.
-    const world = {
-      w: 3 * S.TUNING.MAP_SCREEN_W,
-      h: 3 * S.TUNING.MAP_SCREEN_H,
-    };
+    // A run starts at depth 1 on a fresh map; the world is whatever the
+    // generator produced. (Death always restarts here — full-run stakes.)
+    const map = S.generateMap(1);
+    const world = { w: map.w, h: map.h };
     // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
       width: w, // viewport — see the coordinate-spaces note above
       height: playHeight(),
       world,
+      map,
+      depth: 1,
       camera: null, // created below — needs the ball to aim at
-      ball: S.createBall(world.w, world.h),
+      ball: S.createBall(map.spawn.x, map.spawn.y),
       tether: S.createTether(),
       enemies: [],
       pops: [], // enemy death pop animations
@@ -56,8 +55,8 @@ window.Tethered = window.Tethered || {};
       playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
-      obstacles: [], // interior geometry; filled by cycleObstacles below
-      obstacleLayout: 0, // index into OBSTACLE_LAYOUTS, set by cycleObstacles
+      obstacles: [], // freestanding pillars — empty until M6's placePillars
+      obstacleLayout: 0, // legacy hand-layout index, unused in the dungeon
       particles: [], // green sparks from grabbed health pickups
       floaters: [], // floating reward text (wrap bonuses)
       // Weapons arm on tether release, expire when slow; the floppy tail
@@ -68,7 +67,7 @@ window.Tethered = window.Tethered || {};
       // recomputed per frame — a still hand must mean a still anchor even
       // while the camera slides). mouseScreen is the raw viewport point,
       // for UI picking (upgrade cards, game-over click).
-      mouse: { x: world.w / 2, y: world.h / 2 },
+      mouse: { x: map.spawn.x, y: map.spawn.y },
       mouseScreen: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
       comboIdle: 0, // s since the combo last changed; COMBO_TIMEOUT resets it
@@ -87,7 +86,9 @@ window.Tethered = window.Tethered || {};
       state: S.STATE.PLAYING,
     };
     game.camera = S.createCamera(game);
-    S.cycleObstacles(game); // each run gets a random hand-placed layout
+    // game.obstacles stays empty in the dungeon — the hand-placed arena
+    // layouts don't fit generated caves. M6's placePillars repopulates it
+    // with chamber pillars through the same obstacle/peg code.
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).

@@ -70,6 +70,67 @@ window.Tethered = window.Tethered || {};
     return map;
   }
 
+  // --- Tile collision (runtime physics) -----------------------------------
+  // Circle vs one wall tile: unit normal from the tile surface toward the
+  // circle center plus penetration depth (the obstacleHit return shape).
+  function tileHit(b, tx0, ty0, ts) {
+    const cx = Math.max(tx0, Math.min(b.x, tx0 + ts));
+    const cy = Math.max(ty0, Math.min(b.y, ty0 + ts));
+    const dx = b.x - cx;
+    const dy = b.y - cy;
+    const d = Math.hypot(dx, dy);
+    if (d >= b.r) return null;
+    if (d > 1e-6) return { nx: dx / d, ny: dy / d, overlap: b.r - d };
+    // Center inside the tile (deep hit): push out through the nearest face.
+    const faces = [
+      { nx: -1, ny: 0, overlap: b.x - tx0 + b.r },
+      { nx: 1, ny: 0, overlap: tx0 + ts - b.x + b.r },
+      { nx: 0, ny: -1, overlap: b.y - ty0 + b.r },
+      { nx: 0, ny: 1, overlap: ty0 + ts - b.y + b.r },
+    ];
+    return faces.reduce((a, f) => (f.overlap < a.overlap ? f : a));
+  }
+
+  // Push a circle body out of wall tiles, resolving the deepest penetration
+  // first and iterating so concave (two-tile inside) corners settle. With a
+  // restitution the into-wall velocity reflects (a bounce); with null it's
+  // zeroed (a slide — enemies stop at walls, they don't rebound). Velocity
+  // lives on body[vxKey/vyKey] so the enemies' knockback channel works too.
+  // Returns whether anything reflected.
+  S.collideCircleTiles = function (map, body, restitution, vxKey = 'vx', vyKey = 'vy') {
+    const ts = S.TUNING.TILE_SIZE;
+    let bounced = false;
+    for (let iter = 0; iter < 2; iter++) {
+      const x0 = Math.floor((body.x - body.r) / ts);
+      const x1 = Math.floor((body.x + body.r) / ts);
+      const y0 = Math.floor((body.y - body.r) / ts);
+      const y1 = Math.floor((body.y + body.r) / ts);
+      let best = null;
+      for (let ty = y0; ty <= y1; ty++) {
+        for (let tx = x0; tx <= x1; tx++) {
+          if (!map.isWall(tx, ty)) continue;
+          const hit = tileHit(body, tx * ts, ty * ts, ts);
+          if (hit && (!best || hit.overlap > best.overlap)) best = hit;
+        }
+      }
+      if (!best) break;
+      body.x += best.nx * best.overlap;
+      body.y += best.ny * best.overlap;
+      const into = body[vxKey] * best.nx + body[vyKey] * best.ny;
+      if (into < 0) {
+        if (restitution == null) {
+          body[vxKey] -= into * best.nx;
+          body[vyKey] -= into * best.ny;
+        } else {
+          body[vxKey] -= (1 + restitution) * into * best.nx;
+          body[vyKey] -= (1 + restitution) * into * best.ny;
+          bounced = true;
+        }
+      }
+    }
+    return bounced;
+  };
+
   // Stamp a floor disk, clamped off the border band. Also marks the carve
   // mask when given — masked tiles are re-floored after every smoothing
   // pass, so organic-izing can never seal a corridor.

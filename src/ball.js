@@ -2,10 +2,10 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  S.createBall = function (w, h) {
+  S.createBall = function (x, y) {
     return {
-      x: w / 2,
-      y: h / 2,
+      x,
+      y,
       vx: 0,
       vy: 0,
       r: S.TUNING.BALL_RADIUS,
@@ -56,45 +56,58 @@ window.Tethered = window.Tethered || {};
       b.vy *= game.stats.maxSpeed / speed;
     }
 
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
-
     if (b.iframes > 0) b.iframes -= dt;
     if (b.shieldCooldown > 0) b.shieldCooldown -= dt;
 
-    // World-border walls: clamp position, reflect velocity with restitution
-    // (upgradable stat — ELASTICITY can push it past 1, which is safe: drag
-    // and the speed cap dominate between bounces). M2 replaces these with
-    // wall-tile collision; the border rect stays as the outermost backstop.
-    // Velocity-direction guards prevent re-bouncing while still overlapping.
+    // Integrate in sub-steps when fast: a capped-out slingshot can cross
+    // more than a wall tile's thickness in one 120 Hz step, and the tile
+    // test below is discrete. (The wrap sweep still sees the step's net
+    // start→end chord via the tether snapshot — a sub-step bounce bending
+    // the path mid-step is a known, self-correcting approximation.)
     const rest = game.stats.wallRestitution;
     const preSpeed = S.ballSpeed(b);
-    let bounced = false;
-    if (b.x - b.r < 0) {
-      b.x = b.r;
-      if (b.vx < 0) { b.vx = -b.vx * rest; bounced = true; }
-    } else if (b.x + b.r > game.world.w) {
-      b.x = game.world.w - b.r;
-      if (b.vx > 0) { b.vx = -b.vx * rest; bounced = true; }
-    }
-    if (b.y - b.r < 0) {
-      b.y = b.r;
-      if (b.vy < 0) { b.vy = -b.vy * rest; bounced = true; }
-    } else if (b.y + b.r > game.world.h) {
-      b.y = game.world.h - b.r;
-      if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
-    }
+    const steps = Math.min(8, Math.max(1, Math.ceil((preSpeed * dt) / (T.TILE_SIZE * 0.4))));
+    const sub = dt / steps;
+    let bounced = false; // any reflection — sound + ELASTICITY blast
+    let hitGeometry = false; // cave walls/obstacles — these earn combo credit
+    for (let i = 0; i < steps; i++) {
+      b.x += b.vx * sub;
+      b.y += b.vy * sub;
 
-    // Interior obstacles bounce like walls — same restitution stat — but
-    // only they earn combo credit below; arena walls don't.
-    const hitObstacle = S.collideBallObstacles(game);
-    if (hitObstacle) bounced = true;
+      // World-border backstop: clamp + reflect. The map's border band is
+      // already wall tiles; this guards the degenerate escapes.
+      // Velocity-direction guards prevent re-bouncing while overlapping.
+      if (b.x - b.r < 0) {
+        b.x = b.r;
+        if (b.vx < 0) { b.vx = -b.vx * rest; bounced = true; }
+      } else if (b.x + b.r > game.world.w) {
+        b.x = game.world.w - b.r;
+        if (b.vx > 0) { b.vx = -b.vx * rest; bounced = true; }
+      }
+      if (b.y - b.r < 0) {
+        b.y = b.r;
+        if (b.vy < 0) { b.vy = -b.vy * rest; bounced = true; }
+      } else if (b.y + b.r > game.world.h) {
+        b.y = game.world.h - b.r;
+        if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
+      }
+
+      // Cave walls bounce like the old interior obstacles — same
+      // restitution stat, same combo credit: the dungeon's geometry IS the
+      // combo tool, unlike the old arena's outer walls.
+      if (game.map && S.collideCircleTiles(game.map, b, rest)) {
+        bounced = true;
+        hitGeometry = true;
+      }
+      if (S.collideBallObstacles(game)) {
+        bounced = true;
+        hitGeometry = true;
+      }
+    }
 
     // Bounce juice only for fast bounces — no farming with slow dribbles.
-    // Combo credit needs an interior obstacle: riding the arena walls
-    // shouldn't build the multiplier.
     if (bounced && preSpeed > T.SPEED_THRESHOLD) {
-      if (hitObstacle) S.bumpCombo(game);
+      if (hitGeometry) S.bumpCombo(game);
       S.audio.play('bounce');
       // ELASTICITY special: a fast bounce slams a shockwave into nearby
       // enemies (the same wave the TAIL special fires).

@@ -64,6 +64,14 @@ window.Tethered = window.Tethered || {};
         const impulse = T.SLINGSHOT_IMPULSE_K * tether.stretch;
         b.vx += (dx / d) * impulse;
         b.vy += (dy / d) * impulse;
+        // Clamp here too (updateBall caps before integrating anyway):
+        // nothing — including the tile-collision sub-step count — should
+        // ever observe a super-cap velocity, even for one step.
+        const sp = Math.hypot(b.vx, b.vy);
+        if (sp > game.stats.maxSpeed) {
+          b.vx *= game.stats.maxSpeed / sp;
+          b.vy *= game.stats.maxSpeed / sp;
+        }
       }
     }
     tether.active = false;

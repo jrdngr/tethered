@@ -54,8 +54,7 @@ window.Tethered = window.Tethered || {};
       e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
       e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
     }
-    e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
-    e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
+    // No bounds clamp: the end-of-update wall pass keeps everyone on floor.
   }
 
   // Orbiter brain. Drift: creep toward the ball, bleeding speed. Stalled:
@@ -401,22 +400,24 @@ window.Tethered = window.Tethered || {};
     return e;
   }
 
-  // Edge-spawn one enemy. The type rolls from the survival-gated mix unless
-  // forced (dev panel spawn buttons).
+  // Spawn one enemy on a far floor tile. The type rolls from the
+  // survival-gated mix unless forced. M2-interim: the timer/floor system
+  // and this random placement both fall to M5's generation-time placement.
   S.spawnEnemy = function (game, forcedType) {
     const type = forcedType || rollType(game);
-    const r = S.ENEMY_TYPES[type].stats(S.TUNING).r;
-    let x = 0;
-    let y = 0;
-    // Pick an edge point; re-roll a few times if it's right on top of the ball.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const side = Math.floor(Math.random() * 4);
-      const t = Math.random();
-      if (side === 0) { x = t * game.world.w; y = r; }
-      else if (side === 1) { x = t * game.world.w; y = game.world.h - r; }
-      else if (side === 2) { x = r; y = t * game.world.h; }
-      else { x = game.world.w - r; y = t * game.world.h; }
-      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST) break;
+    const map = game.map;
+    let x = game.world.w / 2;
+    let y = game.world.h / 2;
+    // Floor tiles with standing room (clearance ≥ 2), preferring well away
+    // from the ball; the last roomy candidate stands if none is far enough.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const tx = Math.floor(Math.random() * map.tw);
+      const ty = Math.floor(Math.random() * map.th);
+      if (map.isWall(tx, ty) || map.clearance[ty * map.tw + tx] < 2) continue;
+      const p = map.tileToWorld(tx, ty);
+      x = p.x;
+      y = p.y;
+      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST * 4) break;
     }
     const e = makeEnemy(game, type, x, y);
     game.enemies.push(e);
@@ -819,14 +820,32 @@ window.Tethered = window.Tethered || {};
     S.grid.rebuild(game.enemies);
     resolveEnemyOverlaps(game);
 
-    // Obstacles are solid to enemies too: push any overlapper out flush
-    // (anchor-aware, so the shove sticks on an orbiting orbiter). A handful
-    // of obstacles per layout keeps this a cheap O(N) pass.
+    // Walls and obstacles are solid to enemies: push any overlapper out
+    // flush (anchor-aware, so the shove sticks on an orbiting orbiter).
+    // Deliberately the LAST pass of the step — brains, knockback, and
+    // separation can all shove an enemy wallward, and whatever runs after a
+    // wall pass can re-embed; nothing runs after this one.
     for (const e of game.enemies) {
       for (const o of game.obstacles) {
         const hit = S.obstacleHit(o, e.x, e.y, e.r);
         if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
       }
+      collideEnemyTiles(game, e);
     }
   };
+
+  // Wall-tile push-out for one enemy: probe the shared circle-vs-tiles
+  // resolver, then apply the shift anchor-aware and keep the velocity
+  // (knockback channel) slide — the wall-normal component is zeroed, so a
+  // shove along a wall glides instead of pinning.
+  function collideEnemyTiles(game, e) {
+    if (!game.map) return;
+    const probe = { x: e.x, y: e.y, r: e.r, vx: e.kx, vy: e.ky };
+    S.collideCircleTiles(game.map, probe, null);
+    if (probe.x !== e.x || probe.y !== e.y) {
+      shiftEnemy(e, probe.x - e.x, probe.y - e.y);
+      e.kx = probe.vx;
+      e.ky = probe.vy;
+    }
+  }
 })(Tethered);

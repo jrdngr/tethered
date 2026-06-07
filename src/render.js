@@ -11,9 +11,9 @@ window.Tethered = window.Tethered || {};
   // ordering contract (see main.js), the order is load-bearing — overlays
   // must cover the world, the ball sits above the things it smashes, etc.
   const WORLD_LAYERS = [
-    drawArena,
     drawTether,
-    drawObstacles, // above the rope, so a wrapped rope tucks behind the pillar
+    drawWalls, // above the rope, so a rope wrapped on a corner tucks behind the wall
+    drawObstacles, // ditto for pillar wraps
     drawCoins,
     drawParticles,
     drawPaddles,
@@ -62,11 +62,29 @@ window.Tethered = window.Tethered || {};
     S.drawDevPanel(ctx, game);
   };
 
-  // World border.
-  function drawArena(ctx, game) {
-    ctx.strokeStyle = '#2a2d3a';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, game.world.w - 4, game.world.h - 4);
+  // Cave walls: only the camera-visible tile range (plus a margin so screen
+  // shake never exposes an undrawn strip), with horizontal runs merged into
+  // single rects. The floor is the background color — walls are the painted
+  // thing, in the obstacle palette so they read as architecture.
+  function drawWalls(ctx, game) {
+    const map = game.map;
+    if (!map) return;
+    const ts = S.TUNING.TILE_SIZE;
+    const cam = game.camera;
+    const x0 = Math.max(0, Math.floor(cam.x / ts) - 1);
+    const x1 = Math.min(map.tw - 1, Math.floor((cam.x + game.width) / ts) + 1);
+    const y0 = Math.max(0, Math.floor(cam.y / ts) - 1);
+    const y1 = Math.min(map.th - 1, Math.floor((cam.y + game.height) / ts) + 1);
+    ctx.fillStyle = '#1c1f2a';
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        if (map.tiles[ty * map.tw + tx] !== 1) continue;
+        let run = tx;
+        while (run <= x1 && map.tiles[ty * map.tw + run] === 1) run++;
+        ctx.fillRect(tx * ts, ty * ts, (run - tx) * ts, ts);
+        tx = run;
+      }
+    }
   }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
