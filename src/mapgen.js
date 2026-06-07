@@ -222,8 +222,12 @@ window.Tethered = window.Tethered || {};
       fit = lo;
     }
     const rr = Math.min(radius(1), fit);
+    // The exit room is deliberately smaller (it holds no enemies — just the
+    // portal). Shrinking it only widens the spawn↔exit gap, so the fit search
+    // above still holds; re-hug the right edge with the smaller radius.
+    const er = rr * T.EXIT_ROOM_RADIUS_MULT;
     const spawn = { cx: B + rr * 1.15 + 1, cy: spawnCy, r: rr, reserved: 'spawn' };
-    const exit = { cx: map.tw - 1 - B - rr * 1.15 - 1, cy: exitCy, r: rr, reserved: 'exit' };
+    const exit = { cx: map.tw - 1 - B - er * 1.15 - 1, cy: exitCy, r: er, reserved: 'exit' };
     chambers.push(spawn, exit);
 
     for (let n = chambers.length; n < target; n++) {
@@ -286,6 +290,9 @@ window.Tethered = window.Tethered || {};
     }
     extra.sort((a, b) => a.d - b.d);
     const edges = treeEdges.concat(extra.slice(0, Math.floor(chambers.length / 4)));
+    // Remembered for the arena gates: each edge names the two chambers a
+    // corridor joins, so the runtime can seal the right mouths (src/arena.js).
+    map.corridorEdges = edges.map((e) => ({ i: e.i, j: e.j }));
 
     const brush = S.TUNING.MIN_PASSAGE_TILES / 2;
     for (const e of edges) {

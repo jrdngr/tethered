@@ -15,6 +15,7 @@ window.Tethered = window.Tethered || {};
     drawTether,
     drawWalls, // above the rope, so a rope wrapped on a corner tucks behind the wall
     drawObstacles, // ditto for pillar wraps
+    drawGates, // arena barriers sealing the current room's corridor mouths
     drawOnboarding, // spawn-room hints (depth 1)
     drawCoins,
     drawParticles,
@@ -144,6 +145,37 @@ window.Tethered = window.Tethered || {};
     }
   }
 
+  // Arena gates: the energy barriers sealing the current room's corridor
+  // mouths while it's being cleared. A pulsing red capsule with a hot core —
+  // reads as "blocked, kill everything to pass". Only the locked room's gates
+  // are in game.gates, so this draws nothing in cleared rooms or corridors.
+  function drawGates(ctx, game) {
+    const gates = game.gates;
+    if (!gates || !gates.length) return;
+    const pulse = 0.6 + 0.4 * Math.sin(game.time * 6);
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const g of gates) {
+      const p = g.parts[0];
+      ctx.strokeStyle = `rgba(229, 72, 77, ${0.5 + 0.35 * pulse})`;
+      ctx.shadowColor = '#e5484d';
+      ctx.shadowBlur = 16 * pulse;
+      ctx.lineWidth = p.r * 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x1, p.y1);
+      ctx.lineTo(p.x2, p.y2);
+      ctx.stroke();
+      ctx.shadowBlur = 0; // bright inner filament
+      ctx.strokeStyle = `rgba(255, 205, 205, ${0.45 + 0.3 * pulse})`;
+      ctx.lineWidth = Math.max(2, p.r * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(p.x1, p.y1);
+      ctx.lineTo(p.x2, p.y2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Depth-1 onboarding: two lines of world-space text centered in the start
   // room, so a first-time player knows the two verbs (grab, exit). Fades as
   // the ball leaves the room.
@@ -163,7 +195,7 @@ window.Tethered = window.Tethered || {};
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('hold near the ball to grab, release to fling', cx, cy - 16);
-    ctx.fillText('find the exit', cx, cy + 16);
+    ctx.fillText('clear the room to open the gates, then find the exit', cx, cy + 16);
     ctx.restore();
   }
 

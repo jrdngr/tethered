@@ -103,6 +103,9 @@ window.Tethered = window.Tethered || {};
         bounced = true;
         hitGeometry = true;
       }
+      // Arena gates bounce the ball like a wall (and feed the ELASTICITY
+      // blast), but earn no combo credit — they're a temporary barrier.
+      if (S.collideBallGates(game)) bounced = true;
     }
 
     // Bounce juice only for fast bounces — no farming with slow dribbles.

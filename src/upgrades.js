@@ -11,8 +11,11 @@ window.Tethered = window.Tethered || {};
   S.createStats = function () {
     const T = S.TUNING;
     return {
-      magnetRadius: T.COIN_MAGNET_RADIUS,
-      magnetAccel: T.COIN_MAGNET_ACCEL,
+      // Coin magnetism is no longer an upgrade — the base is the old MAGNET
+      // RANGE maxed out: levels 1-4 each added a radius step, the 5th pick
+      // doubled the pull force.
+      magnetRadius: T.COIN_MAGNET_RADIUS + (T.UPGRADE_LEVEL_MAX - 1) * T.UPGRADE_MAGNET_RADIUS,
+      magnetAccel: T.COIN_MAGNET_ACCEL + 2 * T.UPGRADE_MAGNET_ACCEL,
       maxHp: T.MAX_HP,
       damage: T.PLAYER_DAMAGE,
       maxSpeed: T.BALL_MAX_SPEED,
@@ -85,30 +88,6 @@ window.Tethered = window.Tethered || {};
   // live. apply is the normal per-level gain; special fires on the final
   // pick. icon draws the upgrade's glyph (cards and dev panel).
   S.UPGRADES = [
-    {
-      name: 'MAGNET RANGE',
-      desc: () => `+${S.TUNING.UPGRADE_MAGNET_RADIUS}px coin pull radius`,
-      apply: (game) => { game.stats.magnetRadius += S.TUNING.UPGRADE_MAGNET_RADIUS; },
-      specialDesc: () => '2× coin pull force',
-      special: (game) => { game.stats.magnetAccel += 2 * S.TUNING.UPGRADE_MAGNET_ACCEL; },
-      // Horseshoe magnet: a red arch opening downward with pale pole tips.
-      icon(ctx, x, y, size) {
-        const r = size * 0.32;
-        const w = size * 0.24;
-        ctx.strokeStyle = '#e5484d';
-        ctx.lineWidth = w;
-        ctx.beginPath();
-        ctx.arc(x, y - size * 0.08, r, Math.PI, 0);
-        ctx.moveTo(x - r, y - size * 0.08);
-        ctx.lineTo(x - r, y + size * 0.22);
-        ctx.moveTo(x + r, y - size * 0.08);
-        ctx.lineTo(x + r, y + size * 0.22);
-        ctx.stroke();
-        ctx.fillStyle = '#e8e8f0';
-        ctx.fillRect(x - r - w / 2, y + size * 0.22, w, size * 0.14);
-        ctx.fillRect(x + r - w / 2, y + size * 0.22, w, size * 0.14);
-      },
-    },
     {
       name: 'VITALITY',
       desc: () => `+${S.TUNING.UPGRADE_MAX_HP} max HP, heal ${S.TUNING.UPGRADE_MAX_HP}`,

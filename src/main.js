@@ -62,8 +62,9 @@ window.Tethered = window.Tethered || {};
     game.flow = S.createFlow(map); // BFS chase field, recomputed as the ball moves
     S.placeObstacles(game); // freestanding shapes in the rooms (not corridors)
     S.pickMapTheme(game); // optional themed-floor skew
-    S.placeEnemies(game); // the room patterns + exit garrison
+    S.placeEnemies(game); // the room patterns + the debut; tags enemies by room
     game.exit = { x: map.exit.x, y: map.exit.y, r: S.TUNING.EXIT_RADIUS, channel: 0, magnetLockout: 0 };
+    S.buildRooms(game); // arena state + corridor gates; seals the start room
     game.state = S.STATE.PLAYING;
   }
 
@@ -239,6 +240,7 @@ window.Tethered = window.Tethered || {};
       if (updateExit(dt)) return; // channel completed → map transitioned this frame
     }
     S.updateEnemies(game, dt);
+    S.updateArena(game); // seal/clear rooms now that this step's kills are in
     S.updateCoins(game, dt);
     S.updateCombo(game, dt);
     // Camera last, on this step's (scaled) time: render sees the settled

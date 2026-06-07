@@ -235,10 +235,7 @@ Tethered.TUNING = {
   ENEMY_SCALE_SPEED_PER_DEPTH: 0.05, // spawn speed × (1 + this × (depth-1))
   ROOM_BUDGET_BASE: 3,             // enemies per room at depth 1...
   ROOM_BUDGET_PER_DEPTH: 0.6,      // ...growing this much per depth
-  PASSAGE_ENEMY_CHANCE: 0.2,       // chance a given corridor gets 1-2 stragglers
   SAFE_SPAWN_RADIUS: 480,          // px of personal space around the player spawn kept enemy-free (enemies fill the rest of the start room)
-  EXIT_GUARD_BASE: 4,              // exit-room garrison size at depth 1...
-  EXIT_GUARD_PER_DEPTH: 0.8,       // ...growing per depth (depth 10 the heaviest)
   // Per-pattern weights by depth band [d1-3, d4-6, d7-10]: early rooms favor
   // loose scatters and combo packs, deep rooms favor ambushes and guards.
   PATTERN_WEIGHTS: {
@@ -265,13 +262,23 @@ Tethered.TUNING = {
   // EXIT_MAGNET_TETHER_MULT while the rope is held, so a tethered player
   // keeps full control and can pull away. Reaching the next depth heals.
   EXIT_RADIUS: 46,             // px — the channel/touch zone
-  EXIT_CHANNEL_TIME: 5,        // s inside the exit to activate
+  EXIT_CHANNEL_TIME: 2,        // s inside the exit to activate
   EXIT_MAGNET_RADIUS: 160,     // px — magnet reach (catches a passing ball)
   EXIT_MAGNET_ACCEL: 6000,     // px/s^2 pull at point-blank, fading to 0 at the rim
   EXIT_MAGNET_DAMP: 12,        // 1/s — extra velocity damping at full magnet strength (arrests a fast ball so it settles in instead of flying through), fading to 0 at the rim
   EXIT_MAGNET_TETHER_MULT: 0.12, // magnet (pull AND damping) scaled to this while tethered (below the spring's pull, so you can leave)
   EXIT_MAGNET_HIT_LOCKOUT: 0.5, // s the magnet is off after a hit, so a knockback clears the exit instead of being sucked back
   HEAL_ON_EXIT_FRACTION: 0.3,  // max HP restored on reaching the next depth
+
+  // Arena rooms (src/arena.js): every room is a sealed arena. Entering a room
+  // that still holds enemies drops energy gates across its corridor mouths;
+  // clearing every enemy in the room raises them for good. The exit room is
+  // smaller and holds no enemies, so it never seals — reach it and leave.
+  ROOM_FOOT_MULT: 1.0,         // × chamber radius — the lock fires once the ball is this far in (inside the disc, just past the gate ring so the gate seals behind it)
+  GATE_DIST: 40,               // px past the room disc the mouth gate sits (in the corridor neck, just outside the lock radius)
+  GATE_HALF_LEN: 150,          // px — half the gate capsule's span (reaches into the walls flanking the corridor)
+  GATE_THICKNESS: 14,          // px — gate capsule radius (collision half-thickness)
+  EXIT_ROOM_RADIUS_MULT: 0.62, // × the normal reserved-chamber radius — the exit room is smaller
 
   // Combo — wrap/tethered kills build it now (combo.js/enemies.js). The
   // timeout is short enough that a streak dies crossing a long corridor at a
@@ -351,8 +358,10 @@ Tethered.TUNING = {
   // grants only that upgrade's special effect, then it leaves the pool.
   UPGRADE_LEVEL_MAX: 5,       // picks per upgrade; the 5th is a special
   UPGRADE_MAX_HP: 20,         // max HP gained (and healed) per VITALITY pick
-  UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius
-  UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin pull (×2 = the MAGNET RANGE special)
+  // Coin magnet is no longer an upgrade — these size the base magnet in
+  // createStats (the old MAGNET RANGE maxed: 4 radius steps + the ×2 force).
+  UPGRADE_MAGNET_RADIUS: 40,  // px per radius step folded into the base magnet
+  UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin pull (×2 folded into the base magnet)
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
   MOMENTUM_BONUS_PER_LEVEL: 1, // flat damage at the speed cap per MOMENTUM pick — additive, so a maxed MOMENTUM (+4) is directly comparable to a maxed weapon
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick

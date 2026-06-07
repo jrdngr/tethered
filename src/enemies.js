@@ -570,18 +570,6 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // The exit-room garrison: a heavy guard the player must fight through to
-  // hold the exit. Grows with depth (depth 10 the toughest), drawn from the
-  // controller pool plus straight fodder.
-  function placeGarrison(game, ch, depth, theme) {
-    const T = S.TUNING;
-    const cx = ch.cx * T.TILE_SIZE;
-    const cy = ch.cy * T.TILE_SIZE;
-    const rw = ch.r * T.TILE_SIZE;
-    const n = Math.round(T.EXIT_GUARD_BASE + T.EXIT_GUARD_PER_DEPTH * (depth - 1));
-    placeCluster(game, cx, cy, rw * 0.6, n, () => rollTypeForDepth(depth, theme));
-  }
-
   // One instance of a freshly-unlocked type, dropped in an early room on the
   // path so the player meets it before packs/themes pile on (the debut beat).
   function placeDebut(game, depth, theme) {
@@ -603,24 +591,21 @@ window.Tethered = window.Tethered || {};
       best.ch.r * S.TUNING.TILE_SIZE * 0.4, 1, () => debutType);
   }
 
-  // Stragglers: a few corridors get one or two lone wanderers.
-  function placePassages(game, depth, theme) {
+  // Tag each placed enemy with the room (chamber index) it garrisons, so the
+  // arena lock knows when a room is cleared. Placement keeps enemies well
+  // inside their room, so the nearest chamber center is an unambiguous owner.
+  function assignRooms(game) {
     const T = S.TUNING;
-    const map = game.map;
-    // Sample corridor-ish tiles (low-ish clearance floor outside rooms).
-    const inRoom = (x, y) => map.chambers.some((c) =>
-      Math.hypot(x - c.cx * T.TILE_SIZE, y - c.cy * T.TILE_SIZE) < c.r * T.TILE_SIZE);
-    let placed = 0;
-    const want = Math.round(map.chambers.length * T.PASSAGE_ENEMY_CHANCE);
-    for (let tries = 0; tries < 200 && placed < want; tries++) {
-      const tx = Math.floor(Math.random() * map.tw);
-      const ty = Math.floor(Math.random() * map.th);
-      if (map.isWall(tx, ty)) continue;
-      const clr = map.clearance[ty * map.tw + tx];
-      if (clr < 3 || clr > 6) continue; // corridor band, not deep rooms
-      const p = map.tileToWorld(tx, ty);
-      if (inRoom(p.x, p.y)) continue;
-      if (tryPlace(game, rollTypeForDepth(depth, theme, ['chaser', 'runner']), p.x, p.y)) placed++;
+    const chambers = game.map.chambers;
+    for (const e of game.enemies) {
+      let best = -1;
+      let bestD = Infinity;
+      for (let i = 0; i < chambers.length; i++) {
+        const c = chambers[i];
+        const d = Math.hypot(e.x - c.cx * T.TILE_SIZE, e.y - c.cy * T.TILE_SIZE);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      e.room = best;
     }
   }
 
@@ -632,23 +617,24 @@ window.Tethered = window.Tethered || {};
     game.mapTheme = eligible.length ? eligible[Math.floor(Math.random() * eligible.length)] : null;
   };
 
-  // Populate the whole map: a pattern per room, a heavy garrison in the exit
-  // room, the new type's debut, and a few corridor stragglers. Called once
-  // per map at generation (reset / nextMap).
+  // Populate the whole map: a pattern per room (the exit room stays empty —
+  // just the portal) plus the new type's debut. Every room is an arena the
+  // player seals on entry and must clear, so there are no corridor stragglers.
+  // Called once per map at generation (reset / nextMap).
   S.placeEnemies = function (game) {
     const T = S.TUNING;
     const depth = game.depth;
     const theme = game.mapTheme;
     const budget = Math.max(2, Math.round(T.ROOM_BUDGET_BASE + T.ROOM_BUDGET_PER_DEPTH * (depth - 1)));
     for (const ch of game.map.chambers) {
-      if (ch.reserved === 'exit') { placeGarrison(game, ch, depth, theme); continue; }
+      if (ch.reserved === 'exit') continue; // exit room is empty — reach it and leave
       // The start room gets a gentle loose scatter (never an ambush at the
       // door); the SAFE_SPAWN_RADIUS bubble keeps it off the player.
       const pattern = ch.reserved === 'spawn' ? 'SCATTER' : rollPattern(depth);
       placePattern(game, ch, pattern, depth, theme, budget);
     }
     placeDebut(game, depth, theme);
-    placePassages(game, depth, theme);
+    assignRooms(game);
   };
 
   // Spawn a forced type at a world point — the dev panel drops one just
@@ -676,6 +662,7 @@ window.Tethered = window.Tethered || {};
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
       child.aggro = 'awake'; // born into a fight, already chasing
+      child.room = e.room; // garrisons the same room — must die to clear it
       game.enemies.push(child);
       S.grid.insert(child);
     }
@@ -1044,6 +1031,12 @@ window.Tethered = window.Tethered || {};
     for (const e of game.enemies) {
       for (const o of game.obstacles) {
         const hit = S.obstacleHit(o, e.x, e.y, e.r);
+        if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
+      }
+      // Arena gates are solid to enemies too, so a bashed enemy can't be
+      // knocked out into a corridor and strand the room uncleared.
+      for (const g of game.gates) {
+        const hit = S.obstacleHit(g, e.x, e.y, e.r);
         if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
       }
       collideEnemyTiles(game, e);
