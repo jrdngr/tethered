@@ -32,44 +32,46 @@ window.Tethered = window.Tethered || {};
   // again. Knockback shoves the anchor while orbiting.
   function orbiterBrain(game, e, dt) {
     const T = S.TUNING;
-    if (e.phase === 'drift') {
-      e.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
+    const bs = e.brainState;
+    if (bs.phase === 'drift') {
+      bs.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
       const dx = game.ball.x - e.x;
       const dy = game.ball.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
-      e.x += ((dx / d) * e.driftSpeed + e.kx) * dt;
-      e.y += ((dy / d) * e.driftSpeed + e.ky) * dt;
-      if (e.driftSpeed <= T.ORBITER_STOP_SPEED) {
-        e.phase = 'orbit';
-        e.cx = e.x;
-        e.cy = e.y;
-        e.angle = Math.random() * Math.PI * 2;
-        e.radius = 0;
-        e.radiusDir = 1;
+      e.x += ((dx / d) * bs.driftSpeed + e.kx) * dt;
+      e.y += ((dy / d) * bs.driftSpeed + e.ky) * dt;
+      if (bs.driftSpeed <= T.ORBITER_STOP_SPEED) {
+        bs.phase = 'orbit';
+        bs.cx = e.x;
+        bs.cy = e.y;
+        bs.angle = Math.random() * Math.PI * 2;
+        bs.radius = 0;
+        bs.radiusDir = 1;
       }
     } else {
-      e.cx += e.kx * dt;
-      e.cy += e.ky * dt;
-      e.angle += T.ORBITER_ANGULAR_SPEED * dt;
-      e.radius += e.radiusDir * T.ORBITER_RADIUS_SPEED * dt;
-      if (e.radius >= T.ORBITER_MAX_RADIUS) {
-        e.radius = T.ORBITER_MAX_RADIUS;
-        e.radiusDir = -1;
-      } else if (e.radius <= 0) {
-        e.phase = 'drift';
-        e.driftSpeed = T.ORBITER_SPEED;
+      bs.cx += e.kx * dt;
+      bs.cy += e.ky * dt;
+      bs.angle += T.ORBITER_ANGULAR_SPEED * dt;
+      bs.radius += bs.radiusDir * T.ORBITER_RADIUS_SPEED * dt;
+      if (bs.radius >= T.ORBITER_MAX_RADIUS) {
+        bs.radius = T.ORBITER_MAX_RADIUS;
+        bs.radiusDir = -1;
+      } else if (bs.radius <= 0) {
+        bs.phase = 'drift';
+        bs.driftSpeed = T.ORBITER_SPEED;
       }
-      e.x = e.cx + Math.cos(e.angle) * e.radius;
-      e.y = e.cy + Math.sin(e.angle) * e.radius;
+      e.x = bs.cx + Math.cos(bs.angle) * bs.radius;
+      e.y = bs.cy + Math.sin(bs.angle) * bs.radius;
     }
   }
 
   // An orbiting orbiter's position is recomputed from its anchor, so a shift
   // must move the anchor along with it.
   function orbiterShift(e, dx, dy) {
-    if (e.phase === 'orbit') {
-      e.cx += dx;
-      e.cy += dy;
+    const bs = e.brainState;
+    if (bs.phase === 'orbit') {
+      bs.cx += dx;
+      bs.cy += dy;
     }
   }
 
@@ -78,7 +80,9 @@ window.Tethered = window.Tethered || {};
   // of each spawn roll once its delay passes (no gate = the fallback chaser);
   // `splitCount` types break into that many children (`splitChild`, default
   // chaser) instead of paying out.
-  // Hooks: `onSpawn` (extra state), `brain` (steering; default seekBall),
+  // Hooks: `onSpawn` (brain-private state goes under `e.brainState` — each
+  // brain owns its namespace; engine fields stay top-level), `brain`
+  // (steering; default seekBall),
   // `onShift` (keep brain state consistent when the enemy is teleported), and
   // `draw` (render decoration — render.js draws the base disc in `color`,
   // then `draw`, plus one seam line per pair of `pieces`, the chasers the
@@ -124,8 +128,10 @@ window.Tethered = window.Tethered || {};
       stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 }),
       spawnGate: (T) => ({ delay: T.ORBITER_SPAWN_DELAY, chance: T.ORBITER_CHANCE }),
       onSpawn(e) {
-        e.phase = 'drift'; // 'drift' (creep toward ball) or 'orbit' (spiral)
-        e.driftSpeed = e.speed;
+        e.brainState = {
+          phase: 'drift', // 'drift' (creep toward ball) or 'orbit' (spiral)
+          driftSpeed: e.speed,
+        };
       },
       brain: orbiterBrain,
       onShift: orbiterShift,
