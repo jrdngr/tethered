@@ -86,6 +86,7 @@ window.Tethered = window.Tethered || {};
       state: S.STATE.PLAYING,
     };
     game.camera = S.createCamera(game);
+    game.flow = S.createFlow(map); // BFS chase field, recomputed as the ball moves
     // game.obstacles stays empty in the dungeon — the hand-placed arena
     // layouts don't fit generated caves. M6's placePillars repopulates it
     // with chamber pillars through the same obstacle/peg code.
@@ -106,8 +107,17 @@ window.Tethered = window.Tethered || {};
     // World anchor = camera + screen, captured NOW (event time) and clamped
     // into the world. Recomputing this per frame would make a parked cursor
     // drift with the camera — the anchor must stay planted.
-    game.mouse.x = Math.max(0, Math.min(game.camera.x + game.mouseScreen.x, game.world.w));
-    game.mouse.y = Math.max(0, Math.min(game.camera.y + game.mouseScreen.y, game.world.h));
+    let wx = Math.max(0, Math.min(game.camera.x + game.mouseScreen.x, game.world.w));
+    let wy = Math.max(0, Math.min(game.camera.y + game.mouseScreen.y, game.world.h));
+    // Keep the anchor on floor, so a cursor dragged into the rock stays a
+    // reachable point for the rope (and never anchors inside a wall).
+    if (game.map) {
+      const p = S.nearestFloorPoint(game.map, wx, wy);
+      wx = p.x;
+      wy = p.y;
+    }
+    game.mouse.x = wx;
+    game.mouse.y = wy;
   }
 
   canvas.addEventListener('mousemove', (e) => {
@@ -191,6 +201,8 @@ window.Tethered = window.Tethered || {};
       game.time += dt;
       S.grid.rebuild(game.enemies); // broadphase for this step's wrap + weapon queries
       S.insertObstaclePegs(game); // obstacle wrap pivots ride the same queries
+      S.insertWallPegs(game); // wall-corner pegs near the rope — the cave is wrap geometry
+      S.updateFlow(game, dt); // refresh the BFS chase field before the brains read it
       S.updateTether(game, dt);
       S.updateBall(game, dt);
       S.updateWeapons(game, dt);

@@ -343,6 +343,7 @@ window.Tethered = window.Tethered || {};
     for (let i = 0; i < wraps.length; i++) {
       const w = wraps[i];
       if (w.e.obstacle) continue;
+      if (S.wakeEnemy) S.wakeEnemy(w.e); // wrapped → wake (so it integrates the drag)
       const prev = i > 0 ? wraps[i - 1] : null;
       const next = i + 1 < wraps.length ? wraps[i + 1] : null;
       let ix = (prev ? prev.exitX : game.mouse.x) - w.entryX;

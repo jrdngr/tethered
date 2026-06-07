@@ -271,7 +271,23 @@ window.Tethered = window.Tethered || {};
   };
 
   function drawEnemies(ctx, game) {
-    for (const e of game.enemies) S.drawEnemyBody(ctx, e.type, e);
+    const T = S.TUNING;
+    for (const e of game.enemies) {
+      if (e.aggro === 'dormant') ctx.globalAlpha = 0.5; // asleep reads dimmer
+      S.drawEnemyBody(ctx, e.type, e);
+      ctx.globalAlpha = 1;
+      // Spitter charge tell: a hot ring tightening onto the muzzle over the
+      // wind-up, so an incoming shot is telegraphed even from off-center.
+      const bs = e.brainState;
+      if (bs && bs.windup > 0) {
+        const t = 1 - bs.windup / T.SPITTER_WINDUP;
+        ctx.strokeStyle = `rgba(61, 214, 140, ${0.4 + 0.5 * t})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r + 10 * (1 - t) + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
   }
 
   // Death pops: an expanding, fading ring where an enemy was smashed.

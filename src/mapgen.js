@@ -149,6 +149,55 @@ window.Tethered = window.Tethered || {};
     return bounced;
   };
 
+  // Make wall-corner pegs near the rope wrap-queryable this step — inserted
+  // right after the step-top grid rebuild, like the obstacle pegs, so the
+  // tether's sweep can wrap them. Only pegs whose cell overlaps the rope's
+  // bounding box (anchor + ball + current pivots, this step and last) are
+  // inserted, so a cave's thousands of pegs cost nothing per step. Not
+  // re-inserted after the separation rebuild (the pair pass must not see
+  // them) — same contract as insertObstaclePegs.
+  S.insertWallPegs = function (game) {
+    const map = game.map;
+    const t = game.tether;
+    if (!map || !map.pegCells || !t.active) {
+      game.dbgWallPegs = 0;
+      return;
+    }
+    const b = game.ball;
+    const m = game.mouse;
+    let x0 = Math.min(m.x, t.pmx, b.x, t.pbx);
+    let y0 = Math.min(m.y, t.pmy, b.y, t.pby);
+    let x1 = Math.max(m.x, t.pmx, b.x, t.pbx);
+    let y1 = Math.max(m.y, t.pmy, b.y, t.pby);
+    for (const w of t.wraps) {
+      if (w.e.x < x0) x0 = w.e.x; else if (w.e.x > x1) x1 = w.e.x;
+      if (w.e.y < y0) y0 = w.e.y; else if (w.e.y > y1) y1 = w.e.y;
+    }
+    const c = S.TUNING.GRID_CELL;
+    const cx0 = Math.floor((x0 - c) / c);
+    const cx1 = Math.floor((x1 + c) / c);
+    const cy0 = Math.floor((y0 - c) / c);
+    const cy1 = Math.floor((y1 + c) / c);
+    let n = 0;
+    for (let cx = cx0; cx <= cx1; cx++) {
+      for (let cy = cy0; cy <= cy1; cy++) {
+        const list = map.pegCells.get(cx * 4096 + cy);
+        if (!list) continue;
+        for (const p of list) { S.grid.insert(p); n++; }
+      }
+    }
+    game.dbgWallPegs = n;
+  };
+
+  // Nearest floor world-point to (x, y) — clamps the tether anchor out of
+  // walls so a cursor dragged into the rock stays reachable.
+  S.nearestFloorPoint = function (map, x, y) {
+    const ts = S.TUNING.TILE_SIZE;
+    const t = nearestFloor(map, Math.floor(x / ts), Math.floor(y / ts));
+    if (t.tx === Math.floor(x / ts) && t.ty === Math.floor(y / ts)) return { x, y };
+    return map.tileToWorld(t.tx, t.ty);
+  };
+
   // Stamp a floor disk, clamped off the border band. Also marks the carve
   // mask when given — masked tiles are re-floored after every smoothing
   // pass, so organic-izing can never seal a corridor.

@@ -148,6 +148,7 @@ Tethered.TUNING = {
   SPITTER_SPEED: 90,          // px/s
   SPITTER_RANGE: 380,         // px standoff it tries to hold from the ball
   SPITTER_FIRE_INTERVAL: 2.5, // s between shots
+  SPITTER_WINDUP: 0.4,        // s of telegraphed charge before a shot (the tell)
   SPITTER_CHANCE: 0.06,
   SPITTER_SPAWN_DELAY: 30,    // s
   PROJECTILE_SPEED: 170,      // px/s — slow enough to dodge by pathing
@@ -398,6 +399,15 @@ Tethered.TUNING = {
   // Camera (src/camera.js): smoothed follow on the ball over the scrolling
   // world; the viewport (game.width/height) stays the canvas play area.
   CAM_LERP: 8,              // 1/s — exponential ease toward the ball-centered target
+
+  // Flow field + aggro (src/flowfield.js, src/enemies.js): a BFS field from
+  // the ball's tile steers enemies around walls; enemies idle until the ball
+  // comes near, chase while it's in range, then walk home and sleep again.
+  AGGRO_RADIUS: 900,        // px — a dormant enemy this close to the ball wakes
+  DEAGGRO_RADIUS: 1400,     // px — an awake enemy this far from the ball heads home
+  RETURN_TIMEOUT: 5,        // s — a returning enemy that can't reach home sleeps in place
+  FLOW_MIN_INTERVAL: 0.15,  // s — min gap between flow-field recomputes (on ball tile change)
+  LOS_RANGE: 600,           // px — within this, an enemy with line of sight steers straight
 
   // Broadphase (src/grid.js)
   GRID_CELL: 64,          // px — uniform-grid cell, ≥ the largest enemy diameter so pair queries scan one neighbor ring

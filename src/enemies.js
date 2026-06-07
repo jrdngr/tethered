@@ -4,14 +4,56 @@ window.Tethered = window.Tethered || {};
 
 (function (S) {
   // Steering brains. Each integrates position from its own steering plus the
-  // shared decaying knockback (kx/ky). Default: seek the ball.
+  // shared decaying knockback (kx/ky). Default: seek the ball along the flow
+  // field (straight when in line of sight) so chasers round walls instead of
+  // pressing into them.
   function seekBall(game, e, dt) {
-    const dx = game.ball.x - e.x;
-    const dy = game.ball.y - e.y;
+    const dir = S.desiredDir(game, e);
+    e.x += (dir.x * e.speed + e.kx) * dt;
+    e.y += (dir.y * e.speed + e.ky) * dt;
+  }
+
+  // Walk back toward the home position the enemy was placed at (deaggro).
+  // Straight-line; the wall pass slides it along obstructions and the
+  // return timeout sleeps it in place if a concave pocket dead-sticks it.
+  function steerHome(game, e, dt) {
+    const dx = e.home.x - e.x;
+    const dy = e.home.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     e.x += ((dx / d) * e.speed + e.kx) * dt;
     e.y += ((dy / d) * e.speed + e.ky) * dt;
   }
+
+  // Advance the aggro state machine; returns false when the enemy is dormant
+  // (caller skips it entirely this step). dormant→awake when the ball comes
+  // within AGGRO_RADIUS; awake→returning past DEAGGRO_RADIUS; returning
+  // re-aggros if the ball comes back, sleeps on reaching home, or sleeps in
+  // place after RETURN_TIMEOUT if a wall dead-sticks the walk back.
+  function updateAggro(game, e, dt) {
+    const T = S.TUNING;
+    const d = Math.hypot(game.ball.x - e.x, game.ball.y - e.y);
+    if (e.aggro === 'dormant') {
+      if (d <= T.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
+      return false;
+    }
+    if (e.aggro === 'awake') {
+      if (d > T.DEAGGRO_RADIUS) { e.aggro = 'returning'; e.returnTimer = 0; }
+      return true;
+    }
+    // returning
+    if (d <= T.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
+    e.returnTimer += dt;
+    const dh = Math.hypot(e.home.x - e.x, e.home.y - e.y);
+    if (dh < T.TILE_SIZE || e.returnTimer >= T.RETURN_TIMEOUT) { e.aggro = 'dormant'; return false; }
+    return true;
+  }
+
+  // Contact aggro: anything that touches an enemy wakes it (covers the
+  // returning→awake case the proximity check would otherwise miss for a
+  // step). Proximity already covers dormant — contact can't reach a sleeper.
+  S.wakeEnemy = function (e) {
+    if (e.aggro !== 'awake') { e.aggro = 'awake'; e.returnTimer = 0; }
+  };
 
   // Runner: chase like a chaser, but bolt once the ball gets close — pinned
   // inside the arena so fleeing can't leave the screen. A smash-speed ball
@@ -50,9 +92,11 @@ window.Tethered = window.Tethered || {};
           S.ballSpeed(game.ball) > T.SPEED_THRESHOLD) {
         bs.windup = T.RUNNER_DASH_WINDUP;
       }
-      const seek = d < T.RUNNER_FLEE_RADIUS ? -1 : 1;
-      e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
-      e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
+      // Close: flee down an open corridor (clearance-aware, so it doesn't
+      // corner-trap). Far: chase along the flow field.
+      const dir = d < T.RUNNER_FLEE_RADIUS ? S.fleeDir(game, e) : S.desiredDir(game, e);
+      e.x += (dir.x * e.speed + e.kx) * dt;
+      e.y += (dir.y * e.speed + e.ky) * dt;
     }
     // No bounds clamp: the end-of-update wall pass keeps everyone on floor.
   }
@@ -65,11 +109,9 @@ window.Tethered = window.Tethered || {};
     const bs = e.brainState;
     if (bs.phase === 'drift') {
       bs.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
-      const dx = game.ball.x - e.x;
-      const dy = game.ball.y - e.y;
-      const d = Math.hypot(dx, dy) || 1;
-      e.x += ((dx / d) * bs.driftSpeed + e.kx) * dt;
-      e.y += ((dy / d) * bs.driftSpeed + e.ky) * dt;
+      const dir = S.desiredDir(game, e);
+      e.x += (dir.x * bs.driftSpeed + e.kx) * dt;
+      e.y += (dir.y * bs.driftSpeed + e.ky) * dt;
       if (bs.driftSpeed <= T.ORBITER_STOP_SPEED) {
         bs.phase = 'orbit';
         bs.cx = e.x;
@@ -90,8 +132,21 @@ window.Tethered = window.Tethered || {};
         bs.phase = 'drift';
         bs.driftSpeed = T.ORBITER_SPEED;
       }
-      e.x = bs.cx + Math.cos(bs.angle) * bs.radius;
-      e.y = bs.cy + Math.sin(bs.angle) * bs.radius;
+      // Clamp the effective radius to the anchor's clearance so the orbit
+      // shrinks gracefully in a tight chamber/corridor instead of writing
+      // the orbiter into a wall (a raw push-out can't hold — the next tick
+      // recomputes position from the anchor).
+      let r = bs.radius;
+      if (game.map) {
+        const tx = Math.floor(bs.cx / T.TILE_SIZE);
+        const ty = Math.floor(bs.cy / T.TILE_SIZE);
+        if (!game.map.isWall(tx, ty)) {
+          const clrPx = game.map.clearance[ty * game.map.tw + tx] * T.TILE_SIZE;
+          r = Math.min(r, Math.max(0, clrPx - e.r));
+        }
+      }
+      e.x = bs.cx + Math.cos(bs.angle) * r;
+      e.y = bs.cy + Math.sin(bs.angle) * r;
     }
   }
 
@@ -114,23 +169,60 @@ window.Tethered = window.Tethered || {};
     const dx = game.ball.x - e.x;
     const dy = game.ball.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
-    const seek = d > T.SPITTER_RANGE ? 1 : d < T.SPITTER_RANGE * 0.7 ? -1 : 0;
-    e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
-    e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
-    e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
-    e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
-    e.brainState.fire -= dt;
-    if (e.brainState.fire <= 0 && game.state === S.STATE.PLAYING) {
-      e.brainState.fire = T.SPITTER_FIRE_INTERVAL;
-      game.projectiles.push({
-        x: e.x, y: e.y,
-        vx: (dx / d) * T.PROJECTILE_SPEED,
-        vy: (dy / d) * T.PROJECTILE_SPEED,
-        r: T.PROJECTILE_RADIUS,
-        damage: T.PROJECTILE_DAMAGE,
-        age: 0,
-      });
+    const bs = e.brainState;
+    // Hold the standoff band, pathing via the flow field when the line is
+    // broken (advance toward the ball when far, retreat when crowded).
+    if (d > T.SPITTER_RANGE) {
+      const dir = S.desiredDir(game, e);
+      e.x += (dir.x * e.speed + e.kx) * dt;
+      e.y += (dir.y * e.speed + e.ky) * dt;
+    } else if (d < T.SPITTER_RANGE * 0.7) {
+      e.x += ((-dx / d) * e.speed + e.kx) * dt;
+      e.y += ((-dy / d) * e.speed + e.ky) * dt;
+    } else {
+      e.x += e.kx * dt;
+      e.y += e.ky * dt;
     }
+    // Fire only with a clear line — no wasting shots into a wall. A short
+    // telegraphed wind-up (the tell, drawn by render) precedes the shot.
+    const los = S.geom && d <= T.SPITTER_RANGE * 1.2 && clearLine(game, e.x, e.y);
+    if (bs.windup > 0) {
+      bs.windup -= dt;
+      if (bs.windup <= 0 && game.state === S.STATE.PLAYING) {
+        game.projectiles.push({
+          x: e.x, y: e.y,
+          vx: (dx / d) * T.PROJECTILE_SPEED,
+          vy: (dy / d) * T.PROJECTILE_SPEED,
+          r: T.PROJECTILE_RADIUS,
+          damage: T.PROJECTILE_DAMAGE,
+          age: 0,
+        });
+        bs.fire = T.SPITTER_FIRE_INTERVAL;
+      }
+    } else {
+      bs.fire -= dt;
+      if (bs.fire <= 0 && los && game.state === S.STATE.PLAYING) {
+        bs.windup = T.SPITTER_WINDUP; // telegraph, then fire
+      }
+    }
+  }
+
+  // Clear tile line from a spitter to the ball — the same DDA the flow
+  // field's LOS uses, but unbounded by range (the caller gates range).
+  function clearLine(game, x, y) {
+    const T = S.TUNING;
+    const map = game.map;
+    if (!map) return true;
+    const dx = game.ball.x - x;
+    const dy = game.ball.y - y;
+    const dist = Math.hypot(dx, dy);
+    const steps = Math.ceil(dist / (T.TILE_SIZE * 0.5));
+    for (let s = 1; s < steps; s++) {
+      const px = x + (dx * s) / steps;
+      const py = y + (dy * s) / steps;
+      if (map.isWall(Math.floor(px / T.TILE_SIZE), Math.floor(py / T.TILE_SIZE))) return false;
+    }
+    return true;
   }
 
   // Shieldbearer: seeks like a chaser with its guard raised toward the
@@ -165,8 +257,11 @@ window.Tethered = window.Tethered || {};
       bs.fx = Math.cos(a);
       bs.fy = Math.sin(a);
     }
-    e.x += (bs.fx * e.speed + e.kx) * dt;
-    e.y += (bs.fy * e.speed + e.ky) * dt;
+    // Guard faces the ball (above); movement follows the flow field so it
+    // closes around walls rather than pressing its shield into one.
+    const dir = S.desiredDir(game, e);
+    e.x += (dir.x * e.speed + e.kx) * dt;
+    e.y += (dir.y * e.speed + e.ky) * dt;
   }
 
   // Guard hook (see resolveSmash): refuse front-arc damage while the guard
@@ -285,7 +380,7 @@ window.Tethered = window.Tethered || {};
       spawnGate: (T) => ({ delay: T.SPITTER_SPAWN_DELAY, chance: T.SPITTER_CHANCE }),
       onSpawn(e) {
         // Desynced fire timers so a pack doesn't volley in lockstep.
-        e.brainState = { fire: S.TUNING.SPITTER_FIRE_INTERVAL * (0.5 + Math.random() * 0.5) };
+        e.brainState = { fire: S.TUNING.SPITTER_FIRE_INTERVAL * (0.5 + Math.random() * 0.5), windup: 0 };
       },
       brain: spitterBrain,
       // The dark "mouth" it spits from.
@@ -390,6 +485,12 @@ window.Tethered = window.Tethered || {};
       coinMult: stats.coinMult,
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
+      // Aggro: placed enemies idle until the ball nears (proximity is always
+      // a wider net than contact, so a dormant enemy can't be touched). home
+      // is where it returns to and sleeps when the ball leaves.
+      aggro: 'dormant', // 'dormant' | 'awake' | 'returning'
+      home: { x, y },
+      returnTimer: 0,
     };
     if (def.splitCount) {
       e.splitCount = def.splitCount;
@@ -450,6 +551,10 @@ window.Tethered = window.Tethered || {};
       child.kx = Math.cos(a) * T.SPLIT_FLING;
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
+      // Children of a fight are awake, and inherit the parent's home so they
+      // leash back to it rather than to wherever the parent happened to die.
+      child.aggro = 'awake';
+      child.home = { x: e.home.x, y: e.home.y };
       game.enemies.push(child);
       S.grid.insert(child);
     }
@@ -673,6 +778,9 @@ window.Tethered = window.Tethered || {};
       p.y += p.vy * dt;
       let gone = p.age >= T.PROJECTILE_LIFETIME ||
         p.x < -p.r || p.x > game.world.w + p.r || p.y < -p.r || p.y > game.world.h + p.r;
+      // Die on a wall tile — a shot can't pass through the cave.
+      if (!gone && game.map &&
+          game.map.isWall(Math.floor(p.x / T.TILE_SIZE), Math.floor(p.y / T.TILE_SIZE))) gone = true;
       for (const o of game.obstacles) {
         if (gone) break;
         if (S.obstacleHit(o, p.x, p.y, p.r)) gone = true;
@@ -739,12 +847,18 @@ window.Tethered = window.Tethered || {};
       if (e.flash > 0) e.flash -= dt;
       if (e.invuln > 0) e.invuln -= dt;
 
+      // Aggro gate. Dormant enemies do nothing but a distance check — and
+      // can't be touched, since the wake radius is far wider than contact.
+      if (!updateAggro(game, e, dt)) continue;
+
       // Per-type steering brain (default: seek the ball), plus decaying
-      // knockback integrated by each brain.
+      // knockback integrated by each brain. A returning enemy ignores its
+      // brain and walks home instead.
       const decay = Math.exp(-T.ENEMY_KNOCKBACK_DECAY * dt);
       e.kx *= decay;
       e.ky *= decay;
-      (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);
+      if (e.aggro === 'returning') steerHome(game, e, dt);
+      else (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);
 
       // Collision with the ball (skipped while the death pop plays out —
       // the ball is already gone — and while a fresh split child's
@@ -758,6 +872,7 @@ window.Tethered = window.Tethered || {};
       const p = S.geom.segClosest(game.tether.pbx, game.tether.pby, b.x, b.y, e.x, e.y);
       const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, b.r);
       if (!hit) continue;
+      S.wakeEnemy(e); // touched — wake a returning enemy (proximity covers dormant)
       let { nx, ny } = hit; // unit normal from enemy to the impact point
       // An enemy dead on the sweep line has no contact direction (the same
       // degenerate case the weapon capsules guard against) — a zero normal
