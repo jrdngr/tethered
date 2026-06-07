@@ -20,6 +20,8 @@ Tethered.TUNING = {
   ROPE_MAX_WRAPS: 6,      // max simultaneous wrap pivots (enemies the rope bends around)
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
   WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
+  SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
+  SLINGSHOT_WRAP_BONUS: 0.5, // each wrap pivot adds this fraction to the release impulse
 
   // Invincibility
   SPEED_THRESHOLD: 420,   // px/s — smash without taking damage above this; tethered bumps reset the combo

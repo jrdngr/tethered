@@ -34,10 +34,32 @@ window.Tethered = window.Tethered || {};
     }
   };
 
+  // Releasing pays the stored tension back: a stretched release adds a launch
+  // impulse along the ball's own segment (toward its pivot), and every wrap
+  // multiplies it — the rope reads as a drawn bow. Impulse is linear in
+  // stretch (not the spring-energy form): more predictable to learn, and the
+  // codebase never computes spring PE anyway. The speed cap and the swept
+  // ball collision both absorb the spike, so no tunneling risk. Applied
+  // before triggerWeapons, so a hard sling arms the weapons by itself.
   S.releaseTether = function (game) {
-    game.tether.active = false;
-    game.tether.stretch = 0;
-    game.tether.wraps.length = 0;
+    const T = S.TUNING;
+    const tether = game.tether;
+    if (tether.active && tether.stretch > 0) {
+      const b = game.ball;
+      const pivot = tether.wraps.length ? tether.wraps[tether.wraps.length - 1].e : game.mouse;
+      const dx = pivot.x - b.x;
+      const dy = pivot.y - b.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 1e-6) {
+        const impulse = T.SLINGSHOT_IMPULSE_K * tether.stretch *
+          (1 + tether.wraps.length * T.SLINGSHOT_WRAP_BONUS);
+        b.vx += (dx / d) * impulse;
+        b.vy += (dy / d) * impulse;
+      }
+    }
+    tether.active = false;
+    tether.stretch = 0;
+    tether.wraps.length = 0;
     S.triggerWeapons(game); // every release while fast (re)arms the weapons
   };
 
