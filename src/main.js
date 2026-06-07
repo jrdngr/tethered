@@ -63,7 +63,7 @@ window.Tethered = window.Tethered || {};
     S.placeObstacles(game); // freestanding shapes in the rooms (not corridors)
     S.pickMapTheme(game); // optional themed-floor skew
     S.placeEnemies(game); // the room patterns + exit garrison
-    game.exit = { x: map.exit.x, y: map.exit.y, r: S.TUNING.EXIT_RADIUS, channel: 0 };
+    game.exit = { x: map.exit.x, y: map.exit.y, r: S.TUNING.EXIT_RADIUS, channel: 0, magnetLockout: 0 };
     game.state = S.STATE.PLAYING;
   }
 
@@ -261,7 +261,10 @@ window.Tethered = window.Tethered || {};
     const dx = ex.x - b.x;
     const dy = ex.y - b.y;
     const d = Math.hypot(dx, dy);
-    if (d < T.EXIT_MAGNET_RADIUS && d > 1e-3) {
+    if (ex.magnetLockout > 0) ex.magnetLockout -= dt;
+    // The magnet is off briefly after a hit, so the knockback clears the
+    // exit instead of being sucked straight back in.
+    if (ex.magnetLockout <= 0 && d < T.EXIT_MAGNET_RADIUS && d > 1e-3) {
       let strength = 1 - d / T.EXIT_MAGNET_RADIUS; // 1 at center, 0 at the rim
       if (game.tether.active) strength *= T.EXIT_MAGNET_TETHER_MULT;
       // Pull toward the exit...

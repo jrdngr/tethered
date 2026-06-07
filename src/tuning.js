@@ -270,6 +270,7 @@ Tethered.TUNING = {
   EXIT_MAGNET_ACCEL: 6000,     // px/s^2 pull at point-blank, fading to 0 at the rim
   EXIT_MAGNET_DAMP: 12,        // 1/s — extra velocity damping at full magnet strength (arrests a fast ball so it settles in instead of flying through), fading to 0 at the rim
   EXIT_MAGNET_TETHER_MULT: 0.12, // magnet (pull AND damping) scaled to this while tethered (below the spring's pull, so you can leave)
+  EXIT_MAGNET_HIT_LOCKOUT: 0.5, // s the magnet is off after a hit, so a knockback clears the exit instead of being sucked back
   HEAL_ON_EXIT_FRACTION: 0.3,  // max HP restored on reaching the next depth
 
   // Combo
