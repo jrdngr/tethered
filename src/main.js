@@ -141,7 +141,9 @@ window.Tethered = window.Tethered || {};
   //    so next step's wrap sweep tests compare consistent prev/cur pairs
   //    that bracket all position mutations. The stamp is intentionally
   //    always-on, even untethered — a fresh grab must never compare against
-  //    stale positions (see tether.js).
+  //    stale positions (see tether.js). The tether pass also writes the
+  //    wrap drag into enemy kx/ky, which the brains integrate later this
+  //    same step.
   // 3. Weapon pass before body collisions. Inside updateEnemies, the weapon
   //    collision pass runs first: kills are flagged dead and survivors are
   //    knocked out of body range, so the body-contact loop can't land a

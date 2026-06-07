@@ -17,16 +17,24 @@ Tethered.TUNING = {
   ROPE_K: 12,             // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
   ROPE_MAX_REST: 120,     // px — max rest length at grab time
-  ROPE_MAX_WRAPS: 6,      // max simultaneous wrap pivots (enemies the rope bends around)
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
   WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
   SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
-  SLINGSHOT_WRAP_BONUS: 0.5, // each wrap pivot adds this fraction to the release impulse
+
+  // Edge wrapping: the rope hugs pivot circles with tangent lines + contact
+  // arcs, so winding consumes rope and raises tension naturally — that's the
+  // wrap limit; the pivot/angle caps below only guard degenerate states.
+  WRAP_UNWRAP_EPS: 0.02,      // rad — a pivot whose contact arc shrinks below this releases
+  WRAP_SAFETY_MAX_PIVOTS: 16, // degenerate-state cap on simultaneous pivots (not a balance knob)
+  WRAP_MAX_PIVOT_ANGLE: 6 * Math.PI, // per-pivot accumulated contact-angle clamp (3 full turns)
+  WRAP_RECT_CORNER_R: 6,      // px — wrap radius of rect-corner pegs (small rounded corners)
+  WRAP_DRAG_K: 0.6,           // scale on rope tension dragging wrapped live enemies
 
   // Wrap rewards: the rope reads like a drawn bow (thicker + glowing with
   // stretch, highlight rings on wrap pivots), and tethered kills pay a
-  // per-wrap coin bonus through the normal payout path.
-  WRAP_KILL_BONUS: 3,        // bonus coins per wrap pivot on a tethered kill (× combo/coinMult)
+  // wrap-angle coin bonus through the normal payout path.
+  WRAP_UNIT_ANGLE: Math.PI,  // rad of total contact angle per kill-bonus unit (one half-turn)
+  WRAP_KILL_BONUS: 3,        // bonus coins per half-turn wrap unit on a tethered kill (× combo/coinMult)
   WRAP_GLOW_STRETCH: 200,    // px of stretch at full rope tension color/width/glow
   WRAP_ROPE_WIDTH: 3,        // extra px of rope width at full tension (on the base 2)
   WRAP_GLOW_BLUR: 16,        // px of tension glow at full stretch
@@ -206,7 +214,7 @@ Tethered.TUNING = {
 
   // Interior obstacles: static geometry the ball bounces off (combo credit
   // like walls; restitution reads the ELASTICITY stat) and the rope can
-  // wrap — pillars wrap at their center, blocks at their corners — turning
+  // wrap — the rope hugs pillar edges and block corners — turning
   // the arena itself into slingshot anchors. One layout per run, cycling
   // across runs. Positions are arena fractions (fx/fy); sizes are px.
   OBSTACLE_LAYOUTS: [

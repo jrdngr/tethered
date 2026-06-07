@@ -430,10 +430,10 @@ window.Tethered = window.Tethered || {};
     if (e.splitCount) {
       splitEnemy(game, e, e.splitCount); // splitters drop nothing — no wrap bonus either
     } else {
-      // Wrapped-rope kills sweeten the payout: a flat per-wrap bonus rides
-      // the normal coin path (so combo and coinMult apply), with floating
-      // text so the reward is legible. The combo is already at the reset ×1
-      // here — wraps are paid in coins, not combo.
+      // Wrapped-rope kills sweeten the payout: a flat bonus per half-turn
+      // wrap unit rides the normal coin path (so combo and coinMult apply),
+      // with floating text so the reward is legible. The combo is already at
+      // the reset ×1 here — wraps are paid in coins, not combo.
       const bonus = (wraps || 0) * T.WRAP_KILL_BONUS;
       S.spawnCoinBurst(game, e.x, e.y, e.coinMult, bonus);
       if (bonus) S.spawnFloater(game, e.x, e.y, `+${bonus * game.combo * e.coinMult} WRAP`);
@@ -481,7 +481,7 @@ window.Tethered = window.Tethered || {};
   //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
   //   ax/ay/ar     separation anchor a survivor is pushed flush against
   //                (defaults to the ball; weapons pass their contact point)
-  //   wraps        rope wrap count at impact — a kill pays the per-wrap
+  //   wraps        half-turn wrap units at impact — a kill pays the wrap
   //                coin bonus (only tethered body smashes pass this)
   // Would a hit dealing `dmg` bash this enemy? (MOMENTUM special: bashing
   // comes easier at top speed.) Shared by resolveSmash and the spiker's
@@ -658,9 +658,10 @@ window.Tethered = window.Tethered || {};
       // itself is free — only cashing a kill through the rope isn't.
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
       const tethered = game.tether.active;
-      // Wrapped-rope kills pay a per-wrap coin bonus — capture the count
-      // before the release clears the wraps.
-      const wraps = tethered ? game.tether.wraps.length : 0;
+      // Wrapped-rope kills pay a coin bonus per half-turn of total contact
+      // angle — capture the units before the release clears the wraps.
+      const wraps = tethered
+        ? Math.floor(S.totalContactAngle(game.tether) / T.WRAP_UNIT_ANGLE) : 0;
       if (tethered) S.releaseTether(game);
 
       // Spikers invert the speed rule: a fast ball that can't bash through

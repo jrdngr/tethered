@@ -56,10 +56,12 @@ window.Tethered = window.Tethered || {};
     ctx.strokeRect(2, 2, game.width - 4, game.height - 4);
   }
 
-  // Rope (cursor anchor -> wrap pivots -> ball): the player should feel it
-  // loading like a drawn bow, so width, color, and glow all scale with
-  // stretch, and each wrap pivot gets a pulsing highlight ring. Untethered,
-  // a grab hint ring shows when hovering near the ball.
+  // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
+  // should feel it loading like a drawn bow, so width, color, and glow all
+  // scale with stretch, and each wrap pivot gets a pulsing highlight ring.
+  // The tangent/arc geometry is read straight off the wraps' physics cache,
+  // so the drawn rope is exactly the simulated rope. Untethered, a grab hint
+  // ring shows when hovering near the ball.
   function drawTether(ctx, game) {
     const T = S.TUNING;
     const b = game.ball;
@@ -72,7 +74,11 @@ window.Tethered = window.Tethered || {};
       ctx.shadowBlur = T.WRAP_GLOW_BLUR * tension;
       ctx.beginPath();
       ctx.moveTo(game.mouse.x, game.mouse.y);
-      for (const w of game.tether.wraps) ctx.lineTo(w.e.x, w.e.y);
+      for (const w of game.tether.wraps) {
+        ctx.lineTo(w.entryX, w.entryY);
+        // Hug the pivot's edge from entry to exit contact, in wind order.
+        ctx.arc(w.e.x, w.e.y, w.e.r, w.entryPhi, w.exitPhi, w.wind < 0);
+      }
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
       // Anchor ring at the cursor.

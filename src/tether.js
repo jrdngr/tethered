@@ -1,9 +1,12 @@
 // Elastic spring tether: anchor is the cursor while the mouse is held.
-// The rope wraps around enemy centers like a rope over pegs: the path runs
-// mouse -> wrap pivots -> ball. Pivots are pure pegs (tension never moves
-// them), the spring acts on total path length, and the ball only feels its
-// own segment — uniform tension over frictionless pegs, so no per-wrap rest
-// length bookkeeping is needed.
+// The rope wraps around pivot circles (enemies, obstacle pegs) the way a
+// real rope wraps a post: tangent lines into a contact arc hugging the
+// circle's edge. The path runs mouse -> tangent/arc per pivot -> ball.
+// Pivots are frictionless (tension is uniform along the rope), the spring
+// acts on total path length including arcs — so winding consumes rope and
+// raises tension, and that's the natural wrap limit. A pivot releases the
+// moment its contact arc shrinks to zero: the rope straightening back
+// (e.g. after a wall bounce) unwinds it physically instead of snapping.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -37,24 +40,28 @@ window.Tethered = window.Tethered || {};
   };
 
   // Releasing pays the stored tension back: a stretched release adds a launch
-  // impulse along the ball's own segment (toward its pivot), and every wrap
-  // multiplies it — the rope reads as a drawn bow. Impulse is linear in
-  // stretch (not the spring-energy form): more predictable to learn, and the
-  // codebase never computes spring PE anyway. The speed cap and the swept
-  // ball collision both absorb the spike, so no tunneling risk. Applied
-  // before triggerWeapons, so a hard sling arms the weapons by itself.
+  // impulse along the ball's own segment (toward its tangent contact point,
+  // or the cursor when unwrapped). No per-wrap multiplier: winding already
+  // consumed rope, so a wrapped rope at the same pose simply carries more
+  // stretch. Impulse is linear in stretch (not the spring-energy form): more
+  // predictable to learn, and the codebase never computes spring PE anyway.
+  // The speed cap and the swept ball collision both absorb the spike, so no
+  // tunneling risk. Applied before triggerWeapons, so a hard sling arms the
+  // weapons by itself.
   S.releaseTether = function (game) {
     const T = S.TUNING;
     const tether = game.tether;
     if (tether.active && tether.stretch > 0) {
       const b = game.ball;
-      const pivot = tether.wraps.length ? tether.wraps[tether.wraps.length - 1].e : game.mouse;
-      const dx = pivot.x - b.x;
-      const dy = pivot.y - b.y;
+      const wraps = tether.wraps;
+      const last = wraps.length ? wraps[wraps.length - 1] : null;
+      const px = last ? last.exitX : game.mouse.x;
+      const py = last ? last.exitY : game.mouse.y;
+      const dx = px - b.x;
+      const dy = py - b.y;
       const d = Math.hypot(dx, dy);
       if (d > 1e-6) {
-        const impulse = T.SLINGSHOT_IMPULSE_K * tether.stretch *
-          (1 + tether.wraps.length * T.SLINGSHOT_WRAP_BONUS);
+        const impulse = T.SLINGSHOT_IMPULSE_K * tether.stretch;
         b.vx += (dx / d) * impulse;
         b.vy += (dy / d) * impulse;
       }
@@ -65,18 +72,104 @@ window.Tethered = window.Tethered || {};
     S.triggerWeapons(game); // every release while fast (re)arms the weapons
   };
 
+  // Total accumulated contact angle over all pivots — the wrap-kill bonus
+  // reads this in half-turn units. Fresh from this step's tether pass.
+  S.totalContactAngle = function (tether) {
+    let sum = 0;
+    for (const w of tether.wraps) sum += w.angle || 0;
+    return sum;
+  };
+
   function cross(ax, ay, bx, by) {
     return ax * by - ay * bx;
   }
 
-  // The pivot path as points carrying current and previous-step positions.
-  // Wrap detection compares the two: a one-step-lagged sweep test that
-  // brackets every position mutation (ball integration, enemy AI, knockback,
-  // cursor motion) without instrumenting the movers, because updateTether
-  // runs first in the physics step.
-  // One path array and point pool, mutated in place — buildPath runs up to
-  // 3×/step in the hot loop and the rope caps at ROPE_MAX_WRAPS pivots, so
-  // there's nothing worth reallocating.
+  // Tangent contact point on circle (Ox,Oy,r) as seen from point P; `side`
+  // (±1) picks which of the two tangents. phi is the contact's bearing from
+  // the circle center. When P is inside the circle the tangent degenerates
+  // to the surface point nearest P — finite and stable (mouse dragged into
+  // a pillar, ball pressed against the pillar it's wrapped on).
+  const cpOut = { x: 0, y: 0, phi: 0 }; // hot loop: reused, consume immediately
+  function contactPoint(Px, Py, Ox, Oy, r, side) {
+    const dx = Px - Ox;
+    const dy = Py - Oy;
+    const D = Math.hypot(dx, dy);
+    let phi;
+    if (D <= r + 1e-6) {
+      phi = Math.atan2(dy, dx);
+    } else {
+      const base = Math.atan2(dy, dx); // bearing center -> P
+      const beta = Math.acos(Math.max(-1, Math.min(1, r / D)));
+      phi = base + side * beta;
+    }
+    cpOut.x = Ox + r * Math.cos(phi);
+    cpOut.y = Oy + r * Math.sin(phi);
+    cpOut.phi = phi;
+    return cpOut;
+  }
+
+  // Contact arc swept from entryPhi to exitPhi in the wind direction,
+  // normalized to [0, 2π).
+  const TAU = Math.PI * 2;
+  function arcAngleFor(entryPhi, exitPhi, wind) {
+    let d = (exitPhi - entryPhi) * wind;
+    d = ((d % TAU) + TAU) % TAU;
+    return d;
+  }
+
+  // Walk the rope from anchor to ball, computing each pivot's tangent
+  // contact points and integrating its accumulated contact angle. Entry
+  // tangents come from the previous pivot's exit point (anchor for the
+  // first); exit tangents aim at the next pivot's center (ball for the
+  // last) — the standard one-pass approximation, stable here because pivots
+  // sit far apart relative to their radii. The angle delta is seam-unwrapped
+  // to the nearest half-circle so winding past 2π keeps accumulating instead
+  // of snapping back — that's what lets one pivot represent multiple
+  // revolutions.
+  function recomputePath(game) {
+    const T = S.TUNING;
+    const wraps = game.tether.wraps;
+    let prevX = game.mouse.x;
+    let prevY = game.mouse.y;
+    for (let i = 0; i < wraps.length; i++) {
+      const w = wraps[i];
+      const e = w.e;
+      const entry = contactPoint(prevX, prevY, e.x, e.y, e.r, w.wind);
+      w.entryX = entry.x;
+      w.entryY = entry.y;
+      w.entryPhi = entry.phi;
+      const next = i + 1 < wraps.length ? wraps[i + 1].e : game.ball;
+      const exit = contactPoint(next.x, next.y, e.x, e.y, e.r, -w.wind);
+      w.exitX = exit.x;
+      w.exitY = exit.y;
+      w.exitPhi = exit.phi;
+      const newBase = arcAngleFor(w.entryPhi, w.exitPhi, w.wind);
+      if (w.angle === undefined) {
+        // First sighting after insertion: the rope just crossed the surface,
+        // so the arc starts near zero and grows from here.
+        w.angle = newBase;
+      } else {
+        let delta = newBase - w.baseArc;
+        if (delta > Math.PI) delta -= TAU;
+        if (delta < -Math.PI) delta += TAU;
+        w.angle = Math.max(0, Math.min(w.angle + delta, T.WRAP_MAX_PIVOT_ANGLE));
+      }
+      w.baseArc = newBase;
+      prevX = w.exitX;
+      prevY = w.exitY;
+    }
+  }
+
+  // The pivot path as center points carrying current and previous-step
+  // positions — wrap *detection* still sweeps the center polyline (robust to
+  // teleporting endpoints; the half-radius timing difference is sub-frame).
+  // Detection compares the two: a one-step-lagged sweep test that brackets
+  // every position mutation (ball integration, enemy AI, knockback, cursor
+  // motion) without instrumenting the movers, because updateTether runs
+  // first in the physics step.
+  // One path array and point pool, mutated in place — buildPath runs in the
+  // hot loop and the rope caps at WRAP_SAFETY_MAX_PIVOTS pivots, so there's
+  // nothing worth reallocating.
   const path = [];
   const pathPool = [];
   function pathPoint(i, x, y, px, py) {
@@ -93,9 +186,8 @@ window.Tethered = window.Tethered || {};
     return path;
   }
 
-  // Bend orientation at pivot E between path neighbors A and B. A wrap holds
-  // while this keeps the sign it had at insertion; a flip means the rope has
-  // straightened back across the pivot.
+  // Bend orientation at pivot E between path neighbors A and B — seeds a new
+  // pivot's wind (which way the rope hugs the circle) at insertion.
   function bendSign(A, E, B) {
     return Math.sign(cross(E.x - A.x, E.y - A.y, B.x - E.x, B.y - E.y));
   }
@@ -130,22 +222,30 @@ window.Tethered = window.Tethered || {};
       if (!pe.obstacle && (pe.dead || !game.enemies.includes(pe))) wraps.splice(i, 1);
     }
 
-    // Unwrap any pivot the rope has straightened back across. Any pivot can
-    // release, not just the ball-side one, since wraps form mid-rope too.
-    let path = buildPath(game);
+    // Refresh tangent geometry and accumulated angles, then release any pivot
+    // whose contact arc has collapsed — the rope straightening back across it
+    // (a wall bounce, the anchor swinging past) unwinds it physically. Any
+    // pivot can release, not just the ball-side one, since wraps form
+    // mid-rope too. Iterate ball-side inward; each removal changes its
+    // neighbors' tangents, so recompute before testing the next.
+    recomputePath(game);
     for (let i = wraps.length - 1; i >= 0; i--) {
-      if (bendSign(path[i], wraps[i].e, path[i + 2]) * wraps[i].wind < 0) {
+      if (wraps[i].angle <= T.WRAP_UNWRAP_EPS) {
         wraps.splice(i, 1);
-        path = buildPath(game); // neighbors changed
+        recomputePath(game);
       }
     }
 
-    // Detect new wraps: an enemy center whose side of a segment flipped since
-    // last step was swept over by the rope and becomes a pivot there.
+    // Detect new wraps: a pivot circle whose center's side of a segment
+    // flipped since last step was swept over by the rope and the rope now
+    // bends around its edge. Pivots inserted here get their tangents and
+    // starting arc (near zero, growing) from the recompute below, and face
+    // the unwrap test from next step on.
+    let cpath = buildPath(game);
     const found = [];
-    for (let i = 0; i + 1 < path.length; i++) {
-      const A = path[i];
-      const B = path[i + 1];
+    for (let i = 0; i + 1 < cpath.length; i++) {
+      const A = cpath[i];
+      const B = cpath[i + 1];
       const sx = B.x - A.x;
       const sy = B.y - A.y;
       const segLen = Math.hypot(sx, sy);
@@ -181,31 +281,41 @@ window.Tethered = window.Tethered || {};
       const used = new Set();
       let offset = 0;
       for (const f of found) {
-        if (wraps.length >= T.ROPE_MAX_WRAPS) break;
+        if (wraps.length >= T.WRAP_SAFETY_MAX_PIVOTS) break;
         if (used.has(f.e)) continue;
         used.add(f.e);
         wraps.splice(f.seg + offset, 0, { e: f.e, wind: f.wind });
         offset++;
       }
-      path = buildPath(game);
+      recomputePath(game);
     }
 
-    // Spring on the total path length; the ball only feels its own segment.
+    // Spring on the total path length — tangent segments plus contact arcs
+    // (accumulated angle, so multi-revolution winding keeps consuming rope).
+    // The ball only feels its own segment.
     let totalLen = 0;
-    for (let i = 0; i + 1 < path.length; i++) {
-      totalLen += Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y);
+    {
+      let px = game.mouse.x;
+      let py = game.mouse.y;
+      for (const w of wraps) {
+        totalLen += Math.hypot(w.entryX - px, w.entryY - py) + w.e.r * w.angle;
+        px = w.exitX;
+        py = w.exitY;
+      }
+      totalLen += Math.hypot(b.x - px, b.y - py);
     }
     const stretch = totalLen - tether.restLength;
     tether.stretch = Math.max(stretch, 0);
     if (stretch <= 0) return; // a rope can't push
 
-    const last = path[path.length - 2]; // pivot nearest the ball (or the cursor)
-    const dx = last.x - b.x;
-    const dy = last.y - b.y;
+    // The ball's far end: the last pivot's exit contact point, or the cursor.
+    const last = wraps.length ? wraps[wraps.length - 1] : null;
+    const dx = (last ? last.exitX : game.mouse.x) - b.x;
+    const dy = (last ? last.exitY : game.mouse.y) - b.y;
     const segLen = Math.hypot(dx, dy);
     if (segLen < 1e-6) return;
 
-    // Unit vector from ball toward its pivot.
+    // Unit vector from ball toward its contact point.
     const nx = dx / segLen;
     const ny = dy / segLen;
 
@@ -214,5 +324,29 @@ window.Tethered = window.Tethered || {};
     const accel = T.ROPE_K * stretch - T.ROPE_DAMPING * vAlong;
     b.vx += accel * nx * dt;
     b.vy += accel * ny * dt;
+
+    // Tension drags wrapped live enemies: each rope segment pulls the pivot
+    // toward its far end, and summing the two unit tangent directions gives
+    // the frictionless-pulley net force — inward bisector with magnitude
+    // 2·sin(arc/2) — for free. Written to the decaying knockback channel
+    // (kx/ky) the enemy brains already integrate, so it composes with seek
+    // and stays self-limiting. Obstacle pegs are static and skip it.
+    const tension = T.WRAP_DRAG_K * T.ROPE_K * stretch * dt;
+    for (let i = 0; i < wraps.length; i++) {
+      const w = wraps[i];
+      if (w.e.obstacle) continue;
+      const prev = i > 0 ? wraps[i - 1] : null;
+      const next = i + 1 < wraps.length ? wraps[i + 1] : null;
+      let ix = (prev ? prev.exitX : game.mouse.x) - w.entryX;
+      let iy = (prev ? prev.exitY : game.mouse.y) - w.entryY;
+      let ox = (next ? next.entryX : b.x) - w.exitX;
+      let oy = (next ? next.entryY : b.y) - w.exitY;
+      const il = Math.hypot(ix, iy);
+      const ol = Math.hypot(ox, oy);
+      if (il > 1e-6) { ix /= il; iy /= il; } else { ix = 0; iy = 0; }
+      if (ol > 1e-6) { ox /= ol; oy /= ol; } else { ox = 0; oy = 0; }
+      w.e.kx += (ix + ox) * tension;
+      w.e.ky += (iy + oy) * tension;
+    }
   }
 })(Tethered);

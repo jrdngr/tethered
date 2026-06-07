@@ -8,10 +8,10 @@ window.Tethered = window.Tethered || {};
 (function (S) {
   let nextLayout = 0; // cycles one layout per run; module-level so it survives resets
 
-  // A wrap peg: a static pivot point updateActiveTether can hold exactly
-  // like an enemy center. It carries its own (never-moving) sweep snapshot;
-  // `obstacle` exempts it from the dead-enemy pivot drop. `r` is only used
-  // by visuals (the wrap highlight ring) and query padding.
+  // A wrap peg: a static pivot circle updateActiveTether can hold exactly
+  // like an enemy. It carries its own (never-moving) sweep snapshot;
+  // `obstacle` exempts it from the dead-enemy pivot drop and the wrap drag.
+  // `r` is the real wrap radius the rope's tangents and contact arcs hug.
   function peg(x, y, r) {
     return { x, y, _px: x, _py: y, r, obstacle: true };
   }
@@ -22,11 +22,12 @@ window.Tethered = window.Tethered || {};
     const defs = S.TUNING.OBSTACLE_LAYOUTS[game.obstacleLayout] || [];
     game.obstacles = defs.map((d) => {
       const o = { ...d, x: d.fx * game.width, y: d.fy * game.height };
-      // The rope wraps pillars at their center and blocks at their corners.
+      // The rope hugs pillar edges; blocks wrap at their corners, which act
+      // as small rounded posts.
       o.pegs = o.kind === 'circle'
         ? [peg(o.x, o.y, o.r)]
         : [-1, 1].flatMap((sx) => [-1, 1].map((sy) =>
-            peg(o.x + sx * o.w / 2, o.y + sy * o.h / 2, 4)));
+            peg(o.x + sx * o.w / 2, o.y + sy * o.h / 2, S.TUNING.WRAP_RECT_CORNER_R)));
       return o;
     });
   };
