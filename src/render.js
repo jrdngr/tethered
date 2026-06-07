@@ -11,9 +11,11 @@ window.Tethered = window.Tethered || {};
   // ordering contract (see main.js), the order is load-bearing — overlays
   // must cover the world, the ball sits above the things it smashes, etc.
   const WORLD_LAYERS = [
+    drawExit, // on the floor, under everything that moves over it
     drawTether,
     drawWalls, // above the rope, so a rope wrapped on a corner tucks behind the wall
     drawObstacles, // ditto for pillar wraps
+    drawOnboarding, // spawn-room hints (depth 1)
     drawCoins,
     drawParticles,
     drawPaddles,
@@ -106,6 +108,57 @@ window.Tethered = window.Tethered || {};
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.closePath();
+  }
+
+  // The exit: a glowing portal disc with a pulsing rim. While the player
+  // channels it (sitting still inside), a bright arc winds around the rim as
+  // a progress ring — full circle = transition.
+  function drawExit(ctx, game) {
+    const T = S.TUNING;
+    const ex = game.exit;
+    if (!ex) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(94, 255, 160, 0.12)';
+    ctx.beginPath();
+    ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
+    ctx.fill();
+    const pulse = 0.6 + 0.4 * Math.sin(game.time * 4);
+    ctx.strokeStyle = `rgba(94, 255, 160, ${0.5 + 0.3 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#5effa0';
+    ctx.shadowBlur = 12 * pulse;
+    ctx.beginPath();
+    ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (ex.channel > 0) {
+      const frac = Math.min(ex.channel / T.EXIT_CHANNEL_TIME, 1);
+      ctx.strokeStyle = '#aef4ff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(ex.x, ex.y, ex.r + 6, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Depth-1 onboarding: two lines of world-space text in the start room, so
+  // a first-time player knows the two verbs (grab, exit). Fades as the ball
+  // leaves the spawn area.
+  function drawOnboarding(ctx, game) {
+    if (game.depth !== 1 || !game.map) return;
+    const sp = game.map.spawn;
+    const d = Math.hypot(game.ball.x - sp.x, game.ball.y - sp.y);
+    const alpha = Math.max(0, 1 - d / 700);
+    if (alpha <= 0.01) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#9aa0b4';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('hold near the ball to grab, release to fling', sp.x, sp.y - 30);
+    ctx.fillText('find the exit', sp.x, sp.y);
+    ctx.restore();
   }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
@@ -432,6 +485,7 @@ window.Tethered = window.Tethered || {};
   function drawOverlays(ctx, game) {
     if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
     if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
+    if (game.state === S.STATE.VICTORY) drawVictory(ctx, game);
   }
 
   function lerpColor(a, b, t) {
@@ -495,10 +549,10 @@ window.Tethered = window.Tethered || {};
     ctx.fillStyle = '#ffc53d';
     ctx.fillText(`LV ${game.level}`, bx - 10, 14);
 
-    // Survival time, top-right.
+    // Depth, top-right (the progression readout — was survival time).
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(formatTime(game.time), game.width - 16, 14);
+    ctx.fillText(`DEPTH ${game.depth}/${T.MAX_DEPTH}`, game.width - 16, 14);
 
     // Speed meter, top center just below the level bar: shows how close the
     // ball is to the invincibility threshold (the key feedback for learning
@@ -593,11 +647,31 @@ window.Tethered = window.Tethered || {};
 
     ctx.fillStyle = '#e8e8f0';
     ctx.font = '20px monospace';
-    ctx.fillText(`LEVEL ${game.level}`, cx, cy);
-    ctx.fillText(`SURVIVED ${formatTime(game.time)}`, cx, cy + 32);
+    ctx.fillText(`DEPTH ${game.depth}/${S.TUNING.MAX_DEPTH}`, cx, cy);
+    ctx.fillText(`${game.kills || 0} KILLS · LEVEL ${game.level}`, cx, cy + 32);
 
     ctx.fillStyle = '#6b6f80';
     ctx.font = '16px monospace';
     ctx.fillText('click to restart', cx, cy + 80);
+  }
+
+  // Victory: cleared the final depth.
+  function drawVictory(ctx, game) {
+    ctx.fillStyle = 'rgba(13, 14, 20, 0.85)';
+    ctx.fillRect(0, 0, game.width, game.height);
+    const cx = game.width / 2;
+    const cy = game.height / 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#5effa0';
+    ctx.font = 'bold 48px monospace';
+    ctx.fillText('ESCAPED', cx, cy - 60);
+    ctx.fillStyle = '#e8e8f0';
+    ctx.font = '20px monospace';
+    ctx.fillText(`all ${S.TUNING.MAX_DEPTH} depths cleared`, cx, cy);
+    ctx.fillText(`${game.kills || 0} KILLS · ${formatTime(game.time)}`, cx, cy + 32);
+    ctx.fillStyle = '#6b6f80';
+    ctx.font = '16px monospace';
+    ctx.fillText('click to play again', cx, cy + 80);
   }
 })(Tethered);

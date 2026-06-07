@@ -65,15 +65,14 @@ Tethered.TUNING = {
   ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (no stacking)
   ENEMY_KNOCKBACK_DECAY: 4, // 1/s — exponential decay of every shove (hits, splits, pops, bumps)
 
-  // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
-  // and claims its CHANCE slice of every spawn roll; whatever's left is a
-  // basic chaser. Chances scale inversely with strength (super-splitter
-  // rarest) and ramp together with survival time — every unlocked chance is
-  // multiplied by (1 + time / MIX_RAMP_TIME), clamped so the specials'
-  // total never exceeds MIX_SPECIAL_TOTAL_MAX. Relative proportions hold
-  // through the ramp; only the chaser share shrinks (all eight unlocked:
-  // specials total 0.46 at the base chances, capped at 0.7 — chasers 0.3).
-  MIX_RAMP_TIME: 300,          // s of survival for the special chances to double
+  // Special spawn mix: each type unlocks at its *_UNLOCK_DEPTH and claims
+  // its CHANCE slice (weight) of every spawn roll; whatever's left is a
+  // basic chaser. Weights scale inversely with strength (super-splitter
+  // rarest) and ramp with depth — every unlocked weight is multiplied by
+  // (1 + depth / MIX_RAMP_DEPTH), clamped so the specials' total never
+  // exceeds MIX_SPECIAL_TOTAL_MAX. Unlock order is teaching order: a new
+  // type roughly every depth so each gets a clean introduction.
+  MIX_RAMP_DEPTH: 6,           // depths for the special weights to double
   MIX_SPECIAL_TOTAL_MAX: 0.7,  // ceiling on the specials' summed chance
 
   // Tanks: rarer armored enemies that take four base-damage hits
@@ -82,7 +81,7 @@ Tethered.TUNING = {
   TANK_RADIUS: 18,        // px
   TANK_SPEED: 80,         // px/s — slower than chasers
   TANK_CHANCE: 0.04,      // fraction of spawns that are tanks, once unlocked — strongest, so rarest
-  TANK_SPAWN_DELAY: 15,   // s of survival before tanks start spawning
+  TANK_UNLOCK_DEPTH: 3,   // depth tanks start appearing
   TANK_COIN_MULT: 2,      // tanks drop this × the base coin burst
 
   // Splitters: tank-tough enemies that break into two basic chasers on death
@@ -91,7 +90,7 @@ Tethered.TUNING = {
   SPLITTER_RADIUS: 17,       // px
   SPLITTER_SPEED: 90,        // px/s
   SPLITTER_CHANCE: 0.06,
-  SPLITTER_SPAWN_DELAY: 25,  // s
+  SPLITTER_UNLOCK_DEPTH: 2,  // depth
   SPLIT_FLING: 600,          // px/s the children fling apart
   SPLIT_INVULN: 0.1,         // s the freshly split children can't be hurt
 
@@ -102,7 +101,7 @@ Tethered.TUNING = {
   SUPER_SPLITTER_RADIUS: 21,      // px
   SUPER_SPLITTER_SPEED: 75,       // px/s
   SUPER_SPLITTER_CHANCE: 0.02,    // a third the splitter rate — splitter children is a lot
-  SUPER_SPLITTER_SPAWN_DELAY: 50, // s
+  SUPER_SPLITTER_UNLOCK_DEPTH: 8, // depth
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
   // out around the stall point to max radius, close back in, then creep again
@@ -116,7 +115,7 @@ Tethered.TUNING = {
   ORBITER_RADIUS_SPEED: 70,   // px/s the orbit radius opens and closes
   ORBITER_ANGULAR_SPEED: 2.6, // rad/s
   ORBITER_CHANCE: 0.08,       // mid-strength: tricky movement but only basic HP
-  ORBITER_SPAWN_DELAY: 40,    // s
+  ORBITER_UNLOCK_DEPTH: 5,    // depth
 
   // Runners: chase like a chaser at double speed, but bolt once the ball
   // gets close; worth triple coins. The 3× is a skill-shot bounty, so
@@ -136,7 +135,7 @@ Tethered.TUNING = {
   RUNNER_DASH_COOLDOWN: 2.5, // s before it can panic again
   RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
   RUNNER_CHANCE: 0.10,      // weakest special, so most common
-  RUNNER_SPAWN_DELAY: 20,   // s
+  RUNNER_UNLOCK_DEPTH: 1,   // depth
 
   // Spitters: zoners that hold a standoff band from the ball and lob slow
   // projectiles at it. The shots hit regardless of ball speed (only
@@ -150,7 +149,7 @@ Tethered.TUNING = {
   SPITTER_FIRE_INTERVAL: 2.5, // s between shots
   SPITTER_WINDUP: 0.4,        // s of telegraphed charge before a shot (the tell)
   SPITTER_CHANCE: 0.06,
-  SPITTER_SPAWN_DELAY: 30,    // s
+  SPITTER_UNLOCK_DEPTH: 4,    // depth
   PROJECTILE_SPEED: 170,      // px/s — slow enough to dodge by pathing
   PROJECTILE_RADIUS: 6,       // px
   PROJECTILE_DAMAGE: 10,      // HP the ball loses to a shot
@@ -165,7 +164,7 @@ Tethered.TUNING = {
   SPIKER_RADIUS: 15,          // px (spike visuals overhang slightly)
   SPIKER_SPEED: 55,           // px/s — a hazard you steer around, not flee
   SPIKER_CHANCE: 0.05,
-  SPIKER_SPAWN_DELAY: 35,     // s
+  SPIKER_UNLOCK_DEPTH: 7,     // depth
 
   // Shieldbearers: a frontal guard tracks the ball and refuses all damage;
   // vulnerable from behind, or from anywhere once a bash breaks the guard
@@ -178,7 +177,7 @@ Tethered.TUNING = {
   SHIELD_TURN_RATE: 90,       // °/s the guard tracks — a quick swing outflanks it
   SHIELD_STUN: 2.5,           // s a bash leaves the guard broken open
   SHIELD_CHANCE: 0.05,
-  SHIELD_SPAWN_DELAY: 45,     // s
+  SHIELD_UNLOCK_DEPTH: 6,     // depth
 
   // Enemy death pop animation
   POP_DURATION: 0.25,     // s — how long the pop ring lasts
@@ -228,20 +227,48 @@ Tethered.TUNING = {
   PLAYER_POP_PARTICLE_SPEED: 700, // px/s — max scatter speed
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
-  // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
-  // (one enemy/sec at ~3.5 min). A growing concurrent-enemy floor refills a
-  // cleared board immediately (no dead air), a cap bounds live enemies as a
-  // frame-time safety net (excess spawns wait for a free slot), and enemies
-  // spawn with per-minute HP/speed multipliers so the late game is harder
-  // enemies, not just more of them.
-  SPAWN_INTERVAL_START: 5.0,  // s
-  SPAWN_DOUBLE_TIME: 90,      // s of survival for the spawn rate to double
-  SPAWN_MIN_BALL_DIST: 150,   // px — edge spawns re-roll if closer to the ball
-  SPAWN_FLOOR_BASE: 2,        // live enemies the board never drops below...
-  SPAWN_FLOOR_PER_MIN: 1,     // ...growing this much per minute of survival
-  ENEMY_CAP: 150,             // max live enemies (frame-time guard, not a balance knob)
-  ENEMY_SCALE_HP_PER_MIN: 0.08,    // spawn HP × (1 + this × minutes), rounded
-  ENEMY_SCALE_SPEED_PER_MIN: 0.08, // spawn speed × (1 + this × minutes)
+  // Population is placed at generation (src/enemies.js placeEnemies), not
+  // trickle-spawned: depth drives count, mix, and stat scaling. Enemies are
+  // dropped in rooms by a pattern library; a few corridors get stragglers.
+  ENEMY_CAP: 150,                  // max live enemies (frame-time guard); placement caps below it
+  ENEMY_SCALE_HP_PER_DEPTH: 0.18,  // spawn HP × (1 + this × (depth-1)), rounded
+  ENEMY_SCALE_SPEED_PER_DEPTH: 0.05, // spawn speed × (1 + this × (depth-1))
+  ROOM_BUDGET_BASE: 3,             // enemies per room at depth 1...
+  ROOM_BUDGET_PER_DEPTH: 0.6,      // ...growing this much per depth
+  PASSAGE_ENEMY_CHANCE: 0.2,       // chance a given corridor gets 1-2 stragglers
+  SAFE_SPAWN_RADIUS: 1100,         // px around the player spawn kept enemy-free
+  EXIT_GUARD_BASE: 4,              // exit-room garrison size at depth 1...
+  EXIT_GUARD_PER_DEPTH: 0.8,       // ...growing per depth (depth 10 the heaviest)
+  // Per-pattern weights by depth band [d1-3, d4-6, d7-10]: early rooms favor
+  // loose scatters and combo packs, deep rooms favor ambushes and guards.
+  PATTERN_WEIGHTS: {
+    SCATTER: [3, 2, 1],
+    PACK: [3, 2, 2],
+    AMBUSH: [1, 2, 3],
+    GUARD: [1, 2, 3],
+  },
+  // Themed floors: past a type's unlock+2, a room's mix can skew toward one
+  // type. THEME_CHANCE is the per-map roll; each theme multiplies its
+  // featured type's weight and names the depth it becomes eligible.
+  THEME_CHANCE: 0.35,
+  THEMES: [
+    { name: 'tank-heavy', type: 'tank', mult: 4, minDepth: 5 },
+    { name: 'spitter-zone', type: 'spitter', mult: 4, minDepth: 6 },
+    { name: 'splitter-swarm', type: 'splitter', mult: 4, minDepth: 4 },
+  ],
+
+  // Exit: always present, but practically gated by clearing the room. The
+  // ball must sit in the exit below EXIT_CHANNEL_MAX_SPEED for
+  // EXIT_CHANNEL_TIME; any hit or leaving hard-resets the channel (being
+  // bumped out is intended). A short-range magnet (coins-law, zero at the
+  // rim) only engages on a deliberate slow approach — the spring always wins
+  // a leave. Reaching the next depth heals a fraction of max HP.
+  EXIT_RADIUS: 46,             // px — the channel/touch zone
+  EXIT_CHANNEL_TIME: 5,        // s of sitting in the exit to activate
+  EXIT_CHANNEL_MAX_SPEED: 110, // px/s — above this, "sitting" doesn't count (a swing-by won't charge it)
+  EXIT_MAGNET_RADIUS: 46,      // px — magnet reach (short, so it doesn't trap)
+  EXIT_MAGNET_ACCEL: 1400,     // px/s^2 pull at point-blank, fading to 0 at the rim
+  HEAL_ON_EXIT_FRACTION: 0.3,  // max HP restored on reaching the next depth
 
   // Combo
   COMBO_TIMEOUT: 10,       // s without a combo change before it resets to ×1
@@ -423,4 +450,5 @@ Tethered.STATE = Object.freeze({
   DYING: 'dying',
   LEVELUP: 'levelup',
   GAMEOVER: 'gameover',
+  VICTORY: 'victory', // cleared the final depth — click to start a new run
 });

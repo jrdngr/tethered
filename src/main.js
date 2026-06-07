@@ -33,45 +33,57 @@ window.Tethered = window.Tethered || {};
   window.addEventListener('resize', resize);
   resize();
 
+  // Load depth `depth` into `game`: generate the map, place shapes/enemies/
+  // exit, reset the per-map transient state, and snap everything to the new
+  // spawn. Run-persistent state (hp, stats, upgrades, level, coins) is left
+  // untouched — reset() seeds it, nextMap() carries it across.
+  function setupMap(depth) {
+    const map = S.generateMap(depth);
+    game.depth = depth;
+    game.map = map;
+    game.world = { w: map.w, h: map.h };
+    game.enemies = [];
+    game.pops = [];
+    game.projectiles = [];
+    game.coins = [];
+    game.particles = [];
+    game.floaters = [];
+    game.playerPop = null;
+    game.tether = S.createTether();
+    game.weaponState = { active: false, tailAngle: 0, tailVel: 0 };
+    game.combo = 1;
+    game.comboIdle = 0;
+    game.ball.x = map.spawn.x;
+    game.ball.y = map.spawn.y;
+    game.ball.vx = 0;
+    game.ball.vy = 0;
+    game.mouse = { x: map.spawn.x, y: map.spawn.y };
+    game.camera = S.createCamera(game);
+    game.flow = S.createFlow(map); // BFS chase field, recomputed as the ball moves
+    S.placeObstacles(game); // freestanding shapes in the rooms (not corridors)
+    S.pickMapTheme(game); // optional themed-floor skew
+    S.placeEnemies(game); // the room patterns + exit garrison
+    game.exit = { x: map.exit.x, y: map.exit.y, r: S.TUNING.EXIT_RADIUS, channel: 0 };
+    game.state = S.STATE.PLAYING;
+  }
+
   function reset() {
     const w = S.arenaWidth(canvas.width);
-    // A run starts at depth 1 on a fresh map; the world is whatever the
-    // generator produced. (Death always restarts here — full-run stakes.)
-    const map = S.generateMap(1);
-    const world = { w: map.w, h: map.h };
+    // A run starts at depth 1; death always restarts here (full-run stakes).
     // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
       width: w, // viewport — see the coordinate-spaces note above
       height: playHeight(),
-      world,
-      map,
       depth: 1,
-      camera: null, // created below — needs the ball to aim at
-      ball: S.createBall(map.spawn.x, map.spawn.y),
-      tether: S.createTether(),
-      enemies: [],
-      pops: [], // enemy death pop animations
-      projectiles: [], // spitter shots
-      playerPop: null, // the (much bigger) player death pop, set on death
-      coins: [], // dropped by popped enemies (includes health pickups)
+      ball: S.createBall(0, 0), // repositioned by setupMap
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
-      obstacles: [], // freestanding chamber shapes — filled by placeObstacles below
-      particles: [], // green sparks from grabbed health pickups
-      floaters: [], // floating reward text (wrap bonuses)
-      // Weapons arm on tether release, expire when slow; the floppy tail
-      // keeps its own sprung world angle and angular velocity.
-      weaponState: { active: false, tailAngle: 0, tailVel: 0 },
-
-      // World point the tether anchors to, captured at event time (never
-      // recomputed per frame — a still hand must mean a still anchor even
-      // while the camera slides). mouseScreen is the raw viewport point,
-      // for UI picking (upgrade cards, game-over click).
-      mouse: { x: map.spawn.x, y: map.spawn.y },
+      obstacles: [],
       mouseScreen: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
       comboIdle: 0, // s since the combo last changed; COMBO_TIMEOUT resets it
       level: 1,
       coinProgress: 0, // coins collected toward the next level
+      kills: 0, // run kill count (shown on the end screens)
       stats: S.createStats(), // per-run stats raised by level-up upgrades
       upgradeLevels: {}, // upgrade name -> level picked this run (absent = 0)
       pendingLevelUps: 0, // level-ups awaiting an upgrade pick
@@ -81,12 +93,35 @@ window.Tethered = window.Tethered || {};
       freeze: 0, // s of hit-stop left; physics pauses while it runs down
       shake: { x: 0, y: 0, mag: 0 }, // screen-shake offset; decays on real time
       flash: 0, // s of bash screen flash left
-      spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
-    game.camera = S.createCamera(game);
-    game.flow = S.createFlow(map); // BFS chase field, recomputed as the ball moves
-    S.placeObstacles(game); // freestanding shapes in the rooms (not corridors)
+    setupMap(1);
+  }
+
+  // Reached the exit: bank leftover coins, then advance a depth (healing) or
+  // win the run on the final depth. Persistent state rides along on `game`.
+  function nextMap() {
+    // Auto-credit the floor's uncollected coins — the kill, not the sweep,
+    // is what pays. Credit by hand (not onScoop) so the level-up isn't
+    // triggered until after the new map loads (setupMap would clobber the
+    // state otherwise); any queued picks surface over the new map.
+    for (const c of game.coins) {
+      if (c.type !== 'coin') continue;
+      game.coinProgress += c.value;
+      while (game.coinProgress >= S.coinsForLevel(game.level)) {
+        game.coinProgress -= S.coinsForLevel(game.level);
+        game.level += 1;
+        game.pendingLevelUps += 1;
+      }
+    }
+    if (game.depth >= S.TUNING.MAX_DEPTH) {
+      game.state = S.STATE.VICTORY;
+      return;
+    }
+    setupMap(game.depth + 1);
+    const heal = game.stats.maxHp * S.TUNING.HEAL_ON_EXIT_FRACTION;
+    game.ball.hp = Math.min(game.stats.maxHp, game.ball.hp + heal);
+    if (game.pendingLevelUps > 0) S.startLevelUp(game); // banked-coin picks
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).
@@ -132,7 +167,7 @@ window.Tethered = window.Tethered || {};
       return;
     }
     updateMouse(e);
-    if (game.state === S.STATE.GAMEOVER) {
+    if (game.state === S.STATE.GAMEOVER || game.state === S.STATE.VICTORY) {
       reset();
       return;
     }
@@ -202,6 +237,7 @@ window.Tethered = window.Tethered || {};
       S.updateTether(game, dt);
       S.updateBall(game, dt);
       S.updateWeapons(game, dt);
+      if (updateExit(dt)) return; // channel completed → map transitioned this frame
     }
     S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);
@@ -210,6 +246,35 @@ window.Tethered = window.Tethered || {};
     // Camera last, on this step's (scaled) time: render sees the settled
     // ball, and a bash slow-mo holds the frame instead of panning through it.
     S.updateCamera(game, dt);
+  }
+
+  // The exit. A short-range magnet pulls a deliberate slow approach onto the
+  // exit (coins-law accel, zero at the rim — the rope always overpowers it
+  // on a leave). Sitting in the exit below the speed gate charges the
+  // channel; leaving or speeding up resets it (a hit resets it via combo.js).
+  // A full channel transitions to the next depth. Returns true if it did.
+  function updateExit(dt) {
+    const ex = game.exit;
+    if (!ex || game.state !== S.STATE.PLAYING) return false;
+    const b = game.ball;
+    const dx = ex.x - b.x;
+    const dy = ex.y - b.y;
+    const d = Math.hypot(dx, dy);
+    if (d < S.TUNING.EXIT_MAGNET_RADIUS && d > 1e-3) {
+      const f = S.TUNING.EXIT_MAGNET_ACCEL * (1 - d / S.TUNING.EXIT_MAGNET_RADIUS);
+      b.vx += (dx / d) * f * dt;
+      b.vy += (dy / d) * f * dt;
+    }
+    if (d < ex.r && S.ballSpeed(b) < S.TUNING.EXIT_CHANNEL_MAX_SPEED) {
+      ex.channel += dt;
+      if (ex.channel >= S.TUNING.EXIT_CHANNEL_TIME) {
+        nextMap();
+        return true;
+      }
+    } else {
+      ex.channel = 0; // left the pad or moving too fast — start over
+    }
+    return false;
   }
 
   // Fixed-timestep physics accumulated from rAF; render every frame.

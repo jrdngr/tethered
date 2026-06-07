@@ -306,7 +306,7 @@ window.Tethered = window.Tethered || {};
     tank: {
       color: '#b558f6', // purple
       stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT }),
-      spawnGate: (T) => ({ delay: T.TANK_SPAWN_DELAY, chance: T.TANK_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.TANK_UNLOCK_DEPTH, weight: T.TANK_CHANCE }),
       // Armor ring above 1 HP that breaks off with the first hit.
       draw(ctx, e) {
         if (e.hp <= 1) return;
@@ -320,13 +320,13 @@ window.Tethered = window.Tethered || {};
     splitter: {
       color: '#f76b15', // orange
       stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.SPLITTER_SPAWN_DELAY, chance: T.SPLITTER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.SPLITTER_UNLOCK_DEPTH, weight: T.SPLITTER_CHANCE }),
       splitCount: 2,
     },
     supersplitter: {
       color: '#ff3300', // red-orange — a splitter, but angrier
       stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.SUPER_SPLITTER_SPAWN_DELAY, chance: T.SUPER_SPLITTER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.SUPER_SPLITTER_UNLOCK_DEPTH, weight: T.SUPER_SPLITTER_CHANCE }),
       splitCount: 2,
       splitChild: 'splitter',
       pieces: 4, // seams show the four chasers its splitters become
@@ -334,7 +334,7 @@ window.Tethered = window.Tethered || {};
     orbiter: {
       color: '#e93d82', // pink
       stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.ORBITER_SPAWN_DELAY, chance: T.ORBITER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.ORBITER_UNLOCK_DEPTH, weight: T.ORBITER_CHANCE }),
       onSpawn(e) {
         e.brainState = {
           phase: 'drift', // 'drift' (creep toward ball) or 'orbit' (spiral)
@@ -347,7 +347,7 @@ window.Tethered = window.Tethered || {};
     runner: {
       color: '#cc9a1f', // dark gold — it's the payday target
       stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT }),
-      spawnGate: (T) => ({ delay: T.RUNNER_SPAWN_DELAY, chance: T.RUNNER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.RUNNER_UNLOCK_DEPTH, weight: T.RUNNER_CHANCE }),
       onSpawn(e) {
         e.brainState = { windup: 0, danger: 0, cooldown: 0, baseDamage: e.damage };
       },
@@ -377,7 +377,7 @@ window.Tethered = window.Tethered || {};
     spitter: {
       color: '#3dd68c', // mint — the zoner
       stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.SPITTER_SPAWN_DELAY, chance: T.SPITTER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.SPITTER_UNLOCK_DEPTH, weight: T.SPITTER_CHANCE }),
       onSpawn(e) {
         // Desynced fire timers so a pack doesn't volley in lockstep.
         e.brainState = { fire: S.TUNING.SPITTER_FIRE_INTERVAL * (0.5 + Math.random() * 0.5), windup: 0 };
@@ -395,7 +395,7 @@ window.Tethered = window.Tethered || {};
       color: '#8d93a5', // steel — a drifting mine
       punishesSpeed: true,
       stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.SPIKER_SPAWN_DELAY, chance: T.SPIKER_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.SPIKER_UNLOCK_DEPTH, weight: T.SPIKER_CHANCE }),
       // The spike ring — the "don't hit me fast" warning.
       draw(ctx, e) {
         ctx.strokeStyle = '#cdd3e0';
@@ -412,7 +412,7 @@ window.Tethered = window.Tethered || {};
     shieldbearer: {
       color: '#5472f0', // blue — the guard
       stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED, coinMult: 1 }),
-      spawnGate: (T) => ({ delay: T.SHIELD_SPAWN_DELAY, chance: T.SHIELD_CHANCE }),
+      spawnGate: (T) => ({ unlock: T.SHIELD_UNLOCK_DEPTH, weight: T.SHIELD_CHANCE }),
       onSpawn(e) {
         e.brainState = { fx: 0, fy: 0, stun: 0, glint: 0 }; // facing set by the brain
       },
@@ -436,31 +436,34 @@ window.Tethered = window.Tethered || {};
     },
   };
 
-  // One roll decides the spawn type: each gated type unlocked by survival
-  // time claims its chance slice; whatever's left is a basic chaser. The
-  // slices all ramp with survival (one shared factor, so relative
-  // proportions hold), clamped so the specials' total never exceeds
-  // MIX_SPECIAL_TOTAL_MAX — the mix hardens as the run goes on instead of
-  // staying 70% chasers forever.
-  function rollType(game) {
+  // One roll decides a spawn type for the given depth: each type unlocked at
+  // its depth claims its weight slice; whatever's left is a basic chaser.
+  // Weights ramp with depth (one shared factor, proportions hold), clamped
+  // so the specials' total never exceeds MIX_SPECIAL_TOTAL_MAX. An optional
+  // theme multiplies one type's weight (themed floors); `pool`, if given,
+  // restricts to those unlocked types (pattern-specific mixes).
+  function rollTypeForDepth(depth, theme, pool) {
     const T = S.TUNING;
+    const list = [];
     let total = 0;
     for (const type in S.ENEMY_TYPES) {
       const gate = S.ENEMY_TYPES[type].spawnGate;
       if (!gate) continue;
-      const { delay, chance } = gate(T);
-      if (game.time >= delay) total += chance;
+      const g = gate(T);
+      if (depth < g.unlock) continue;
+      if (pool && pool.indexOf(type) < 0) continue;
+      let w = g.weight;
+      if (theme && theme.type === type) w *= theme.mult;
+      list.push([type, w]);
+      total += w;
     }
-    const ramp = Math.min(1 + game.time / T.MIX_RAMP_TIME,
-      total > 0 ? T.MIX_SPECIAL_TOTAL_MAX / total : 1);
+    if (!total) return 'chaser';
+    const ramp = Math.min(1 + depth / T.MIX_RAMP_DEPTH, T.MIX_SPECIAL_TOTAL_MAX / total);
     let roll = Math.random();
-    for (const type in S.ENEMY_TYPES) {
-      const gate = S.ENEMY_TYPES[type].spawnGate;
-      if (!gate) continue;
-      const { delay, chance } = gate(T);
-      if (game.time < delay) continue;
-      if (roll < chance * ramp) return type;
-      roll -= chance * ramp;
+    for (const [type, w] of list) {
+      const p = w * ramp;
+      if (roll < p) return type;
+      roll -= p;
     }
     return 'chaser';
   }
@@ -469,11 +472,11 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     const def = S.ENEMY_TYPES[type];
     const stats = def.stats(T);
-    // Per-minute stat scaling, baked in at spawn time so existing logic is
-    // untouched: late game is harder enemies, not just more of them. HP
-    // rounds so hits-to-kill stays a clean integer step.
-    const minutes = game.time / 60;
-    const hp = Math.round(stats.hp * (1 + T.ENEMY_SCALE_HP_PER_MIN * minutes));
+    // Depth stat scaling, baked in at spawn: deeper enemies are tougher and
+    // a touch faster, not just more numerous. HP rounds so hits-to-kill
+    // stays a clean integer step.
+    const d = (game.depth || 1) - 1;
+    const hp = Math.round(stats.hp * (1 + T.ENEMY_SCALE_HP_PER_DEPTH * d));
     const e = {
       x, y, type,
       kx: 0, ky: 0,
@@ -481,7 +484,7 @@ window.Tethered = window.Tethered || {};
       hp,
       maxHp: hp,
       damage: stats.damage,
-      speed: stats.speed * (1 + T.ENEMY_SCALE_SPEED_PER_MIN * minutes),
+      speed: stats.speed * (1 + T.ENEMY_SCALE_SPEED_PER_DEPTH * d),
       coinMult: stats.coinMult,
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
@@ -501,34 +504,181 @@ window.Tethered = window.Tethered || {};
     return e;
   }
 
-  // Spawn one enemy on a far floor tile. The type rolls from the
-  // survival-gated mix unless forced. M2-interim: the timer/floor system
-  // and this random placement both fall to M5's generation-time placement.
-  S.spawnEnemy = function (game, forcedType) {
-    const type = forcedType || rollType(game);
+  // === Generation-time placement (M5) ======================================
+  // Enemies are dropped into the map once, at generation, by a pattern
+  // library — no trickle spawner. Depth drives count, mix, and which
+  // patterns dominate.
+
+  // Clearance (px) a type needs around a placement point — orbiter needs its
+  // whole orbit, spiker wants chamber interior; the rest just their body.
+  function minClearPx(type, r) {
+    const T = S.TUNING;
+    if (type === 'orbiter') return T.ORBITER_MAX_RADIUS + r + 10;
+    if (type === 'spiker') return r + T.TILE_SIZE * 2;
+    return r + 8;
+  }
+
+  // Try to create an enemy of `type` at (x, y): rejects walls, too-tight
+  // floor, overlapping a shape, or inside the spawn safe-zone. Returns the
+  // enemy or null. Honors the global cap.
+  function tryPlace(game, type, x, y) {
+    const T = S.TUNING;
     const map = game.map;
-    let x = game.world.w / 2;
-    let y = game.world.h / 2;
-    // Floor tiles with standing room (clearance ≥ 2), preferring well away
-    // from the ball; the last roomy candidate stands if none is far enough.
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const tx = Math.floor(Math.random() * map.tw);
-      const ty = Math.floor(Math.random() * map.th);
-      if (map.isWall(tx, ty) ||
-          map.clearance[ty * map.tw + tx] < Math.ceil(S.TUNING.MIN_PASSAGE_TILES / 2)) continue;
-      const p = map.tileToWorld(tx, ty);
-      x = p.x;
-      y = p.y;
-      if (Math.hypot(x - game.ball.x, y - game.ball.y) > S.TUNING.SPAWN_MIN_BALL_DIST * 4) break;
-    }
+    if (game.enemies.length >= T.ENEMY_CAP) return null;
+    const r = S.ENEMY_TYPES[type].stats(T).r;
+    const tx = Math.floor(x / T.TILE_SIZE);
+    const ty = Math.floor(y / T.TILE_SIZE);
+    if (map.isWall(tx, ty)) return null;
+    if (map.clearance[ty * map.tw + tx] * T.TILE_SIZE < minClearPx(type, r)) return null;
+    if (Math.hypot(x - map.spawn.x, y - map.spawn.y) < T.SAFE_SPAWN_RADIUS) return null;
+    for (const o of game.obstacles) if (S.obstacleHit(o, x, y, r)) return null;
     const e = makeEnemy(game, type, x, y);
     game.enemies.push(e);
-    S.grid.insert(e); // queryable this step — broadphase rebuilds are per-pass, not per-spawn
+    return e;
+  }
+
+  // Place `count` enemies around (cx, cy) within `spread` px. typeFn() picks
+  // each type; a type that won't fit after a few tries substitutes a chaser
+  // (always placeable), so budgets are met without leaving gaps.
+  function placeCluster(game, cx, cy, spread, count, typeFn) {
+    for (let i = 0; i < count; i++) {
+      let placed = null;
+      for (let tries = 0; tries < 10 && !placed; tries++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * spread;
+        const type = tries < 7 ? typeFn() : 'chaser';
+        placed = tryPlace(game, type, cx + Math.cos(a) * d, cy + Math.sin(a) * d);
+      }
+    }
+  }
+
+  const PATTERN_POOLS = {
+    PACK: ['chaser', 'splitter', 'runner', 'super-splitter'],
+    AMBUSH: null,   // any unlocked type (the mixed surprise)
+    GUARD: ['shieldbearer', 'spitter', 'orbiter', 'tank'],
+    SCATTER: null,  // any unlocked type, loosely spread
+  };
+
+  function rollPattern(depth) {
+    const T = S.TUNING;
+    const band = depth <= 3 ? 0 : depth <= 6 ? 1 : 2;
+    const w = T.PATTERN_WEIGHTS;
+    const keys = Object.keys(w);
+    let total = 0;
+    for (const k of keys) total += w[k][band];
+    let r = Math.random() * total;
+    for (const k of keys) { if (r < w[k][band]) return k; r -= w[k][band]; }
+    return 'SCATTER';
+  }
+
+  // Lay one pattern into a room.
+  function placePattern(game, ch, pattern, depth, theme, budget) {
+    const T = S.TUNING;
+    const cx = ch.cx * T.TILE_SIZE;
+    const cy = ch.cy * T.TILE_SIZE;
+    const rw = ch.r * T.TILE_SIZE;
+    const pool = PATTERN_POOLS[pattern];
+    const pick = () => rollTypeForDepth(depth, theme, pool);
+    if (pattern === 'PACK') {
+      // A tight knot of fodder off-center — combo bait.
+      const a = Math.random() * Math.PI * 2;
+      const ox = cx + Math.cos(a) * rw * 0.4;
+      const oy = cy + Math.sin(a) * rw * 0.4;
+      placeCluster(game, ox, oy, rw * 0.3, budget + 2, pick);
+    } else if (pattern === 'GUARD') {
+      // A couple of controllers anchored at the room center.
+      placeCluster(game, cx, cy, rw * 0.4, Math.max(2, Math.round(budget * 0.6)), pick);
+    } else if (pattern === 'AMBUSH') {
+      // A waiting group on the room's far side (they're dormant by default).
+      const a = Math.random() * Math.PI * 2;
+      placeCluster(game, cx + Math.cos(a) * rw * 0.55, cy + Math.sin(a) * rw * 0.55, rw * 0.35, budget + 1, pick);
+    } else {
+      // SCATTER: loose across the whole room.
+      placeCluster(game, cx, cy, rw * 0.75, budget, pick);
+    }
+  }
+
+  // The exit-room garrison: a heavy guard the player must fight through to
+  // hold the exit. Grows with depth (depth 10 the toughest), drawn from the
+  // controller pool plus straight fodder.
+  function placeGarrison(game, ch, depth, theme) {
+    const T = S.TUNING;
+    const cx = ch.cx * T.TILE_SIZE;
+    const cy = ch.cy * T.TILE_SIZE;
+    const rw = ch.r * T.TILE_SIZE;
+    const n = Math.round(T.EXIT_GUARD_BASE + T.EXIT_GUARD_PER_DEPTH * (depth - 1));
+    placeCluster(game, cx, cy, rw * 0.6, n, () => rollTypeForDepth(depth, theme));
+  }
+
+  // One instance of a freshly-unlocked type, dropped in an early room on the
+  // path so the player meets it before packs/themes pile on (the debut beat).
+  function placeDebut(game, depth, theme) {
+    let debutType = null;
+    for (const type in S.ENEMY_TYPES) {
+      const g = S.ENEMY_TYPES[type].spawnGate;
+      if (g && g(S.TUNING).unlock === depth) { debutType = type; break; }
+    }
+    if (!debutType) return;
+    // Nearest non-spawn room to the player.
+    let best = null;
+    for (const ch of game.map.chambers) {
+      if (ch.reserved === 'spawn') continue;
+      const d = Math.hypot(ch.cx * S.TUNING.TILE_SIZE - game.map.spawn.x,
+        ch.cy * S.TUNING.TILE_SIZE - game.map.spawn.y);
+      if (!best || d < best.d) best = { ch, d };
+    }
+    if (best) placeCluster(game, best.ch.cx * S.TUNING.TILE_SIZE, best.ch.cy * S.TUNING.TILE_SIZE,
+      best.ch.r * S.TUNING.TILE_SIZE * 0.4, 1, () => debutType);
+  }
+
+  // Stragglers: a few corridors get one or two lone wanderers.
+  function placePassages(game, depth, theme) {
+    const T = S.TUNING;
+    const map = game.map;
+    // Sample corridor-ish tiles (low-ish clearance floor outside rooms).
+    const inRoom = (x, y) => map.chambers.some((c) =>
+      Math.hypot(x - c.cx * T.TILE_SIZE, y - c.cy * T.TILE_SIZE) < c.r * T.TILE_SIZE);
+    let placed = 0;
+    const want = Math.round(map.chambers.length * T.PASSAGE_ENEMY_CHANCE);
+    for (let tries = 0; tries < 200 && placed < want; tries++) {
+      const tx = Math.floor(Math.random() * map.tw);
+      const ty = Math.floor(Math.random() * map.th);
+      if (map.isWall(tx, ty)) continue;
+      const clr = map.clearance[ty * map.tw + tx];
+      if (clr < 3 || clr > 6) continue; // corridor band, not deep rooms
+      const p = map.tileToWorld(tx, ty);
+      if (inRoom(p.x, p.y)) continue;
+      if (tryPlace(game, rollTypeForDepth(depth, theme, ['chaser', 'runner']), p.x, p.y)) placed++;
+    }
+  }
+
+  // Pick a themed-floor skew for this depth, or null.
+  S.pickMapTheme = function (game) {
+    const T = S.TUNING;
+    if (Math.random() > T.THEME_CHANCE) { game.mapTheme = null; return; }
+    const eligible = T.THEMES.filter((th) => game.depth >= th.minDepth);
+    game.mapTheme = eligible.length ? eligible[Math.floor(Math.random() * eligible.length)] : null;
+  };
+
+  // Populate the whole map: a pattern per room, a heavy garrison in the exit
+  // room, the new type's debut, and a few corridor stragglers. Called once
+  // per map at generation (reset / nextMap).
+  S.placeEnemies = function (game) {
+    const T = S.TUNING;
+    const depth = game.depth;
+    const theme = game.mapTheme;
+    const budget = Math.max(2, Math.round(T.ROOM_BUDGET_BASE + T.ROOM_BUDGET_PER_DEPTH * (depth - 1)));
+    for (const ch of game.map.chambers) {
+      if (ch.reserved === 'spawn') continue; // the breather room
+      if (ch.reserved === 'exit') { placeGarrison(game, ch, depth, theme); continue; }
+      placePattern(game, ch, rollPattern(depth), depth, theme, budget);
+    }
+    placeDebut(game, depth, theme);
+    placePassages(game, depth, theme);
   };
 
   // Spawn a forced type at a world point — the dev panel drops one just
-  // outside the ball's reach; M5's generation placement spawns populations
-  // through it.
+  // outside the ball's reach.
   S.spawnEnemyAt = function (game, type, x, y) {
     const r = S.ENEMY_TYPES[type].stats(S.TUNING).r;
     const e = makeEnemy(game, type,
@@ -620,6 +770,7 @@ window.Tethered = window.Tethered || {};
   // Splitters drop nothing themselves — their children pay out instead.
   function popEnemy(game, e, bash, bumpCombo, wraps) {
     const T = S.TUNING;
+    game.kills = (game.kills || 0) + 1; // run kill count for the end screens
     // Bash kills are the power moment: drop into slow-mo for a beat. min()
     // makes a bash during slow-mo a clean refresh, never a deepening jolt.
     // The screen flash marks the same beat.
@@ -806,28 +957,8 @@ window.Tethered = window.Tethered || {};
       if (p.t >= (p.explode ? T.POP_EXPLODE_DURATION : T.POP_DURATION)) game.pops.splice(i, 1);
     }
 
-    // Spawn rate climbs exponentially: it doubles every SPAWN_DOUBLE_TIME of
-    // survival. Paused while the player's death pop plays out. At the enemy
-    // cap the timer holds at zero instead of resetting, so the next free
-    // slot spawns immediately. Below the (growing) floor, refill one enemy
-    // per step — a cleared board repopulates within a few frames, never
-    // leaving dead air.
-    if (game.state === S.STATE.PLAYING) {
-      const interval = T.SPAWN_INTERVAL_START * Math.pow(2, -game.time / T.SPAWN_DOUBLE_TIME);
-      game.spawnTimer -= dt;
-      if (game.spawnTimer <= 0) {
-        if (game.enemies.length < T.ENEMY_CAP) {
-          S.spawnEnemy(game);
-          game.spawnTimer = interval;
-        } else {
-          game.spawnTimer = 0;
-        }
-      }
-      const floor = Math.min(
-        Math.floor(T.SPAWN_FLOOR_BASE + (game.time / 60) * T.SPAWN_FLOOR_PER_MIN),
-        T.ENEMY_CAP);
-      if (game.enemies.length < floor) S.spawnEnemy(game);
-    }
+    // No trickle spawner — the map's population is placed at generation
+    // (placeEnemies). Clearing a room keeps it clear.
 
     // Weapon pass first: kills are flagged dead and survivors are knocked
     // out of body range, so the body-collision loop below can't land a
