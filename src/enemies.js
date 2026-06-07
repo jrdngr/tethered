@@ -427,9 +427,23 @@ window.Tethered = window.Tethered || {};
       // the ball is already gone — and while a fresh split child's
       // invincibility runs down: it can't be hurt or deal a hit).
       if (game.state !== S.STATE.PLAYING || e.invuln > 0) continue;
-      const hit = S.geom.circleOverlap(e.x, e.y, e.r, b.x, b.y, b.r);
+      // Swept, not point-overlap: a capped ball can cross most of a small
+      // enemy's shell in one step (and upgrades raise the cap), so test the
+      // prev→current segment — the same segClosest approach the weapons use.
+      // The previous position is the tether's sweep snapshot (stamped every
+      // step, tethered or not).
+      const p = S.geom.segClosest(game.tether.pbx, game.tether.pby, b.x, b.y, e.x, e.y);
+      const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, b.r);
       if (!hit) continue;
-      const { nx, ny } = hit; // unit normal from enemy to ball
+      let { nx, ny } = hit; // unit normal from enemy to the impact point
+      // An enemy dead on the sweep line has no contact direction (the same
+      // degenerate case the weapon capsules guard against) — a zero normal
+      // would zero the bounce. Fall back to the direction the ball came from.
+      if (hit.d < 1e-6) {
+        const d = Math.hypot(game.tether.pbx - e.x, game.tether.pby - e.y) || 1;
+        nx = (game.tether.pbx - e.x) / d;
+        ny = (game.tether.pby - e.y) / d;
+      }
 
       // Bumping an enemy snaps the tether. A fast ball smashes whether or
       // not it was tethered, but a tethered bump costs the combo: it resets
@@ -440,7 +454,10 @@ window.Tethered = window.Tethered || {};
       if (tethered) S.releaseTether(game);
 
       if (fast) {
-        S.resolveSmash(game, e, nx, ny, tethered);
+        // Anchor the resolution at the impact point along the sweep, so a
+        // survivor separates (and the ball bounces) from where contact
+        // actually happened, not from wherever the ball ended up.
+        S.resolveSmash(game, e, nx, ny, tethered, { ax: p.x, ay: p.y });
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below
