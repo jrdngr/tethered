@@ -14,12 +14,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 | [Risk-inverted economy (runner farming)](issues/balance-risk-reward.md) | Medium | Runners get a panic dash that stings; 3× payout stays |
 | [Enemy mix permanently 70% chasers](issues/balance-enemy-mix.md) | Low | Ramp special spawn chances with survival time |
 
-## Design
-
-| Issue | Impact | Decision |
-|---|---|---|
-| [No counter to "stay fast"](issues/design-enemy-roster.md) | Medium | Ranged/zoning + speed-punisher + shielded enemies |
-
 ## Engine
 
 | Issue | Impact | Decision |

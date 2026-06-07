@@ -15,6 +15,7 @@ window.Tethered = window.Tethered || {};
     drawCoins,
     drawParticles,
     drawPaddles,
+    drawProjectiles,
     drawEnemies,
     drawPops,
     drawFloaters,
@@ -158,6 +159,22 @@ window.Tethered = window.Tethered || {};
       else if (p.edge === 1) ctx.fillRect(r.x, r.y, r.w, 2);
       else if (p.edge === 2) ctx.fillRect(r.x + r.w - 2, r.y, 2, r.h);
       else ctx.fillRect(r.x, r.y, 2, r.h);
+    }
+  }
+
+  // Spitter shots: hot mint dots with a faint halo, in the spitter's color
+  // so the threat reads as theirs.
+  function drawProjectiles(ctx, game) {
+    for (const p of game.projectiles) {
+      ctx.fillStyle = '#3dd68c';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(61, 214, 140, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r + 3, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 

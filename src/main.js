@@ -42,6 +42,7 @@ window.Tethered = window.Tethered || {};
       tether: S.createTether(),
       enemies: [],
       pops: [], // enemy death pop animations
+      projectiles: [], // spitter shots
       playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade

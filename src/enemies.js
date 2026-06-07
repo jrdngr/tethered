@@ -75,6 +75,70 @@ window.Tethered = window.Tethered || {};
     }
   }
 
+  // Spitter: holds a standoff band from the ball — advancing when far,
+  // backing off when crowded — and lobs slow projectiles on a timer. The
+  // shots ignore ball speed entirely, so "stay fast" has to path around
+  // them.
+  function spitterBrain(game, e, dt) {
+    const T = S.TUNING;
+    const dx = game.ball.x - e.x;
+    const dy = game.ball.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const seek = d > T.SPITTER_RANGE ? 1 : d < T.SPITTER_RANGE * 0.7 ? -1 : 0;
+    e.x += ((dx / d) * e.speed * seek + e.kx) * dt;
+    e.y += ((dy / d) * e.speed * seek + e.ky) * dt;
+    e.x = Math.max(e.r, Math.min(e.x, game.width - e.r));
+    e.y = Math.max(e.r, Math.min(e.y, game.height - e.r));
+    e.brainState.fire -= dt;
+    if (e.brainState.fire <= 0 && game.state === S.STATE.PLAYING) {
+      e.brainState.fire = T.SPITTER_FIRE_INTERVAL;
+      game.projectiles.push({
+        x: e.x, y: e.y,
+        vx: (dx / d) * T.PROJECTILE_SPEED,
+        vy: (dy / d) * T.PROJECTILE_SPEED,
+        r: T.PROJECTILE_RADIUS,
+        damage: T.PROJECTILE_DAMAGE,
+        age: 0,
+      });
+    }
+  }
+
+  // Shieldbearer: seeks like a chaser with its guard raised toward the
+  // ball. A bash breaks the guard open (stun): it stands dazed — knockback
+  // only — and is vulnerable from every side until it recovers.
+  function shieldBrain(game, e, dt) {
+    const bs = e.brainState;
+    if (bs.glint > 0) bs.glint -= dt;
+    if (bs.stun > 0) {
+      bs.stun -= dt;
+      e.x += e.kx * dt;
+      e.y += e.ky * dt;
+      return;
+    }
+    const dx = game.ball.x - e.x;
+    const dy = game.ball.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    bs.fx = dx / d; // the guard tracks the ball
+    bs.fy = dy / d;
+    e.x += (bs.fx * e.speed + e.kx) * dt;
+    e.y += (bs.fy * e.speed + e.ky) * dt;
+  }
+
+  // Guard hook (see resolveSmash): refuse front-arc damage while the guard
+  // is up. A bash deals no damage either, but breaks the guard open — the
+  // stun is the payoff, making angle play (wraps, slingshots, rear hits)
+  // the answer rather than raw damage.
+  function shieldGuard(game, e, nx, ny, bash) {
+    const T = S.TUNING;
+    const bs = e.brainState;
+    if (bs.stun > 0) return false; // guard down — the hit lands
+    const half = (T.SHIELD_ARC / 2) * Math.PI / 180;
+    if (nx * bs.fx + ny * bs.fy < Math.cos(half)) return false; // from behind
+    if (bash) bs.stun = T.SHIELD_STUN;
+    bs.glint = T.HIT_FLASH_DURATION;
+    return true;
+  }
+
   // Everything about an enemy type in one place. `stats` resolves from TUNING
   // at spawn time so console tuning shows up live; `spawnGate` claims a slice
   // of each spawn roll once its delay passes (no gate = the fallback chaser);
@@ -83,7 +147,11 @@ window.Tethered = window.Tethered || {};
   // Hooks: `onSpawn` (brain-private state goes under `e.brainState` — each
   // brain owns its namespace; engine fields stay top-level), `brain`
   // (steering; default seekBall),
-  // `onShift` (keep brain state consistent when the enemy is teleported), and
+  // `onShift` (keep brain state consistent when the enemy is teleported),
+  // `guard` (inspect a smash's contact normal and refuse the damage —
+  // shieldbearer; the ball still bounces), `punishesSpeed` (flag: fast
+  // non-bash contact hurts the ball instead of smashing — spiker; see the
+  // collision branch in updateEnemies), and
   // `draw` (render decoration — render.js draws the base disc in `color`,
   // then `draw`, plus one seam line per pair of `pieces`, the chasers the
   // type ultimately yields — splitCount unless its children split further).
@@ -141,6 +209,66 @@ window.Tethered = window.Tethered || {};
       stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT }),
       spawnGate: (T) => ({ delay: T.RUNNER_SPAWN_DELAY, chance: T.RUNNER_CHANCE }),
       brain: runnerBrain,
+    },
+    spitter: {
+      color: '#3dd68c', // mint — the zoner
+      stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.SPITTER_SPAWN_DELAY, chance: T.SPITTER_CHANCE }),
+      onSpawn(e) {
+        // Desynced fire timers so a pack doesn't volley in lockstep.
+        e.brainState = { fire: S.TUNING.SPITTER_FIRE_INTERVAL * (0.5 + Math.random() * 0.5) };
+      },
+      brain: spitterBrain,
+      // The dark "mouth" it spits from.
+      draw(ctx, e) {
+        ctx.fillStyle = '#0d0e14';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    },
+    spiker: {
+      color: '#8d93a5', // steel — a drifting mine
+      punishesSpeed: true,
+      stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.SPIKER_SPAWN_DELAY, chance: T.SPIKER_CHANCE }),
+      // The spike ring — the "don't hit me fast" warning.
+      draw(ctx, e) {
+        ctx.strokeStyle = '#cdd3e0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          ctx.moveTo(e.x + Math.cos(a) * e.r * 0.7, e.y + Math.sin(a) * e.r * 0.7);
+          ctx.lineTo(e.x + Math.cos(a) * (e.r + 5), e.y + Math.sin(a) * (e.r + 5));
+        }
+        ctx.stroke();
+      },
+    },
+    shieldbearer: {
+      color: '#5472f0', // blue — the guard
+      stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED, coinMult: 1 }),
+      spawnGate: (T) => ({ delay: T.SHIELD_SPAWN_DELAY, chance: T.SHIELD_CHANCE }),
+      onSpawn(e) {
+        e.brainState = { fx: 0, fy: 0, stun: 0, glint: 0 }; // facing set by the brain
+      },
+      brain: shieldBrain,
+      guard: shieldGuard,
+      // The guard: a bright arc on the facing side, glinting white when it
+      // blocks; gone while stunned. (The dev panel's mini glyph has no
+      // brainState — default to a raised guard facing +x.)
+      draw(ctx, e) {
+        const T = S.TUNING;
+        const bs = e.brainState || { fx: 1, fy: 0, stun: 0, glint: 0 };
+        if (bs.stun > 0) return;
+        const a = Math.atan2(bs.fy, bs.fx);
+        const half = (T.SHIELD_ARC / 2) * Math.PI / 180;
+        ctx.strokeStyle = bs.glint > 0 ? '#ffffff' : '#aef4ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r + 3, a - half, a + half);
+        ctx.stroke();
+      },
     },
   };
 
@@ -355,30 +483,43 @@ window.Tethered = window.Tethered || {};
   //                (defaults to the ball; weapons pass their contact point)
   //   wraps        rope wrap count at impact — a kill pays the per-wrap
   //                coin bonus (only tethered body smashes pass this)
+  // Would a hit dealing `dmg` bash this enemy? (MOMENTUM special: bashing
+  // comes easier at top speed.) Shared by resolveSmash and the spiker's
+  // fast-contact exception in updateEnemies.
+  S.wouldBash = function (game, e, dmg) {
+    const T = S.TUNING;
+    const bashFactor = game.stats.specials.bashEasy && S.atMaxSpeed(game)
+      ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
+    return dmg > e.maxHp * bashFactor;
+  };
+
   S.resolveSmash = function (game, e, nx, ny, tethered, opts = {}) {
     const T = S.TUNING;
     const b = game.ball;
     if (tethered) game.combo = 1;
     const dmg = S.smashDamage(game) + (opts.dmgBonus || 0);
-    // MOMENTUM special: bashing comes easier at top speed.
-    const bashFactor = game.stats.specials.bashEasy && S.atMaxSpeed(game)
-      ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
-    const bash = opts.bashOverride || dmg > e.maxHp * bashFactor;
-    e.hp -= dmg;
+    const bash = opts.bashOverride || S.wouldBash(game, e, dmg);
+    // A type can guard hits (shieldbearer): its hook inspects the contact
+    // normal and refuses the damage — a bash breaks the guard open instead.
+    // The ball still bounces/deflects below either way, so a blocked smash
+    // reads as hitting a wall, not a whiff.
+    const def = S.ENEMY_TYPES[e.type];
+    const guarded = def.guard && def.guard(game, e, nx, ny, bash);
+    if (!guarded) e.hp -= dmg;
     const killed = e.hp <= 0;
     if (killed) {
       e.dead = true;
       popEnemy(game, e, bash, !tethered, opts.wraps);
       if (game.stats.specials.popExplode) explodePop(game, e);
     } else {
-      // Armor absorbed the hit: flash, knock the enemy back, and separate
-      // so the next physics step doesn't land a second hit. No combo —
-      // that only counts kills.
+      // Armor (or a guard) absorbed the hit: knock the enemy back and
+      // separate so the next physics step doesn't land a second hit. No
+      // combo — that only counts kills. Guards glint instead of flashing.
       const knock = T.KNOCKBACK_SPEED * (opts.knockMult || 1);
       const ax = opts.ax !== undefined ? opts.ax : b.x;
       const ay = opts.ay !== undefined ? opts.ay : b.y;
       const ar = opts.ar !== undefined ? opts.ar : b.r;
-      e.flash = T.HIT_FLASH_DURATION;
+      if (!guarded) e.flash = T.HIT_FLASH_DURATION;
       e.kx = -nx * knock;
       e.ky = -ny * knock;
       e.x = ax - nx * (ar + e.r);
@@ -414,6 +555,35 @@ window.Tethered = window.Tethered || {};
     }
   };
 
+  // Projectiles (spitter shots): straight flight, expiring on walls,
+  // obstacles (cover works), or timeout. They hit the ball regardless of
+  // its speed — only i-frames (and the shield, via damageBall) protect —
+  // so they're dodged by pathing, not pace.
+  function updateProjectiles(game, dt) {
+    const T = S.TUNING;
+    const b = game.ball;
+    for (let i = game.projectiles.length - 1; i >= 0; i--) {
+      const p = game.projectiles[i];
+      p.age += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      let gone = p.age >= T.PROJECTILE_LIFETIME ||
+        p.x < -p.r || p.x > game.width + p.r || p.y < -p.r || p.y > game.height + p.r;
+      for (const o of game.obstacles) {
+        if (gone) break;
+        if (S.obstacleHit(o, p.x, p.y, p.r)) gone = true;
+      }
+      if (!gone && game.state === S.STATE.PLAYING && b.iframes <= 0 &&
+          S.geom.circleOverlap(p.x, p.y, p.r, b.x, b.y, b.r)) {
+        const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+        // damageBall writes its knockback to p — harmless, the shot is spent.
+        S.damageBall(game, p, (b.x - p.x) / d, (b.y - p.y) / d);
+        gone = true;
+      }
+      if (gone) game.projectiles.splice(i, 1);
+    }
+  }
+
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
@@ -439,6 +609,8 @@ window.Tethered = window.Tethered || {};
     // out of body range, so the body-collision loop below can't land a
     // second hit the same step.
     if (game.state === S.STATE.PLAYING) S.updateWeaponCollisions(game);
+
+    updateProjectiles(game, dt);
 
     const b = game.ball;
     for (let i = game.enemies.length - 1; i >= 0; i--) {
@@ -491,7 +663,18 @@ window.Tethered = window.Tethered || {};
       const wraps = tethered ? game.tether.wraps.length : 0;
       if (tethered) S.releaseTether(game);
 
-      if (fast) {
+      // Spikers invert the speed rule: a fast ball that can't bash through
+      // gets pricked (damageBall: damage plus the knockback's hard speed
+      // bleed) instead of smashing, while a slow touch is the safe hit.
+      // Bashes — and the MASS juggernaut — plow through spikes like
+      // anything else.
+      let smashes = fast;
+      if (S.ENEMY_TYPES[e.type].punishesSpeed) {
+        smashes = !fast || game.stats.specials.juggernaut ||
+          S.wouldBash(game, e, S.smashDamage(game));
+      }
+
+      if (smashes) {
         // Anchor the resolution at the impact point along the sweep, so a
         // survivor separates (and the ball bounces) from where contact
         // actually happened, not from wherever the ball ended up. MASS

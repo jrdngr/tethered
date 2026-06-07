@@ -60,8 +60,8 @@ Tethered.TUNING = {
   // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
   // basic chaser. Chances scale inversely with strength (super-splitter
-  // rarest), and even the most common special stays under 15% of the chaser
-  // rate: with all five unlocked, chasers get 0.70 and runners 0.10 ≈ 14%.
+  // rarest), and even the most common special stays well under the chaser
+  // rate: with all eight unlocked the specials total 0.46, chasers 0.54.
 
   // Tanks: rarer armored enemies that take eight base-damage hits
   TANK_HP: 8,
@@ -115,6 +115,46 @@ Tethered.TUNING = {
   RUNNER_COIN_MULT: 3,      // runners drop this × the base coin burst
   RUNNER_CHANCE: 0.10,      // weakest special, so most common
   RUNNER_SPAWN_DELAY: 20,   // s
+
+  // Spitters: zoners that hold a standoff band from the ball and lob slow
+  // projectiles at it. The shots hit regardless of ball speed (only
+  // i-frames/shield protect), so pure "stay fast" play has to path around
+  // them instead of ignoring everything.
+  SPITTER_HP: 4,
+  SPITTER_DAMAGE: 10,
+  SPITTER_RADIUS: 13,         // px
+  SPITTER_SPEED: 90,          // px/s
+  SPITTER_RANGE: 380,         // px standoff it tries to hold from the ball
+  SPITTER_FIRE_INTERVAL: 2.5, // s between shots
+  SPITTER_CHANCE: 0.06,
+  SPITTER_SPAWN_DELAY: 30,    // s
+  PROJECTILE_SPEED: 170,      // px/s — slow enough to dodge by pathing
+  PROJECTILE_RADIUS: 6,       // px
+  PROJECTILE_DAMAGE: 10,      // HP the ball loses to a shot
+  PROJECTILE_LIFETIME: 4,     // s before an unspent shot fizzles
+
+  // Spikers: slow drifting mines that locally invert speed=safety — fast
+  // contact pricks the ball (damage plus the knockback's speed bleed)
+  // unless the hit bashes through; a slow touch is the safe kill, and
+  // weapons work as usual.
+  SPIKER_HP: 6,
+  SPIKER_DAMAGE: 15,
+  SPIKER_RADIUS: 15,          // px (spike visuals overhang slightly)
+  SPIKER_SPEED: 55,           // px/s — a hazard you steer around, not flee
+  SPIKER_CHANCE: 0.05,
+  SPIKER_SPAWN_DELAY: 35,     // s
+
+  // Shieldbearers: a frontal guard tracks the ball and refuses all damage;
+  // vulnerable from behind, or from anywhere once a bash breaks the guard
+  // open (stunned). Forces angle play — wraps and slingshots earn it.
+  SHIELD_HP: 6,
+  SHIELD_DAMAGE: 15,
+  SHIELD_RADIUS: 16,          // px
+  SHIELD_SPEED: 95,           // px/s
+  SHIELD_ARC: 150,            // ° of frontal coverage
+  SHIELD_STUN: 2.5,           // s a bash leaves the guard broken open
+  SHIELD_CHANCE: 0.05,
+  SHIELD_SPAWN_DELAY: 45,     // s
 
   // Enemy death pop animation
   POP_DURATION: 0.25,     // s — how long the pop ring lasts
