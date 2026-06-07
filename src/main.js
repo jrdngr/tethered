@@ -262,10 +262,17 @@ window.Tethered = window.Tethered || {};
     const dy = ex.y - b.y;
     const d = Math.hypot(dx, dy);
     if (d < T.EXIT_MAGNET_RADIUS && d > 1e-3) {
-      let f = T.EXIT_MAGNET_ACCEL * (1 - d / T.EXIT_MAGNET_RADIUS);
-      if (game.tether.active) f *= T.EXIT_MAGNET_TETHER_MULT;
+      let strength = 1 - d / T.EXIT_MAGNET_RADIUS; // 1 at center, 0 at the rim
+      if (game.tether.active) strength *= T.EXIT_MAGNET_TETHER_MULT;
+      // Pull toward the exit...
+      const f = T.EXIT_MAGNET_ACCEL * strength;
       b.vx += (dx / d) * f * dt;
       b.vy += (dy / d) * f * dt;
+      // ...and bleed off speed so a fast ball settles in instead of sailing
+      // through (strongest at the center, none at the rim).
+      const damp = Math.exp(-T.EXIT_MAGNET_DAMP * strength * dt);
+      b.vx *= damp;
+      b.vy *= damp;
     }
     if (d < ex.r) {
       ex.channel += dt;
