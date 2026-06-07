@@ -84,7 +84,15 @@ window.Tethered = window.Tethered || {};
     },
   };
 
-  // Scatter a burst of coins where an enemy was popped, × the current combo
+  // The combo's payout multiplier: combo^COMBO_PAYOUT_EXPONENT. Sublinear
+  // (√combo) so a streak's total grows gently instead of quadratically —
+  // streaks always matter but can't buy half the upgrade tree in one burst.
+  // Shared with the wrap-bonus floater so displayed payouts match real ones.
+  S.comboPayout = function (combo) {
+    return Math.pow(combo, S.TUNING.COMBO_PAYOUT_EXPONENT);
+  };
+
+  // Scatter a burst of coins where an enemy was popped, × the combo payout
   // (and × an optional per-enemy multiplier — tanks pay out more). `bonus`
   // is flat extra coins folded in before the multipliers — the wrap-kill
   // bonus rides the same payout math as everything else.
@@ -92,7 +100,7 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     const base = T.COINS_PER_KILL_MIN +
       Math.floor(Math.random() * (T.COINS_PER_KILL_MAX - T.COINS_PER_KILL_MIN + 1));
-    const count = (base + (bonus || 0)) * game.combo * (mult || 1);
+    const count = Math.round((base + (bonus || 0)) * S.comboPayout(game.combo) * (mult || 1));
     for (let i = 0; i < count; i++) {
       game.coins.push({
         type: 'coin',

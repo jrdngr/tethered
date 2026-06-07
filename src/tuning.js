@@ -248,7 +248,10 @@ Tethered.TUNING = {
   // Coins & leveling
   COIN_RADIUS: 5,          // px
   COINS_PER_KILL_MIN: 6,   // base coins dropped per popped enemy...
-  COINS_PER_KILL_MAX: 10,  // ...rolled in this range, then × combo
+  COINS_PER_KILL_MAX: 10,  // ...rolled in this range, then × combo^exponent
+  COMBO_PAYOUT_EXPONENT: 0.5, // payout scales with combo^this — sublinear so
+                              // streaks always matter but never explode
+                              // (1.0 = linear; quadratic-in-streak total)
   COIN_BURST_SPEED: 220,   // px/s — max scatter speed on drop
   COIN_DRAG: 3,            // 1/s — coins settle quickly
   COIN_MAGNET_RADIUS: 128, // px from ball center

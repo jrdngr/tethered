@@ -442,7 +442,7 @@ window.Tethered = window.Tethered || {};
       // the reset ×1 here — wraps are paid in coins, not combo.
       const bonus = (wraps || 0) * T.WRAP_KILL_BONUS;
       S.spawnCoinBurst(game, e.x, e.y, e.coinMult, bonus);
-      if (bonus) S.spawnFloater(game, e.x, e.y, `+${bonus * game.combo * e.coinMult} WRAP`);
+      if (bonus) S.spawnFloater(game, e.x, e.y, `+${Math.round(bonus * S.comboPayout(game.combo) * e.coinMult)} WRAP`);
       if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
     }
     if (bumpCombo) S.bumpCombo(game);
