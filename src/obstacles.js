@@ -1,12 +1,12 @@
 // Interior obstacles: static shapes the ball bounces off (with the walls'
 // combo credit and ELASTICITY restitution) and the rope can wrap — arena
 // geometry as slingshot anchor and combo tool, not mere walls. Layouts are
-// hand-placed in TUNING at fractional arena positions; one layout per run,
-// cycling across runs.
+// hand-placed in TUNING at fractional arena positions; one random layout per
+// run, never the same twice in a row.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  let nextLayout = 0; // cycles one layout per run; module-level so it survives resets
+  let lastLayout = -1; // previous run's layout; module-level so it survives resets
 
   // A wrap peg: a static pivot circle updateActiveTether can hold exactly
   // like an enemy. It carries its own (never-moving) sweep snapshot;
@@ -42,7 +42,10 @@ window.Tethered = window.Tethered || {};
   };
 
   S.cycleObstacles = function (game) {
-    game.obstacleLayout = nextLayout++ % S.TUNING.OBSTACLE_LAYOUTS.length;
+    const n = S.TUNING.OBSTACLE_LAYOUTS.length;
+    let pick = Math.floor(Math.random() * n);
+    if (n > 1 && pick === lastLayout) pick = (pick + 1) % n; // no repeats back-to-back
+    game.obstacleLayout = lastLayout = pick;
     S.layoutObstacles(game);
   };
 

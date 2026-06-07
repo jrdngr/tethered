@@ -71,7 +71,7 @@ window.Tethered = window.Tethered || {};
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
-    S.cycleObstacles(game); // each run gets the next hand-placed layout
+    S.cycleObstacles(game); // each run gets a random hand-placed layout
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).
