@@ -161,26 +161,33 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Interior obstacles: solid pillars/blocks in the arena-chrome palette,
-  // so they read as architecture, not actors.
+  // Interior shapes: each part drawn to match its collision/wrap silhouette
+  // exactly — circles as discs, capsules as round-capped bars. A slightly
+  // larger edge-colored pass under the fill gives a 2px border without
+  // tracing capsule outlines by hand. Palette is the wall chrome, a shade
+  // lighter, so shapes read as architecture distinct from the walls.
   function drawObstacles(ctx, game) {
-    ctx.fillStyle = '#1c1f2a';
-    ctx.strokeStyle = '#3a3f52';
-    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
     for (const o of game.obstacles) {
-      if (o.kind === 'circle') {
-        ctx.beginPath();
-        ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        // Capsule, matching the wrap/collision silhouette exactly — the
-        // rope's contact arcs must visibly hug the drawn shape.
-        const R = Math.min(o.w, o.h) / 2;
-        ctx.beginPath();
-        ctx.roundRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h, R);
-        ctx.fill();
-        ctx.stroke();
+      // Edge pass (wider), then fill pass (on top).
+      for (let pass = 0; pass < 2; pass++) {
+        const color = pass === 0 ? '#3a3f52' : '#262a38';
+        const grow = pass === 0 ? 2 : 0;
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        for (const part of o.parts) {
+          if (part.type === 'circle') {
+            ctx.beginPath();
+            ctx.arc(part.x, part.y, part.r + grow, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.lineWidth = (part.r + grow) * 2;
+            ctx.beginPath();
+            ctx.moveTo(part.x1, part.y1);
+            ctx.lineTo(part.x2, part.y2);
+            ctx.stroke();
+          }
+        }
       }
     }
   }

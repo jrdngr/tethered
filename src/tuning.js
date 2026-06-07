@@ -228,22 +228,6 @@ Tethered.TUNING = {
   PLAYER_POP_PARTICLE_SPEED: 700, // px/s — max scatter speed
   PLAYER_POP_FLASH: 0.25,         // s — white screen flash at the moment of death
 
-  // Interior obstacles: static geometry the ball bounces off (combo credit
-  // like walls; restitution reads the ELASTICITY stat) and the rope can
-  // wrap — the rope hugs the silhouette's edge — turning the arena itself
-  // into slingshot anchors. Rects are capsules (rounded ends, radius = half
-  // the short side) so wraps hug a fat arc instead of pinching at sharp
-  // corners. One layout per run, cycling across runs. Positions are arena
-  // fractions (fx/fy); sizes are px.
-  OBSTACLE_LAYOUTS: [
-    // Twin pillars flanking the spawn point.
-    [{ kind: 'circle', fx: 0.3, fy: 0.5, r: 30 },
-     { kind: 'circle', fx: 0.7, fy: 0.5, r: 30 }],
-    // Upper and lower bars: end wraps and bounce alleys.
-    [{ kind: 'rect', fx: 0.5, fy: 0.26, w: 170, h: 26 },
-     { kind: 'rect', fx: 0.5, fy: 0.74, w: 170, h: 26 }],
-  ],
-
   // Spawning: the rate climbs exponentially, doubling every SPAWN_DOUBLE_TIME
   // (one enemy/sec at ~3.5 min). A growing concurrent-enemy floor refills a
   // cleared board immediately (no dead air), a cap bounds live enemies as a
@@ -388,13 +372,24 @@ Tethered.TUNING = {
   MAX_GEN_ATTEMPTS: 10,     // reseeded tries before accepting the best-scoring map
   // Wall silhouettes are SMOOTH: the tile contours are corner-cut (Chaikin)
   // into organic curves, and those curves — not the tiles — are what
-  // renders, what the ball/enemies collide with, and where wrap pegs sit.
-  // The tile grid remains the generation/AI domain (BFS, clearance, spawn).
+  // renders and what the ball/enemies collide with. The tile grid remains
+  // the generation/AI domain (BFS, clearance, spawn). Walls only block; the
+  // rope wraps the freestanding shapes below, not wall corners.
   WALL_SMOOTH_ITERS: 3,     // Chaikin corner-cutting passes (each halves the corner angle)
   WALL_SIMPLIFY_PX: 2.5,    // px — post-smoothing simplification (cuts segment count, keeps bumps)
-  WALL_PEG_RADIUS: 10,      // px — wrap peg at each convex wall corner
-  WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
-  PEG_DP_EPSILON: 0.8,      // tiles — Douglas-Peucker tolerance re-cornering the smooth contour for pegs
+
+  // Interior shapes (src/obstacles.js): freestanding circles, pills
+  // (capsules), and rounded-L pairs generated into chambers — the ball
+  // bounces off them (combo credit, ELASTICITY restitution) and the rope
+  // wraps them, turning each chamber into a slingshot playground. Sized to
+  // play off of, not to wall the room off.
+  OBSTACLE_CHANCE: 0.75,        // chance a non-spawn chamber gets any shapes
+  OBSTACLE_MAX_PER_CHAMBER: 2,  // up to this many per chamber
+  OBSTACLE_CIRCLE_R: [44, 84],  // px radius range
+  OBSTACLE_PILL_LEN: [150, 300],// px end-to-end length range
+  OBSTACLE_PILL_R: [24, 40],    // px capsule radius range
+  OBSTACLE_L_ARM: [120, 220],   // px arm length range (rounded-L)
+  OBSTACLE_CLEAR_PAD: 28,       // px of floor required around a shape's surface
 
   // Camera (src/camera.js): smoothed follow on the ball over the scrolling
   // world; the viewport (game.width/height) stays the canvas play area.

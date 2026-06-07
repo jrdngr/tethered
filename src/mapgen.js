@@ -54,8 +54,8 @@ window.Tethered = window.Tethered || {};
       chambers: [],
       spawn: null, // {x, y} world px
       exit: null,
-      pegs: [],
-      pegCells: null, // Map of cell key -> peg list (GRID_CELL cells)
+      wallLoops: null, // smooth contour polygons (render + collision source)
+      segGrid: null, // collision segment broadphase
       stats: {},
       isWall(tx, ty) {
         return tx < 0 || ty < 0 || tx >= tw || ty >= th || tiles[ty * tw + tx] === 1;
@@ -147,46 +147,6 @@ window.Tethered = window.Tethered || {};
       }
     }
     return bounced;
-  };
-
-  // Make wall-corner pegs near the rope wrap-queryable this step — inserted
-  // right after the step-top grid rebuild, like the obstacle pegs, so the
-  // tether's sweep can wrap them. Only pegs whose cell overlaps the rope's
-  // bounding box (anchor + ball + current pivots, this step and last) are
-  // inserted, so a cave's thousands of pegs cost nothing per step. Not
-  // re-inserted after the separation rebuild (the pair pass must not see
-  // them) — same contract as insertObstaclePegs.
-  S.insertWallPegs = function (game) {
-    const map = game.map;
-    const t = game.tether;
-    if (!map || !map.pegCells || !t.active) {
-      game.dbgWallPegs = 0;
-      return;
-    }
-    const b = game.ball;
-    const m = game.mouse;
-    let x0 = Math.min(m.x, t.pmx, b.x, t.pbx);
-    let y0 = Math.min(m.y, t.pmy, b.y, t.pby);
-    let x1 = Math.max(m.x, t.pmx, b.x, t.pbx);
-    let y1 = Math.max(m.y, t.pmy, b.y, t.pby);
-    for (const w of t.wraps) {
-      if (w.e.x < x0) x0 = w.e.x; else if (w.e.x > x1) x1 = w.e.x;
-      if (w.e.y < y0) y0 = w.e.y; else if (w.e.y > y1) y1 = w.e.y;
-    }
-    const c = S.TUNING.GRID_CELL;
-    const cx0 = Math.floor((x0 - c) / c);
-    const cx1 = Math.floor((x1 + c) / c);
-    const cy0 = Math.floor((y0 - c) / c);
-    const cy1 = Math.floor((y1 + c) / c);
-    let n = 0;
-    for (let cx = cx0; cx <= cx1; cx++) {
-      for (let cy = cy0; cy <= cy1; cy++) {
-        const list = map.pegCells.get(cx * 4096 + cy);
-        if (!list) continue;
-        for (const p of list) { S.grid.insert(p); n++; }
-      }
-    }
-    game.dbgWallPegs = n;
   };
 
   // Nearest floor world-point to (x, y) — clamps the tether anchor out of
@@ -870,66 +830,6 @@ window.Tethered = window.Tethered || {};
     map.stats.segCount = segCount;
   }
 
-  // Wrap pegs from the SMOOTH contour: re-corner each loop (coarse DP) and
-  // emit a peg at every convex-into-floor vertex sharp enough to catch the
-  // rope. Same duck-typed pivot the obstacles use.
-  function derivePegs(map) {
-    const T = S.TUNING;
-    const minAngle = (T.WALL_PEG_MIN_ANGLE * Math.PI) / 180;
-    const pegs = [];
-    const eps = T.PEG_DP_EPSILON * T.TILE_SIZE;
-
-    for (const loop of map.wallLoops) {
-      const poly = simplifyLoop(loop.pts, eps);
-      const n = poly.length;
-      if (n < 3) continue;
-      for (let i = 0; i < n; i++) {
-        const p = poly[(i + n - 1) % n];
-        const v = poly[i];
-        const q = poly[(i + 1) % n];
-        let ax = v[0] - p[0];
-        let ay = v[1] - p[1];
-        let bx = q[0] - v[0];
-        let by = q[1] - v[1];
-        const al = Math.hypot(ax, ay) || 1e-9;
-        const bl = Math.hypot(bx, by) || 1e-9;
-        ax /= al; ay /= al; bx /= bl; by /= bl;
-        const cross = ax * by - ay * bx;
-        const dot = ax * bx + ay * by;
-        const turn = Math.atan2(Math.abs(cross), dot);
-        if (turn < minAngle) continue;
-        // Inward bisector (into the wall). Orient it to the wall side by
-        // sampling: the peg sits just inside the wall so the rope arc kisses
-        // the visible edge.
-        let nx = -(ax + bx);
-        let ny = -(ay + by);
-        const nl = Math.hypot(nx, ny) || 1e-9;
-        nx /= nl; ny /= nl;
-        if (floorAt(map, v[0] + nx * T.WALL_PEG_RADIUS, v[1] + ny * T.WALL_PEG_RADIUS)) {
-          nx = -nx; ny = -ny; // bisector pointed at floor — flip into the wall
-          // (a concave-into-floor vertex; not a wrappable corner) → skip
-          if (floorAt(map, v[0] + nx * T.WALL_PEG_RADIUS, v[1] + ny * T.WALL_PEG_RADIUS)) continue;
-        } else if (!floorAt(map, v[0] - nx * T.WALL_PEG_RADIUS, v[1] - ny * T.WALL_PEG_RADIUS)) {
-          continue; // wall on both sides — a pinch, not a convex corner
-        }
-        const x = v[0] + nx * T.WALL_PEG_RADIUS;
-        const y = v[1] + ny * T.WALL_PEG_RADIUS;
-        pegs.push({ x, y, _px: x, _py: y, r: T.WALL_PEG_RADIUS, obstacle: true });
-      }
-    }
-
-    // Cell index so the tether step inserts only pegs near the rope.
-    const cells = new Map();
-    for (const p of pegs) {
-      const k = Math.floor(p.x / T.GRID_CELL) * 4096 + Math.floor(p.y / T.GRID_CELL);
-      let list = cells.get(k);
-      if (!list) cells.set(k, (list = []));
-      list.push(p);
-    }
-    map.pegs = pegs;
-    map.pegCells = cells;
-  }
-
   // --- Top level --------------------------------------------------------------------
   function tryGenerate(depth, seed) {
     const params = S.genParamsForDepth(depth);
@@ -1007,10 +907,8 @@ window.Tethered = window.Tethered || {};
         break;
       }
     }
-    buildSmoothWalls(best); // smooth contours — drives render, collision, pegs
-    derivePegs(best);
+    buildSmoothWalls(best); // smooth contours — drives render + collision
     best.stats.attempts = attempts;
-    best.stats.pegCount = best.pegs.length;
     best.stats.genMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
     return best;
   };

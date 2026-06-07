@@ -12,7 +12,7 @@
 <body>
   <!-- M0 spike: static mapgen harness. THROWAWAY — only src/mapgen.js is real.
        Keys: R = regenerate (new seed) · 1-9/0 = depth (0 = 10) · C = clearance
-       heatmap · P = pegs · S = same-seed regen · edge-roughness knobs below
+       heatmap · S = same-seed regen · edge-roughness knobs below
        regenerate the SAME seed so changes compare apples-to-apples. -->
   <canvas id="game"></canvas>
   <div id="hud"></div>
@@ -27,7 +27,6 @@
       let seed = null; // null = roll a fresh one
       let map = null;
       let showClearance = false;
-      let showPegs = true;
 
       // Edge-roughness knobs, live-tweakable: [decreaseKey, increaseKey].
       // Mutates TUNING directly — mapgen reads it fresh every generate.
@@ -102,16 +101,6 @@
           ctx.stroke();
         }
 
-        // Pegs: every wrappable convex wall corner.
-        if (showPegs) {
-          ctx.fillStyle = 'rgba(255, 170, 60, 0.9)';
-          for (const p of map.pegs) {
-            ctx.beginPath();
-            ctx.arc(ox + p.x * scale, oy + p.y * scale, Math.max(1.5, p.r * scale), 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-
         // Spawn (green) and exit (red).
         const mark = (pt, color) => {
           ctx.fillStyle = color;
@@ -132,10 +121,10 @@
           `depth ${depth}  seed ${map.seed}  ${map.tw}x${map.th} tiles (${map.w}x${map.h}px)\n` +
           `gen ${st.genMs.toFixed(1)}ms (${st.attempts} attempt${st.attempts > 1 ? 's' : ''})  ` +
           `floor ${(st.floorFraction * 100).toFixed(1)}%  corridor ${(st.corridorFrac * 100).toFixed(1)}%  chambers ${st.chambersPlaced}/${st.chamberTarget}  ` +
-          `loops ${st.contourLoops}  segs ${st.segCount}  pegs ${st.pegCount}\n` +
+          `loops ${st.contourLoops}  segs ${st.segCount}\n` +
           `spawn->exit ${Math.round(st.spawnExitPathPx)}px (need ${Math.round(st.gateNeedPx)}) ` +
           `gate ${st.gatePass ? 'PASS' : 'FAIL'}\n` +
-          `[R] reseed  [S] same seed  [1-9, 0] depth  [C] clearance ${showClearance ? 'on' : 'off'}  [P] pegs ${showPegs ? 'on' : 'off'}  [V] reset knobs\n` +
+          `[R] reseed  [S] same seed  [1-9, 0] depth  [C] clearance ${showClearance ? 'on' : 'off'}  [V] reset knobs\n` +
           `edges:  ${knobLine}`;
       }
 
@@ -152,7 +141,6 @@
         if (e.code === 'KeyR') { seed = null; regen(false); }
         else if (e.code === 'KeyS') regen(true);
         else if (e.code === 'KeyC') { showClearance = !showClearance; draw(); }
-        else if (e.code === 'KeyP') { showPegs = !showPegs; draw(); }
         else if (e.code === 'KeyV') {
           for (const k of KNOBS) S.TUNING[k.key] = DEFAULTS[k.key];
           regen(true);

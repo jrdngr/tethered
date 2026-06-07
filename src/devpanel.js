@@ -193,7 +193,7 @@ window.Tethered = window.Tethered || {};
     ctx.textAlign = 'left';
     let awake = 0;
     for (const e of game.enemies) if (e.aggro && e.aggro !== 'dormant') awake++;
-    ctx.fillText(`pegs ${game.dbgWallPegs || 0}`, px + PAD, ctx.canvas.height - 34);
+    ctx.fillText(`shapes ${game.obstacles.length}`, px + PAD, ctx.canvas.height - 34);
     ctx.fillText(`awake ${awake}/${game.enemies.length}`, px + PAD, ctx.canvas.height - 20);
   };
 })(Tethered);

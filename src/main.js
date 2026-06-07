@@ -55,8 +55,7 @@ window.Tethered = window.Tethered || {};
       playerPop: null, // the (much bigger) player death pop, set on death
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
-      obstacles: [], // freestanding pillars — empty until M6's placePillars
-      obstacleLayout: 0, // legacy hand-layout index, unused in the dungeon
+      obstacles: [], // freestanding chamber shapes — filled by placeObstacles below
       particles: [], // green sparks from grabbed health pickups
       floaters: [], // floating reward text (wrap bonuses)
       // Weapons arm on tether release, expire when slow; the floppy tail
@@ -87,9 +86,7 @@ window.Tethered = window.Tethered || {};
     };
     game.camera = S.createCamera(game);
     game.flow = S.createFlow(map); // BFS chase field, recomputed as the ball moves
-    // game.obstacles stays empty in the dungeon — the hand-placed arena
-    // layouts don't fit generated caves. M6's placePillars repopulates it
-    // with chamber pillars through the same obstacle/peg code.
+    S.placeObstacles(game); // freestanding shapes in the rooms (not corridors)
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).
@@ -200,8 +197,7 @@ window.Tethered = window.Tethered || {};
     } else {
       game.time += dt;
       S.grid.rebuild(game.enemies); // broadphase for this step's wrap + weapon queries
-      S.insertObstaclePegs(game); // obstacle wrap pivots ride the same queries
-      S.insertWallPegs(game); // wall-corner pegs near the rope — the cave is wrap geometry
+      S.insertObstaclePegs(game); // interior-shape wrap pivots ride the same queries
       S.updateFlow(game, dt); // refresh the BFS chase field before the brains read it
       S.updateTether(game, dt);
       S.updateBall(game, dt);
