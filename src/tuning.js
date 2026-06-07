@@ -115,6 +115,12 @@ Tethered.TUNING = {
   BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
   BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
 
+  // Slow-mo: a bash kill drops the global time scale for a cinematic beat.
+  // Every integrator is dt-parameterized, so the whole world slows together
+  // while rendering stays at full frame rate.
+  SLOWMO_FACTOR: 0.35,      // timeScale set on a bash kill (1 = slow-mo off)
+  SLOWMO_RECOVERY: 2.5,     // 1/s — exponential ease back to full speed, on real time
+
   // Player death: a far bigger pop than an enemy's — staggered shockwave
   // rings, a spark burst, and a screen flash — plus an arena-wide blast
   // that flings every enemy away.

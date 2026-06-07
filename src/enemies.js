@@ -272,6 +272,9 @@ window.Tethered = window.Tethered || {};
   // Splitters drop nothing themselves — their children pay out instead.
   function popEnemy(game, e, bash, bumpCombo) {
     const T = S.TUNING;
+    // Bash kills are the power moment: drop into slow-mo for a beat. min()
+    // makes a bash during slow-mo a clean refresh, never a deepening jolt.
+    if (bash) game.timeScale = Math.min(game.timeScale, T.SLOWMO_FACTOR);
     game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
     S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');

@@ -59,6 +59,7 @@ window.Tethered = window.Tethered || {};
       pendingLevelUps: 0, // level-ups awaiting an upgrade pick
       upgradeChoices: null, // the cards on offer while state is 'levelup'
       time: 0,
+      timeScale: 1, // global physics time scale; bash kills drop it for slow-mo
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
@@ -174,7 +175,13 @@ window.Tethered = window.Tethered || {};
     if (live()) {
       acc += dt;
       while (acc >= STEP && live()) {
-        update(STEP);
+        // Slow-mo: the accumulator consumes real time (same number of steps
+        // per frame), each step just simulates less of it — so rendering
+        // stays per-frame smooth while the world slows.
+        update(STEP * game.timeScale);
+        // Ease back toward full speed on *real* step time — recovering on
+        // scaled time would never finish.
+        game.timeScale = 1 + (game.timeScale - 1) * Math.exp(-S.TUNING.SLOWMO_RECOVERY * STEP);
         acc -= STEP;
       }
     } else {
