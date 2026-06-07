@@ -53,9 +53,10 @@ window.Tethered = window.Tethered || {};
     S.audio.play('hurt');
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
-    // Knock both apart.
-    b.vx = nx * T.KNOCKBACK_SPEED;
-    b.vy = ny * T.KNOCKBACK_SPEED;
+    // Knock both apart — the ball harder than the enemy, so a hit throws
+    // the player clear of a swarm instead of leaving it in chain-hit range.
+    b.vx = nx * T.PLAYER_KNOCKBACK_SPEED;
+    b.vy = ny * T.PLAYER_KNOCKBACK_SPEED;
     enemy.kx = -nx * T.KNOCKBACK_SPEED;
     enemy.ky = -ny * T.KNOCKBACK_SPEED;
     if (b.hp <= 0) S.gameOver(game);
