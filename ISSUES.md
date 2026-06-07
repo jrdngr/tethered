@@ -6,7 +6,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 
 | Issue | Impact | Decision |
 |---|---|---|
-| [i-frames make death nearly impossible](issues/balance-iframes.md) | High | `IFRAME_DURATION 1.0 → 0.5` |
 | [Spawn curve too slow; no scaling](issues/balance-spawn-curve.md) | High | `SPAWN_DOUBLE_TIME → 90` + floor + per-minute stat scaling + interim cap |
 | [Combo coin economy runaway](issues/balance-coin-economy.md) | High | Sublinear payout (×√combo) |
 | [Base damage 1 makes upgrades mandatory](issues/balance-base-damage.md) | High | `PLAYER_DAMAGE 1 → 2` |
