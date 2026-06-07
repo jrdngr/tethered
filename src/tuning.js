@@ -10,7 +10,7 @@ Tethered.TUNING = {
   BALL_RADIUS: 16,        // px
   BALL_DRAG: 0.4,         // 1/s — exponential velocity decay (top-down friction)
   BALL_MAX_SPEED: 1000,   // px/s — base speed cap (upgradable)
-  WALL_RESTITUTION: 0.9,  // bounce energy retention
+  WALL_RESTITUTION: 0.9,  // bounce energy retention (base; the ELASTICITY upgrade raises it)
 
   // Tether (elastic spring to cursor)
   GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
@@ -221,6 +221,8 @@ Tethered.TUNING = {
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
   UPGRADE_SPEED_DAMAGE: 0.5,  // × damage at the speed cap per MOMENTUM pick
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
+  UPGRADE_WALL_RESTITUTION: 0.05, // wall bounce retention per ELASTICITY pick (combo engine)
+  UPGRADE_BALL_MASS: 0.25,    // ball mass per MASS pick (base 1) — straighter bashes, more speed kept
 
   // Level-5 specials
   POP_EXPLODE_DAMAGE: 2,         // DAMAGE — splash dmg inside the pop push radius

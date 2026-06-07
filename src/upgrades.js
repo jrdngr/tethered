@@ -18,6 +18,8 @@ window.Tethered = window.Tethered || {};
       maxSpeed: T.BALL_MAX_SPEED,
       speedDamage: 1, // × damage at the speed cap (MOMENTUM); 1 = speed has no effect
       killBoost: 0,   // px/s the ball gains per popped enemy (KILL SURGE)
+      wallRestitution: T.WALL_RESTITUTION, // wall bounce retention (ELASTICITY)
+      ballMass: 1,    // straightens bashes and keeps speed through hits (MASS); 1 = no effect
       // Level-5 special unlocks. Each boolean is set by its upgrade's
       // `special` here and read somewhere else entirely — the comment names
       // the consumer (weapon specials live on their WEAPONS entry's hooks).
@@ -28,6 +30,8 @@ window.Tethered = window.Tethered || {};
         surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills — consumed at enemies.js:resolveSmash
         paddleWide: false,      // PADDLE: every paddle is double length — consumed at paddles.js:paddleLen
         comboShield: false,     // VITALITY: crossing the combo threshold grants a shield — consumed at combo.js:bumpCombo
+        bounceBlast: false,     // ELASTICITY: fast wall bounces fire a shockwave — consumed at ball.js:updateBall
+        juggernaut: false,      // MASS: smashes pierce — the ball never bounces off enemies — consumed at enemies.js:updateEnemies
         pokerSkewer: false,     // POKER: the spike doubles in length — consumed at weapons.js:WEAPONS.poker.reach
         earsBoxer: false,       // EARS: ear hits knock back harder — consumed at weapons.js:WEAPONS.ears.onHit
         hornsGore: false,       // HORNS: horn hits always bash — consumed at weapons.js:WEAPONS.horns.onHit
@@ -224,6 +228,51 @@ window.Tethered = window.Tethered || {};
         ctx.moveTo(x - u * 0.32, y - u * 0.1);
         ctx.lineTo(x, y - u * 0.45);
         ctx.lineTo(x + u * 0.32, y - u * 0.1);
+        ctx.stroke();
+      },
+    },
+    {
+      name: 'ELASTICITY',
+      desc: () => `+${Math.round(S.TUNING.UPGRADE_WALL_RESTITUTION * 100)}% wall bounce`,
+      apply: (game) => { game.stats.wallRestitution += S.TUNING.UPGRADE_WALL_RESTITUTION; },
+      specialDesc: () => 'fast bounces shockwave',
+      special: (game) => { game.stats.specials.bounceBlast = true; },
+      // A ball's V-shaped bounce path off a wall.
+      icon(ctx, x, y, size) {
+        const u = size / 2;
+        ctx.fillStyle = '#e8e8f0';
+        ctx.fillRect(x - u, y - u * 0.9, size * 0.12, u * 1.8);
+        ctx.strokeStyle = '#56e8ff';
+        ctx.lineWidth = size * 0.12;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x + u * 0.7, y - u * 0.7);
+        ctx.lineTo(x - u * 0.55, y);
+        ctx.lineTo(x + u * 0.7, y + u * 0.7);
+        ctx.stroke();
+      },
+    },
+    {
+      name: 'MASS',
+      desc: () => `+${Math.round(S.TUNING.UPGRADE_BALL_MASS * 100)}% ball mass`,
+      apply: (game) => { game.stats.ballMass += S.TUNING.UPGRADE_BALL_MASS; },
+      specialDesc: () => 'plow through everything',
+      special: (game) => { game.stats.specials.juggernaut = true; },
+      // A heavy ball denting the ground it sits on.
+      icon(ctx, x, y, size) {
+        const r = size * 0.38;
+        ctx.fillStyle = '#568cc8';
+        ctx.beginPath();
+        ctx.arc(x, y + size * 0.02, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#e8e8f0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.48, y + size * 0.38);
+        ctx.lineTo(x - r * 0.6, y + size * 0.38);
+        ctx.moveTo(x + r * 0.6, y + size * 0.38);
+        ctx.lineTo(x + size * 0.48, y + size * 0.38);
         ctx.stroke();
       },
     },

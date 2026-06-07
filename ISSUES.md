@@ -29,7 +29,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 | Issue | Impact | Decision |
 |---|---|---|
 | [O(N²) enemy separation at 120 Hz](issues/physics-broadphase.md) | High | Shared uniform-grid spatial hash |
-| [Elasticity/mass upgrade axes](issues/physics-elasticity-mass.md) | Medium (feature) | Both: wall-restitution upgrade + ball mass term |
 
 ## Engine
 

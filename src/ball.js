@@ -62,26 +62,36 @@ window.Tethered = window.Tethered || {};
     if (b.iframes > 0) b.iframes -= dt;
     if (b.shieldCooldown > 0) b.shieldCooldown -= dt;
 
-    // Walls: clamp position, reflect velocity with restitution.
+    // Walls: clamp position, reflect velocity with restitution (upgradable
+    // stat — ELASTICITY can push it past 1, which is safe: drag and the
+    // speed cap dominate between bounces).
     // Velocity-direction guards prevent re-bouncing while still overlapping.
+    const rest = game.stats.wallRestitution;
     const preSpeed = S.ballSpeed(b);
     let bounced = false;
     if (b.x - b.r < 0) {
       b.x = b.r;
-      if (b.vx < 0) { b.vx = -b.vx * T.WALL_RESTITUTION; bounced = true; }
+      if (b.vx < 0) { b.vx = -b.vx * rest; bounced = true; }
     } else if (b.x + b.r > game.width) {
       b.x = game.width - b.r;
-      if (b.vx > 0) { b.vx = -b.vx * T.WALL_RESTITUTION; bounced = true; }
+      if (b.vx > 0) { b.vx = -b.vx * rest; bounced = true; }
     }
     if (b.y - b.r < 0) {
       b.y = b.r;
-      if (b.vy < 0) { b.vy = -b.vy * T.WALL_RESTITUTION; bounced = true; }
+      if (b.vy < 0) { b.vy = -b.vy * rest; bounced = true; }
     } else if (b.y + b.r > game.height) {
       b.y = game.height - b.r;
-      if (b.vy > 0) { b.vy = -b.vy * T.WALL_RESTITUTION; bounced = true; }
+      if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
     }
 
     // Combo only counts for fast bounces — no farming with slow dribbles.
-    if (bounced && preSpeed > T.SPEED_THRESHOLD) S.bumpCombo(game);
+    if (bounced && preSpeed > T.SPEED_THRESHOLD) {
+      S.bumpCombo(game);
+      // ELASTICITY special: a fast bounce slams a shockwave into nearby
+      // enemies (the same wave the TAIL special fires).
+      if (game.stats.specials.bounceBlast) {
+        S.geom.radialPush(game.enemies, b.x, b.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
+      }
+    }
   };
 })(Tethered);

@@ -362,7 +362,9 @@ window.Tethered = window.Tethered || {};
     // ball always keeps forward momentum. Otherwise it bounces off along
     // the normal.
     const surge = killed || game.stats.specials.surgeEverySmash ? game.stats.killBoost : 0;
-    const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP + surge;
+    // Mass keeps speed through hits: the fraction lost shrinks as 1/mass.
+    const keep = 1 - (1 - T.KILL_SPEED_KEEP) / game.stats.ballMass;
+    const speed = S.ballSpeed(b) * keep + surge;
     if (opts.pierce) {
       // Pierce: straight through — the heading never changes.
       const heading = Math.atan2(b.vy, b.vx);
@@ -372,7 +374,8 @@ window.Tethered = window.Tethered || {};
       const heading = Math.atan2(b.vy, b.vx);
       let dev = Math.atan2(ny, nx) - heading;
       dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
-      const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
+      // Mass straightens bashes: the deflection clamp shrinks as 1/mass.
+      const max = (T.BASH_DEFLECT_MAX / game.stats.ballMass) * Math.PI / 180;
       const out = heading + Math.max(-max, Math.min(max, dev));
       b.vx = Math.cos(out) * speed;
       b.vy = Math.sin(out) * speed;
@@ -459,8 +462,10 @@ window.Tethered = window.Tethered || {};
       if (fast) {
         // Anchor the resolution at the impact point along the sweep, so a
         // survivor separates (and the ball bounces) from where contact
-        // actually happened, not from wherever the ball ended up.
-        S.resolveSmash(game, e, nx, ny, tethered, { ax: p.x, ay: p.y });
+        // actually happened, not from wherever the ball ended up. MASS
+        // special: smashes pierce — the ball plows through everything.
+        S.resolveSmash(game, e, nx, ny, tethered,
+          { ax: p.x, ay: p.y, pierce: game.stats.specials.juggernaut });
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below
