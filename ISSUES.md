@@ -1,0 +1,62 @@
+# Tethered — Issues
+
+Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-07), triaged with decisions baked in. Each file records the problem, evidence, the decided fix, and an implementation sketch.
+
+## Balance
+
+| Issue | Impact | Decision |
+|---|---|---|
+| [i-frames make death nearly impossible](issues/balance-iframes.md) | High | `IFRAME_DURATION 1.0 → 0.5` |
+| [Spawn curve too slow; no scaling](issues/balance-spawn-curve.md) | High | `SPAWN_DOUBLE_TIME → 90` + floor + per-minute stat scaling + interim cap |
+| [Combo coin economy runaway](issues/balance-coin-economy.md) | High | Sublinear payout (×√combo) |
+| [Base damage 1 makes upgrades mandatory](issues/balance-base-damage.md) | High | `PLAYER_DAMAGE 1 → 2` |
+| [MOMENTUM multiplicative outlier](issues/balance-momentum-outlier.md) | Medium | Make MOMENTUM additive (+4 cap) |
+| [Risk-inverted economy (runner farming)](issues/balance-risk-reward.md) | Medium | Runners get a panic dash that stings; 3× payout stays |
+| [Enemy mix permanently 70% chasers](issues/balance-enemy-mix.md) | Low | Ramp special spawn chances with survival time |
+
+## Design
+
+| Issue | Impact | Decision |
+|---|---|---|
+| [Rope wrap invisible and unrewarded](issues/design-wrap-unrewarded.md) | High | Tension/wrap visuals + per-wrap kill coin bonus |
+| [Missing juice: shake, hit-stop, audio, bash feedback](issues/design-juice.md) | High | All four |
+| [Grab hard-resets combo](issues/design-grab-combo-reset.md) | Medium | Grabs no longer reset combo; decay keeps ticking |
+| [No counter to "stay fast"](issues/design-enemy-roster.md) | Medium | Ranged/zoning + speed-punisher + shielded enemies |
+| [Single static arena](issues/design-arena-variety.md) | Low | Interior obstacles the rope can wrap |
+
+## Physics
+
+| Issue | Impact | Decision |
+|---|---|---|
+| [O(N²) enemy separation at 120 Hz](issues/physics-broadphase.md) | High | Shared uniform-grid spatial hash |
+| [Wrapped-release slingshot](issues/physics-slingshot.md) | High (feature) | Impulse ∝ stretch on any release; wraps multiply |
+| [Slow-mo on bash kills](issues/physics-slowmo.md) | High (feature) | Global `timeScale`; bash kills only |
+| [Discrete ball collision → latent tunneling](issues/physics-swept-ball.md) | Medium | Sweep prev→current segment (reuse `tether.pbx/pby`) |
+| [Elasticity/mass upgrade axes](issues/physics-elasticity-mass.md) | Medium (feature) | Both: wall-restitution upgrade + ball mass term |
+| [Hardcoded knockback decay](issues/physics-knockback-tuning.md) | Low | `ENEMY_KNOCKBACK_DECAY: 4` into TUNING |
+
+## Engine
+
+| Issue | Impact | Decision |
+|---|---|---|
+| [Post-PoC engine choice](issues/engine-migration.md) | Strategic | TypeScript + Vite, in-place incremental migration; Bevy demoted |
+
+## Refactoring
+
+| Issue | Impact | Decision |
+|---|---|---|
+| [Extract render.js into ordered draw layers](issues/refactor-render-layers.md) | High (enabler) | `LAYERS` table; do first |
+| [Co-locate weapon specials with weapons](issues/refactor-weapon-specials.md) | High | `onHit`/`afterHit` hooks in `WEAPONS` registry |
+| [Shared geometry/particle helpers](issues/refactor-shared-helpers.md) | Medium (enabler) | `circleOverlap` / `radialPush` / `advanceParticles` |
+| [PICKUP_TYPES registry](issues/refactor-pickup-registry.md) | Medium | One table row per pickup type |
+| [Document update-ordering contract](issues/refactor-update-contract.md) | Medium | Header comment block in `main.js` |
+| [Shared drawShape for icons](issues/refactor-draw-shape.md) | Medium | Registry-owned `drawShape(ctx, scale)` |
+| [Naming/structure cleanup](issues/refactor-naming.md) | Low | `e.brainState` grouping; `stats.specials` lands with weapon-specials |
+
+## Consciously excluded
+
+Reviewed and decided **not** to track (from the same report):
+
+- **Pop-explosion nerf (Balance E)** — the `POP_EXPLODE_DAMAGE 4→2` nerf stands as-is
+- **Score system** — coins/levels remain the scoreboard for now
+- **Meta-progression / upgrade-pool exhaustion** — too early for persistence
