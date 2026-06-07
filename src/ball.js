@@ -84,13 +84,16 @@ window.Tethered = window.Tethered || {};
       if (b.vy > 0) { b.vy = -b.vy * rest; bounced = true; }
     }
 
-    // Interior obstacles bounce like walls — same restitution stat, same
-    // combo credit below.
-    if (S.collideBallObstacles(game)) bounced = true;
+    // Interior obstacles bounce like walls — same restitution stat — but
+    // only they earn combo credit below; arena walls don't.
+    const hitObstacle = S.collideBallObstacles(game);
+    if (hitObstacle) bounced = true;
 
-    // Combo only counts for fast bounces — no farming with slow dribbles.
+    // Bounce juice only for fast bounces — no farming with slow dribbles.
+    // Combo credit needs an interior obstacle: riding the arena walls
+    // shouldn't build the multiplier.
     if (bounced && preSpeed > T.SPEED_THRESHOLD) {
-      S.bumpCombo(game);
+      if (hitObstacle) S.bumpCombo(game);
       S.audio.play('bounce');
       // ELASTICITY special: a fast bounce slams a shockwave into nearby
       // enemies (the same wave the TAIL special fires).
