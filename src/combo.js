@@ -16,7 +16,7 @@ window.Tethered = window.Tethered || {};
   };
 
   // Combo is a multiplier on coins dropped per kill: baseline ×1,
-  // +1 per obstacle bounce / paddle launch / enemy kill while fast.
+  // +1 per obstacle bounce / enemy kill while fast.
   // Arena-wall bounces don't count — only objects inside the play area.
   S.bumpCombo = function (game) {
     game.combo += 1;

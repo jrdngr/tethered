@@ -18,7 +18,6 @@ window.Tethered = window.Tethered || {};
     drawOnboarding, // spawn-room hints (depth 1)
     drawCoins,
     drawParticles,
-    drawPaddles,
     drawProjectiles,
     drawEnemies,
     drawPops,
@@ -29,8 +28,12 @@ window.Tethered = window.Tethered || {};
   const SCREEN_LAYERS = [
     drawPlayerPopFlash,
     drawFlash,
+    layerEdgePips, // offscreen-threat warnings
+    layerMinimap, // explored-fog minimap (under the overlays)
     drawOverlays,
   ];
+  function layerMinimap(ctx, game) { S.drawMinimap(ctx, game); }
+  function layerEdgePips(ctx, game) { S.drawEdgePips(ctx, game); }
 
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
@@ -271,21 +274,6 @@ window.Tethered = window.Tethered || {};
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-  }
-
-  // Paddles: cyan launch pads patrolling the edges.
-  function drawPaddles(ctx, game) {
-    for (const p of game.paddles) {
-      const r = S.paddleRect(game, p);
-      ctx.fillStyle = '#3aa7c9';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-      // Bright inner face — the side that launches the ball.
-      ctx.fillStyle = '#aef4ff';
-      if (p.edge === 0) ctx.fillRect(r.x, r.y + r.h - 2, r.w, 2);
-      else if (p.edge === 1) ctx.fillRect(r.x, r.y, r.w, 2);
-      else if (p.edge === 2) ctx.fillRect(r.x + r.w - 2, r.y, 2, r.h);
-      else ctx.fillRect(r.x, r.y, 2, r.h);
-    }
   }
 
   // Spitter shots: hot mint dots with a faint halo, in the spitter's color

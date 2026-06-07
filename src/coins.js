@@ -258,12 +258,14 @@ window.Tethered = window.Tethered || {};
       c.x += c.vx * dt;
       c.y += c.vy * dt;
 
-      // Keep coins inside the world with a soft bounce.
+      // Keep coins inside the world and out of the walls with a soft bounce,
+      // so a burst doesn't scatter pickups into the rock.
       const R = T.PICKUP_RESTITUTION;
       if (c.x - c.r < 0) { c.x = c.r; c.vx = -c.vx * R; }
       else if (c.x + c.r > game.world.w) { c.x = game.world.w - c.r; c.vx = -c.vx * R; }
       if (c.y - c.r < 0) { c.y = c.r; c.vy = -c.vy * R; }
       else if (c.y + c.r > game.world.h) { c.y = game.world.h - c.r; c.vy = -c.vy * R; }
+      if (game.map) S.collideCircleWalls(game.map, c, R);
     }
 
     // Merge clusters: when enough same-value coins nearly overlap, replace

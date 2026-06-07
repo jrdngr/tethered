@@ -28,7 +28,6 @@ window.Tethered = window.Tethered || {};
         homing: false,          // TOP SPEED: bend toward the nearest enemy at top speed — consumed at ball.js:updateBall
         bashEasy: false,        // MOMENTUM: lower bash threshold at top speed — consumed at enemies.js:resolveSmash
         surgeEverySmash: false, // KILL SURGE: boost on every smash, not just kills — consumed at enemies.js:resolveSmash
-        paddleWide: false,      // PADDLE: every paddle is double length — consumed at paddles.js:paddleLen
         comboShield: false,     // VITALITY: crossing the combo threshold grants a shield — consumed at combo.js:bumpCombo
         bounceBlast: false,     // ELASTICITY: fast wall bounces fire a shockwave — consumed at ball.js:updateBall
         juggernaut: false,      // MASS: smashes pierce — the ball never bounces off enemies — consumed at enemies.js:updateEnemies
@@ -274,27 +273,8 @@ window.Tethered = window.Tethered || {};
         ctx.stroke();
       },
     },
-    {
-      name: 'PADDLE',
-      desc: () => '+1 top-speed wall paddle',
-      apply: (game) => S.addPaddle(game),
-      specialDesc: () => '2× paddle width',
-      special: (game) => { game.stats.specials.paddleWide = true; },
-      // A launch pad with its bright launching face up.
-      icon(ctx, x, y, size) {
-        const w = size * 0.8;
-        const h = size * 0.28;
-        ctx.fillStyle = '#3aa7c9';
-        ctx.fillRect(x - w / 2, y - h / 2 + size * 0.15, w, h);
-        ctx.fillStyle = '#aef4ff';
-        ctx.fillRect(x - w / 2, y - h / 2 + size * 0.15, w, 2);
-        // The ball it just launched.
-        ctx.fillStyle = '#568cc8';
-        ctx.beginPath();
-        ctx.arc(x, y - size * 0.28, size * 0.16, 0, Math.PI * 2);
-        ctx.fill();
-      },
-    },
+    // (PADDLE removed: edge-patrolling launch pads don't fit the dungeon's
+    // walled rooms. paddles.js is gone with it.)
     // Weapons (see weapons.js): apply is a no-op because damage and size
     // derive straight from the upgrade level. Icons are the weapons' own
     // registry draws at glyph scale — one shape definition, no copied

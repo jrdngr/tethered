@@ -36,7 +36,7 @@ window.Tethered = window.Tethered || {};
       tone('square', 130, 30, 0.22, 0.8);
       tone('sawtooth', 500, 50, 0.15, 0.4);
     },
-    // Wall/paddle/obstacle bounce: a soft low boing.
+    // Wall/obstacle bounce: a soft low boing.
     bounce: () => tone('sine', 240, 120, 0.07, 0.3),
     // Coin scoop: a bright chirp, pitch-jittered so bursts shimmer.
     coin: () => tone('triangle', 1100 + Math.random() * 300, 1800, 0.06, 0.18),

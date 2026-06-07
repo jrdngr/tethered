@@ -794,8 +794,8 @@ window.Tethered = window.Tethered || {};
     } else {
       // Wrapped-rope kills sweeten the payout: a flat bonus per half-turn
       // wrap unit rides the normal coin path (so combo and coinMult apply),
-      // with floating text so the reward is legible. The combo is already at
-      // the reset ×1 here — wraps are paid in coins, not combo.
+      // with floating text so the reward is legible. The bonus is on top of
+      // the combo the kill itself builds.
       const bonus = (wraps || 0) * T.WRAP_KILL_BONUS;
       S.spawnCoinBurst(game, e.x, e.y, e.coinMult, bonus);
       if (bonus) S.spawnFloater(game, e.x, e.y, `+${Math.round(bonus * S.comboPayout(game.combo) * e.coinMult)} WRAP`);
@@ -858,7 +858,8 @@ window.Tethered = window.Tethered || {};
   S.resolveSmash = function (game, e, nx, ny, tethered, opts = {}) {
     const T = S.TUNING;
     const b = game.ball;
-    if (tethered) game.combo = 1;
+    // Wrap/tethered kills BUILD combo now (no reset) — the rope is a scoring
+    // verb, with its coin bonus on top.
     const dmg = S.smashDamage(game) + (opts.dmgBonus || 0);
     const bash = opts.bashOverride || S.wouldBash(game, e, dmg);
     // A type can guard hits (shieldbearer): its hook inspects the contact
@@ -871,7 +872,7 @@ window.Tethered = window.Tethered || {};
     const killed = e.hp <= 0;
     if (killed) {
       e.dead = true;
-      popEnemy(game, e, bash, !tethered, opts.wraps);
+      popEnemy(game, e, bash, true, opts.wraps); // every kill builds combo (tethered too)
       if (game.stats.specials.popExplode) explodePop(game, e);
     } else {
       // Armor (or a guard) absorbed the hit: knock the enemy back and
@@ -1017,9 +1018,8 @@ window.Tethered = window.Tethered || {};
       }
 
       // Bumping an enemy snaps the tether. A fast ball smashes whether or
-      // not it was tethered, but a tethered bump costs the combo: it resets
-      // to ×1 (before the coins drop, so they pay out at ×1). Grabbing
-      // itself is free — only cashing a kill through the rope isn't.
+      // not it was tethered; the kill builds combo either way (the rope is a
+      // scoring verb now), and a wrapped kill pays its coin bonus on top.
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
       const tethered = game.tether.active;
       // Wrapped-rope kills pay a coin bonus per half-turn of total contact

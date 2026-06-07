@@ -273,8 +273,10 @@ Tethered.TUNING = {
   EXIT_MAGNET_HIT_LOCKOUT: 0.5, // s the magnet is off after a hit, so a knockback clears the exit instead of being sucked back
   HEAL_ON_EXIT_FRACTION: 0.3,  // max HP restored on reaching the next depth
 
-  // Combo
-  COMBO_TIMEOUT: 10,       // s without a combo change before it resets to ×1
+  // Combo — wrap/tethered kills build it now (combo.js/enemies.js). The
+  // timeout is short enough that a streak dies crossing a long corridor at a
+  // dawdle but survives a quick, direct traversal.
+  COMBO_TIMEOUT: 6,        // s without a combo change before it resets to ×1
 
   // Coins & leveling
   COIN_RADIUS: 5,          // px
@@ -285,12 +287,15 @@ Tethered.TUNING = {
                               // (1.0 = linear; quadratic-in-streak total)
   COIN_BURST_SPEED: 220,   // px/s — max scatter speed on drop
   COIN_DRAG: 3,            // 1/s — coins settle quickly
-  COIN_MAGNET_RADIUS: 128, // px from ball center
+  COIN_MAGNET_RADIUS: 200, // px from ball center (wider for the scrolling world)
   COIN_MAGNET_ACCEL: 1800, // px/s^2 pull at point-blank, fading to 0 at the magnet radius
-  COIN_LIFETIME: 30,       // s before an uncollected coin fades away
+  COIN_LIFETIME: 45,       // s before an uncollected coin fades away (longer — bigger rooms)
   PICKUP_RESTITUTION: 0.6, // wall-bounce energy retention for coins/pickups
-  LEVEL_COINS_BASE: 25,    // coins to clear level 1
-  LEVEL_COINS_GROWTH: 1.2, // × per level
+  // Tuned so a full depth-1→10 clear yields ~32 (rush) to ~42 (chain) of
+  // the 60-pick pool: a rich build that never fully exhausts, ~3.5 picks per
+  // map. (Modeled over ~815 kills/run at the placed counts.)
+  LEVEL_COINS_BASE: 18,    // coins to clear level 1
+  LEVEL_COINS_GROWTH: 1.13, // × per level
 
   // Coin merging: same-value coins drift together and combine into a higher
   // denomination — 5×1 → 5, 5×5 → 25, 4×25 → 100 (the highest coin).
@@ -314,13 +319,6 @@ Tethered.TUNING = {
   HEAL_PARTICLES: 14,        // particles per burst
   HEAL_PARTICLE_SPEED: 260,  // px/s — max scatter speed
   HEAL_PARTICLE_LIFE: 0.5,   // s — max particle lifetime
-
-  // Paddles: upgrade-granted rectangles that patrol screen edges and launch
-  // the ball to top speed on contact. One per PADDLE level (4 max); the
-  // level-5 special doubles every paddle's length instead.
-  PADDLE_LENGTH: 55,     // px along the edge (doubled by the PADDLE special)
-  PADDLE_THICKNESS: 14,  // px into the arena
-  PADDLE_SPEED: 200,     // px/s patrol speed
 
   // Weapons: upgrade-granted shapes attached to the ball that arm on tether
   // release while fast and expire once it slows into the warning flash. Each
@@ -433,6 +431,13 @@ Tethered.TUNING = {
   RETURN_TIMEOUT: 5,        // s — a returning enemy that can't reach home sleeps in place
   FLOW_MIN_INTERVAL: 0.15,  // s — min gap between flow-field recomputes (on ball tile change)
   LOS_RANGE: 600,           // px — within this, an enemy with line of sight steers straight
+
+  // Minimap + readability (src/minimap.js): an explored-fog minimap in a HUD
+  // corner, and edge pips warning of offscreen awake enemies.
+  MINIMAP_SIZE: 220,        // px — max minimap width
+  MINIMAP_REVEAL: 1000,     // px — radius the ball reveals as it explores
+  PIP_MAX: 8,               // most edge pips shown at once
+  PIP_MARGIN: 26,           // px the pips sit in from the viewport edge
 
   // Broadphase (src/grid.js)
   GRID_CELL: 64,          // px — uniform-grid cell, ≥ the largest enemy diameter so pair queries scan one neighbor ring

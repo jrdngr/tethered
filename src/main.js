@@ -76,7 +76,6 @@ window.Tethered = window.Tethered || {};
       height: playHeight(),
       depth: 1,
       ball: S.createBall(0, 0), // repositioned by setupMap
-      paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       obstacles: [],
       mouseScreen: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
@@ -239,7 +238,6 @@ window.Tethered = window.Tethered || {};
       S.updateWeapons(game, dt);
       if (updateExit(dt)) return; // channel completed → map transitioned this frame
     }
-    S.updatePaddles(game, dt);
     S.updateEnemies(game, dt);
     S.updateCoins(game, dt);
     S.updateCombo(game, dt);
