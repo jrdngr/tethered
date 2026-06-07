@@ -67,8 +67,13 @@ Tethered.TUNING = {
   // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
   // basic chaser. Chances scale inversely with strength (super-splitter
-  // rarest), and even the most common special stays well under the chaser
-  // rate: with all eight unlocked the specials total 0.46, chasers 0.54.
+  // rarest) and ramp together with survival time — every unlocked chance is
+  // multiplied by (1 + time / MIX_RAMP_TIME), clamped so the specials'
+  // total never exceeds MIX_SPECIAL_TOTAL_MAX. Relative proportions hold
+  // through the ramp; only the chaser share shrinks (all eight unlocked:
+  // specials total 0.46 at the base chances, capped at 0.7 — chasers 0.3).
+  MIX_RAMP_TIME: 300,          // s of survival for the special chances to double
+  MIX_SPECIAL_TOTAL_MAX: 0.7,  // ceiling on the specials' summed chance
 
   // Tanks: rarer armored enemies that take four base-damage hits
   TANK_HP: 8,

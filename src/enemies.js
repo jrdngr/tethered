@@ -328,17 +328,30 @@ window.Tethered = window.Tethered || {};
   };
 
   // One roll decides the spawn type: each gated type unlocked by survival
-  // time claims its chance slice; whatever's left is a basic chaser.
+  // time claims its chance slice; whatever's left is a basic chaser. The
+  // slices all ramp with survival (one shared factor, so relative
+  // proportions hold), clamped so the specials' total never exceeds
+  // MIX_SPECIAL_TOTAL_MAX — the mix hardens as the run goes on instead of
+  // staying 70% chasers forever.
   function rollType(game) {
     const T = S.TUNING;
+    let total = 0;
+    for (const type in S.ENEMY_TYPES) {
+      const gate = S.ENEMY_TYPES[type].spawnGate;
+      if (!gate) continue;
+      const { delay, chance } = gate(T);
+      if (game.time >= delay) total += chance;
+    }
+    const ramp = Math.min(1 + game.time / T.MIX_RAMP_TIME,
+      total > 0 ? T.MIX_SPECIAL_TOTAL_MAX / total : 1);
     let roll = Math.random();
     for (const type in S.ENEMY_TYPES) {
       const gate = S.ENEMY_TYPES[type].spawnGate;
       if (!gate) continue;
       const { delay, chance } = gate(T);
       if (game.time < delay) continue;
-      if (roll < chance) return type;
-      roll -= chance;
+      if (roll < chance * ramp) return type;
+      roll -= chance * ramp;
     }
     return 'chaser';
   }
