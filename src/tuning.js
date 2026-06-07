@@ -115,6 +115,24 @@ Tethered.TUNING = {
   BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
   BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
 
+  // Juice: screen shake, hit-stop, and the bash screen flash, all scaled by
+  // event weight (kill < bash < explosion < player hit). Shake accumulates
+  // (capped) and decays on real frame time; hit-stop pauses the physics
+  // accumulator while rendering continues. The synth voices live in
+  // audio.js; only the master volume is tuned here.
+  SHAKE_KILL: 3,            // px of shake added per ordinary kill
+  SHAKE_BASH: 8,            // px per bash kill
+  SHAKE_EXPLODE: 10,        // px per DAMAGE-special explosion
+  SHAKE_HIT: 14,            // px when the player takes a hit
+  SHAKE_MAX: 22,            // px cap when events stack
+  SHAKE_DECAY: 9,           // 1/s — exponential shake falloff
+  HITSTOP_KILL: 0.04,       // s frozen on an ordinary kill
+  HITSTOP_BASH: 0.09,       // s frozen on a bash kill
+  BASH_POP_SCALE: 1.8,      // × POP_SCALE — a bash pop's ring grows this much bigger
+  BASH_FLASH_DURATION: 0.09, // s of white screen flash on a bash kill
+  BASH_FLASH_ALPHA: 0.22,   // peak flash opacity
+  AUDIO_VOLUME: 0.5,        // master SFX volume (0 = mute)
+
   // Slow-mo: a bash kill drops the global time scale for a cinematic beat.
   // Every integrator is dt-parameterized, so the whole world slows together
   // while rendering stays at full frame rate.

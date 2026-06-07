@@ -60,6 +60,9 @@ window.Tethered = window.Tethered || {};
       upgradeChoices: null, // the cards on offer while state is 'levelup'
       time: 0,
       timeScale: 1, // global physics time scale; bash kills drop it for slow-mo
+      freeze: 0, // s of hit-stop left; physics pauses while it runs down
+      shake: { x: 0, y: 0, mag: 0 }, // screen-shake offset; decays on real time
+      flash: 0, // s of bash screen flash left
       spawnTimer: S.TUNING.SPAWN_INTERVAL_START,
       state: S.STATE.PLAYING,
     };
@@ -85,6 +88,7 @@ window.Tethered = window.Tethered || {};
     S.devHover(game, canvas.width, p.x, p.y);
   });
   canvas.addEventListener('mousedown', (e) => {
+    S.audio.unlock(); // first user gesture — autoplay policy gate
     // Clicks in the dev panel column go to its buttons and never reach the
     // game — no grabbing the ball, picking a card, or restarting through it.
     const p = canvasPoint(e);
@@ -181,18 +185,35 @@ window.Tethered = window.Tethered || {};
     if (live()) {
       acc += dt;
       while (acc >= STEP && live()) {
-        // Slow-mo: the accumulator consumes real time (same number of steps
-        // per frame), each step just simulates less of it — so rendering
-        // stays per-frame smooth while the world slows.
-        update(STEP * game.timeScale);
-        // Ease back toward full speed on *real* step time — recovering on
-        // scaled time would never finish.
-        game.timeScale = 1 + (game.timeScale - 1) * Math.exp(-S.TUNING.SLOWMO_RECOVERY * STEP);
+        if (game.freeze > 0) {
+          // Hit-stop: real time passes but the world doesn't move —
+          // rendering continues every frame, so the freeze reads as impact
+          // weight, not a stutter.
+          game.freeze -= STEP;
+        } else {
+          // Slow-mo: the accumulator consumes real time (same number of
+          // steps per frame), each step just simulates less of it — so
+          // rendering stays per-frame smooth while the world slows.
+          update(STEP * game.timeScale);
+          // Ease back toward full speed on *real* step time — recovering on
+          // scaled time would never finish.
+          game.timeScale = 1 + (game.timeScale - 1) * Math.exp(-S.TUNING.SLOWMO_RECOVERY * STEP);
+        }
         acc -= STEP;
       }
     } else {
       acc = 0; // freeze physics (and game.time, shown as the final survival time)
     }
+
+    // Shake jiggles/decays and the bash flash fades on real frame time, so
+    // they animate smoothly through hit-stop and pauses.
+    const sh = game.shake;
+    sh.mag *= Math.exp(-S.TUNING.SHAKE_DECAY * dt);
+    if (sh.mag < 0.05) sh.mag = 0;
+    const ang = Math.random() * Math.PI * 2;
+    sh.x = Math.cos(ang) * sh.mag;
+    sh.y = Math.sin(ang) * sh.mag;
+    if (game.flash > 0) game.flash -= dt;
 
     S.drawGame(ctx, game);
     requestAnimationFrame(frame);

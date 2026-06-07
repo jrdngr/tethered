@@ -358,6 +358,7 @@ window.Tethered = window.Tethered || {};
     }
     game.state = S.STATE.LEVELUP;
     S.releaseTether(game);
+    S.audio.play('levelup');
     game.upgradeChoices = choices;
   };
 

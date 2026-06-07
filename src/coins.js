@@ -36,6 +36,7 @@ window.Tethered = window.Tethered || {};
       mergeable: true, // joins the denomination merge dance below
       // Coins count toward the level; crossing a threshold queues a level-up.
       onScoop(game, c) {
+        S.audio.play('coin');
         game.coinProgress += c.value;
         while (game.coinProgress >= S.coinsForLevel(game.level)) {
           game.coinProgress -= S.coinsForLevel(game.level);
@@ -65,6 +66,7 @@ window.Tethered = window.Tethered || {};
       onScoop(game, c) {
         const b = game.ball;
         b.hp = Math.min(b.hp + S.TUNING.HEALTH_HEAL, game.stats.maxHp);
+        S.audio.play('heal');
         spawnHealParticles(game, c.x, c.y);
       },
       // Green disc with a white cross.

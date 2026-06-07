@@ -87,6 +87,7 @@ window.Tethered = window.Tethered || {};
     // Combo only counts for fast bounces — no farming with slow dribbles.
     if (bounced && preSpeed > T.SPEED_THRESHOLD) {
       S.bumpCombo(game);
+      S.audio.play('bounce');
       // ELASTICITY special: a fast bounce slams a shockwave into nearby
       // enemies (the same wave the TAIL special fires).
       if (game.stats.specials.bounceBlast) {

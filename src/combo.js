@@ -1,7 +1,20 @@
-// Combo multiplier, survival time, health outcomes.
+// Combo multiplier, survival time, health outcomes, and the impact-juice
+// helpers (screen shake, hit-stop) every hit site calls.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  // Shake accumulates (capped, so pop chains don't whip the camera) and
+  // decays in the frame loop; magnitudes per event live in TUNING.
+  S.addShake = function (game, mag) {
+    game.shake.mag = Math.min(game.shake.mag + mag, S.TUNING.SHAKE_MAX);
+  };
+
+  // Hit-stop takes the max, never the sum — stacked kills refresh the
+  // freeze instead of compounding into a stall.
+  S.addFreeze = function (game, s) {
+    game.freeze = Math.max(game.freeze, s);
+  };
+
   // Combo is a multiplier on coins dropped per kill: baseline ×1,
   // +1 per wall bounce / enemy kill while fast.
   S.bumpCombo = function (game) {
@@ -36,6 +49,8 @@ window.Tethered = window.Tethered || {};
     } else {
       b.hp -= enemy.damage;
     }
+    S.addShake(game, T.SHAKE_HIT); // taking a hit is the heaviest shake
+    S.audio.play('hurt');
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
     // Knock both apart.
@@ -53,6 +68,8 @@ window.Tethered = window.Tethered || {};
     const b = game.ball;
     game.state = S.STATE.DYING;
     S.releaseTether(game);
+    S.addShake(game, T.SHAKE_HIT);
+    S.audio.play('death');
     game.playerPop = { x: b.x, y: b.y, t: 0 };
     // White-hot debris flung from the popped ball.
     for (let i = 0; i < T.PLAYER_POP_PARTICLES; i++) {

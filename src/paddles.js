@@ -88,6 +88,7 @@ window.Tethered = window.Tethered || {};
 
       // Same combo rule as walls: only a fast arrival counts.
       if (S.ballSpeed(b) > T.SPEED_THRESHOLD) S.bumpCombo(game);
+      S.audio.play('bounce'); // every launch sounds — it always fires the ball
 
       // Reflect the into-paddle velocity component, then scale the whole
       // velocity to top speed (straight inward if the ball was at rest).

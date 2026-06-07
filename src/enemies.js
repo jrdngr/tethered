@@ -285,8 +285,17 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     // Bash kills are the power moment: drop into slow-mo for a beat. min()
     // makes a bash during slow-mo a clean refresh, never a deepening jolt.
-    if (bash) game.timeScale = Math.min(game.timeScale, T.SLOWMO_FACTOR);
-    game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+    // The screen flash marks the same beat.
+    if (bash) {
+      game.timeScale = Math.min(game.timeScale, T.SLOWMO_FACTOR);
+      game.flash = T.BASH_FLASH_DURATION;
+    }
+    // Kill juice — shake, hit-stop, and a smash report, all heavier on a
+    // bash. The pop's bash flag picks the bigger, hotter ring in render.js.
+    S.addShake(game, bash ? T.SHAKE_BASH : T.SHAKE_KILL);
+    S.addFreeze(game, bash ? T.HITSTOP_BASH : T.HITSTOP_KILL);
+    S.audio.play(bash ? 'bash' : 'smash');
+    game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0, bash });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
     S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
     S.geom.radialPush(game.coins, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
@@ -309,6 +318,7 @@ window.Tethered = window.Tethered || {};
     // on top of the normal pop ring (`explode` pops render fiery and live
     // POP_EXPLODE_DURATION instead of POP_DURATION).
     game.pops.push({ x: e.x, y: e.y, r: T.ENEMY_POP_PUSH_RADIUS, t: 0, explode: true });
+    S.addShake(game, T.SHAKE_EXPLODE);
     for (const o of game.enemies) {
       if (o.dead || o.invuln > 0) continue;
       if (Math.hypot(o.x - e.x, o.y - e.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;

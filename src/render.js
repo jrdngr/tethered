@@ -18,6 +18,7 @@ window.Tethered = window.Tethered || {};
     drawPops,
     drawPlayerPop,
     drawBall,
+    drawFlash,
     drawOverlays,
   ];
 
@@ -30,9 +31,10 @@ window.Tethered = window.Tethered || {};
     drawHud(ctx, game);
 
     // The world renders translated below the HUD and clipped to the arena,
-    // so game elements never draw under the UI.
+    // so game elements never draw under the UI. Screen shake rides the
+    // translate (the world jolts, the HUD stays planted).
     ctx.save();
-    ctx.translate(0, T.HUD_HEIGHT);
+    ctx.translate(game.shake.x, T.HUD_HEIGHT + game.shake.y);
     ctx.beginPath();
     ctx.rect(0, 0, game.width, game.height);
     ctx.clip();
@@ -180,10 +182,13 @@ window.Tethered = window.Tethered || {};
       }
       const t = p.t / T.POP_DURATION;
       const ease = 1 - (1 - t) * (1 - t); // ease-out: fast burst, slow settle
-      ctx.strokeStyle = `rgba(229, 72, 77, ${1 - t})`;
-      ctx.lineWidth = 1 + 3 * (1 - t);
+      // Bash pops are the power read: a bigger, hotter, thicker ring than
+      // an ordinary kill's.
+      const scale = p.bash ? T.BASH_POP_SCALE : 1;
+      ctx.strokeStyle = p.bash ? `rgba(255, 200, 60, ${1 - t})` : `rgba(229, 72, 77, ${1 - t})`;
+      ctx.lineWidth = (1 + 3 * (1 - t)) * (p.bash ? 2 : 1);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE - 1) * ease), 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE * scale - 1) * ease), 0, Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -252,6 +257,14 @@ window.Tethered = window.Tethered || {};
       ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  // Bash screen flash: a brief white pop over the whole arena, fading out.
+  function drawFlash(ctx, game) {
+    const T = S.TUNING;
+    if (game.flash <= 0) return;
+    ctx.fillStyle = `rgba(255, 255, 255, ${T.BASH_FLASH_ALPHA * game.flash / T.BASH_FLASH_DURATION})`;
+    ctx.fillRect(0, 0, game.width, game.height);
   }
 
   // Overlays share the world's (translated) coordinate space so their
