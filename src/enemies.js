@@ -842,7 +842,7 @@ window.Tethered = window.Tethered || {};
   function collideEnemyTiles(game, e) {
     if (!game.map) return;
     const probe = { x: e.x, y: e.y, r: e.r, vx: e.kx, vy: e.ky };
-    S.collideCircleTiles(game.map, probe, null);
+    S.collideCircleWalls(game.map, probe, null);
     if (probe.x !== e.x || probe.y !== e.y) {
       shiftEnemy(e, probe.x - e.x, probe.y - e.y);
       e.kx = probe.vx;

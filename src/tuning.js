@@ -385,9 +385,15 @@ Tethered.TUNING = {
   CA_NOISE_DEPTH: 1,        // tiles deep the noise band reaches — >1 bites lumpier but reads boxy
   CA_POST_NOISE_P: 0,       // boundary re-noise AFTER smoothing: fine grain, but boxy at 32px tiles
   MAX_GEN_ATTEMPTS: 10,     // reseeded tries before accepting the best-scoring map
+  // Wall silhouettes are SMOOTH: the tile contours are corner-cut (Chaikin)
+  // into organic curves, and those curves — not the tiles — are what
+  // renders, what the ball/enemies collide with, and where wrap pegs sit.
+  // The tile grid remains the generation/AI domain (BFS, clearance, spawn).
+  WALL_SMOOTH_ITERS: 2,     // Chaikin corner-cutting passes (each halves the corner angle)
+  WALL_SIMPLIFY_PX: 2.5,    // px — post-smoothing simplification (cuts segment count, keeps bumps)
   WALL_PEG_RADIUS: 10,      // px — wrap peg at each convex wall corner
   WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
-  PEG_DP_EPSILON: 0.8,      // tiles — Douglas-Peucker tolerance simplifying wall contours
+  PEG_DP_EPSILON: 0.8,      // tiles — Douglas-Peucker tolerance re-cornering the smooth contour for pegs
 
   // Camera (src/camera.js): smoothed follow on the ball over the scrolling
   // world; the viewport (game.width/height) stays the canvas play area.

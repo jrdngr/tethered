@@ -95,7 +95,7 @@ window.Tethered = window.Tethered || {};
       // Cave walls bounce like the old interior obstacles — same
       // restitution stat, same combo credit: the dungeon's geometry IS the
       // combo tool, unlike the old arena's outer walls.
-      if (game.map && S.collideCircleTiles(game.map, b, rest)) {
+      if (game.map && S.collideCircleWalls(game.map, b, rest)) {
         bounced = true;
         hitGeometry = true;
       }

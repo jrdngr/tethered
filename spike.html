@@ -35,8 +35,10 @@
         { key: 'CA_NOISE_FLOOR_P', label: 'noiseFloorP', dec: 'KeyQ', inc: 'KeyW', step: 0.05, min: 0, max: 0.9, fmt: (v) => v.toFixed(2) },
         { key: 'CA_NOISE_WALL_P', label: 'noiseWallP', dec: 'KeyA', inc: 'KeyS', step: 0.05, min: 0, max: 0.9, fmt: (v) => v.toFixed(2) },
         { key: 'CA_NOISE_DEPTH', label: 'noiseDepth', dec: 'KeyZ', inc: 'KeyX', step: 1, min: 1, max: 4, fmt: (v) => String(v) },
-        { key: 'CA_EDGE_ITERS', label: 'smoothIters', dec: 'KeyE', inc: 'KeyD', step: 1, min: 0, max: 6, fmt: (v) => String(v) },
+        { key: 'CA_EDGE_ITERS', label: 'caSmooth', dec: 'KeyE', inc: 'KeyD', step: 1, min: 0, max: 6, fmt: (v) => String(v) },
         { key: 'CA_POST_NOISE_P', label: 'postNoiseP', dec: 'KeyT', inc: 'KeyG', step: 0.03, min: 0, max: 0.6, fmt: (v) => v.toFixed(2) },
+        { key: 'WALL_SMOOTH_ITERS', label: 'chaikin', dec: 'KeyB', inc: 'KeyN', step: 1, min: 0, max: 5, fmt: (v) => String(v) },
+        { key: 'WALL_SIMPLIFY_PX', label: 'simplifyPx', dec: 'KeyJ', inc: 'KeyK', step: 0.5, min: 0, max: 8, fmt: (v) => v.toFixed(1) },
       ];
       const DEFAULTS = Object.fromEntries(KNOBS.map((k) => [k.key, S.TUNING[k.key]]));
 
@@ -57,19 +59,38 @@
         ctx.fillStyle = '#0d0e14';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Tiles (floor light, walls dark; clearance heatmap optional).
-        for (let ty = 0; ty < map.th; ty++) {
-          for (let tx = 0; tx < map.tw; tx++) {
-            const wall = map.tiles[ty * map.tw + tx] === 1;
-            if (wall) continue;
-            if (showClearance) {
+        // Clearance heatmap still draws per-tile; otherwise the smooth wall
+        // loops are the truth — fill the world wall-dark, punch the floor
+        // out with an even-odd fill of every loop, and stroke the edges.
+        if (showClearance) {
+          for (let ty = 0; ty < map.th; ty++) {
+            for (let tx = 0; tx < map.tw; tx++) {
+              if (map.tiles[ty * map.tw + tx] === 1) continue;
               const c = Math.min(map.clearance[ty * map.tw + tx], 20) / 20;
               ctx.fillStyle = `rgb(${30 + c * 50}, ${50 + c * 150}, ${70 + c * 100})`;
-            } else {
-              ctx.fillStyle = '#2a2d3d';
+              ctx.fillRect(ox + tx * ts, oy + ty * ts, ts + 0.5, ts + 0.5);
             }
-            ctx.fillRect(ox + tx * ts, oy + ty * ts, ts + 0.5, ts + 0.5);
           }
+        } else {
+          ctx.save();
+          ctx.translate(ox, oy);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = '#1c1f2a';
+          ctx.fillRect(0, 0, map.w, map.h);
+          ctx.beginPath();
+          for (const loop of map.wallLoops) {
+            const p = loop.pts;
+            ctx.moveTo(p[0][0], p[0][1]);
+            for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
+            ctx.closePath();
+          }
+          ctx.fillStyle = '#2a2d3d';
+          ctx.fill('evenodd');
+          ctx.strokeStyle = '#3a3f52';
+          ctx.lineWidth = 2 / scale;
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+          ctx.restore();
         }
 
         // Chamber stamps (outlines) — sanity-check placement and footprint.
@@ -111,7 +132,7 @@
           `depth ${depth}  seed ${map.seed}  ${map.tw}x${map.th} tiles (${map.w}x${map.h}px)\n` +
           `gen ${st.genMs.toFixed(1)}ms (${st.attempts} attempt${st.attempts > 1 ? 's' : ''})  ` +
           `floor ${(st.floorFraction * 100).toFixed(1)}%  corridor ${(st.corridorFrac * 100).toFixed(1)}%  chambers ${st.chambersPlaced}/${st.chamberTarget}  ` +
-          `loops ${st.contourLoops}  pegs ${st.pegCount}\n` +
+          `loops ${st.contourLoops}  segs ${st.segCount}  pegs ${st.pegCount}\n` +
           `spawn->exit ${Math.round(st.spawnExitPathPx)}px (need ${Math.round(st.gateNeedPx)}) ` +
           `gate ${st.gatePass ? 'PASS' : 'FAIL'}\n` +
           `[R] reseed  [S] same seed  [1-9, 0] depth  [C] clearance ${showClearance ? 'on' : 'off'}  [P] pegs ${showPegs ? 'on' : 'off'}  [V] reset knobs\n` +

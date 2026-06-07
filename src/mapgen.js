@@ -70,47 +70,65 @@ window.Tethered = window.Tethered || {};
     return map;
   }
 
-  // --- Tile collision (runtime physics) -----------------------------------
-  // Circle vs one wall tile: unit normal from the tile surface toward the
-  // circle center plus penetration depth (the obstacleHit return shape).
-  function tileHit(b, tx0, ty0, ts) {
-    const cx = Math.max(tx0, Math.min(b.x, tx0 + ts));
-    const cy = Math.max(ty0, Math.min(b.y, ty0 + ts));
-    const dx = b.x - cx;
-    const dy = b.y - cy;
-    const d = Math.hypot(dx, dy);
-    if (d >= b.r) return null;
-    if (d > 1e-6) return { nx: dx / d, ny: dy / d, overlap: b.r - d };
-    // Center inside the tile (deep hit): push out through the nearest face.
-    const faces = [
-      { nx: -1, ny: 0, overlap: b.x - tx0 + b.r },
-      { nx: 1, ny: 0, overlap: tx0 + ts - b.x + b.r },
-      { nx: 0, ny: -1, overlap: b.y - ty0 + b.r },
-      { nx: 0, ny: 1, overlap: ty0 + ts - b.y + b.r },
-    ];
-    return faces.reduce((a, f) => (f.overlap < a.overlap ? f : a));
-  }
-
-  // Push a circle body out of wall tiles, resolving the deepest penetration
-  // first and iterating so concave (two-tile inside) corners settle. With a
-  // restitution the into-wall velocity reflects (a bounce); with null it's
-  // zeroed (a slide — enemies stop at walls, they don't rebound). Velocity
-  // lives on body[vxKey/vyKey] so the enemies' knockback channel works too.
-  // Returns whether anything reflected.
-  S.collideCircleTiles = function (map, body, restitution, vxKey = 'vx', vyKey = 'vy') {
+  // --- Smooth-wall collision (runtime physics) -----------------------------
+  // Walls collide as the SAME smooth polylines that render (map.segGrid:
+  // short segments, each with a unit normal pointing to the floor side).
+  // The ball sub-steps (≤0.4 tile/sub-step ≪ ball radius), so each resolve
+  // starts shallow and the radial push-out toward the floor side is always
+  // well-conditioned; a wall-side guard handles the rare deeper case.
+  // restitution null = slide (enemies stop, don't bounce); a number = bounce
+  // (the ball). Velocity lives on body[vxKey/vyKey] so the enemy knockback
+  // channel works through it. Returns whether anything reflected.
+  S.collideCircleWalls = function (map, body, restitution, vxKey = 'vx', vyKey = 'vy') {
+    if (!map.segGrid) return false;
     const ts = S.TUNING.TILE_SIZE;
     let bounced = false;
-    for (let iter = 0; iter < 2; iter++) {
-      const x0 = Math.floor((body.x - body.r) / ts);
-      const x1 = Math.floor((body.x + body.r) / ts);
-      const y0 = Math.floor((body.y - body.r) / ts);
-      const y1 = Math.floor((body.y + body.r) / ts);
+    for (let iter = 0; iter < 3; iter++) {
+      // The floor/wall side is decided once per pass by the tile the center
+      // sits in — NOT per segment. A center in floor always pushes radially
+      // out (it's on the floor side of every nearby edge, so this rounds
+      // convex corners correctly instead of mis-reading a corner tip as a
+      // wall-side crossing). Only a center that actually tunneled into a
+      // wall tile pushes back across along the floor normal.
+      const inWall = map.isWall(Math.floor(body.x / ts), Math.floor(body.y / ts));
+      const cx0 = Math.floor((body.x - body.r) / ts);
+      const cx1 = Math.floor((body.x + body.r) / ts);
+      const cy0 = Math.floor((body.y - body.r) / ts);
+      const cy1 = Math.floor((body.y + body.r) / ts);
       let best = null;
-      for (let ty = y0; ty <= y1; ty++) {
-        for (let tx = x0; tx <= x1; tx++) {
-          if (!map.isWall(tx, ty)) continue;
-          const hit = tileHit(body, tx * ts, ty * ts, ts);
-          if (hit && (!best || hit.overlap > best.overlap)) best = hit;
+      let bestPen = 1e-6;
+      const seen = body._collSeen || (body._collSeen = new Set());
+      seen.clear();
+      for (let cy = cy0; cy <= cy1; cy++) {
+        for (let cx = cx0; cx <= cx1; cx++) {
+          const segs = map.segGrid.get(cx * 100000 + cy);
+          if (!segs) continue;
+          for (const s of segs) {
+            if (seen.has(s.id)) continue;
+            seen.add(s.id);
+            const cp = S.geom.segClosest(s.ax, s.ay, s.bx, s.by, body.x, body.y);
+            const dx = body.x - cp.x;
+            const dy = body.y - cp.y;
+            const d = Math.hypot(dx, dy);
+            let nx;
+            let ny;
+            let pen;
+            if (inWall) {
+              // Tunneled past the edge: shove fully across to the floor side.
+              nx = s.nx;
+              ny = s.ny;
+              pen = body.r + d;
+            } else {
+              if (d >= body.r) continue;
+              // Floor side: radial push out (corner-rounding).
+              if (d > 1e-6) { nx = dx / d; ny = dy / d; } else { nx = s.nx; ny = s.ny; }
+              pen = body.r - d;
+            }
+            if (pen > bestPen) {
+              bestPen = pen;
+              best = { nx, ny, overlap: pen };
+            }
+          }
         }
       }
       if (!best) break;
@@ -704,15 +722,116 @@ window.Tethered = window.Tethered || {};
     return left.slice(0, -1).concat(dp(points.slice(worst), epsilon));
   }
 
+  // Chaikin corner-cutting on a closed loop: each pass replaces every vertex
+  // with two points at 1/4 and 3/4 of its incident edges, halving corner
+  // angles. Square tile staircases melt into smooth curves; chamber lobes
+  // (big features) survive as gentle waves, edge noise as small ripples.
+  // The curve stays within the original polygon, so smooth floor ⊇ tile
+  // floor at concave corners and ⊆ at convex — never far from the tiles.
+  function chaikin(pts, iters) {
+    for (let it = 0; it < iters; it++) {
+      const out = [];
+      const n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const a = pts[i];
+        const b = pts[(i + 1) % n];
+        out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+        out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+      }
+      pts = out;
+    }
+    return pts;
+  }
+
+  // Tile at a world point is floor? (the collision/normal side test)
+  function floorAt(map, x, y) {
+    const ts = S.TUNING.TILE_SIZE;
+    return !map.isWall(Math.floor(x / ts), Math.floor(y / ts));
+  }
+
+  // Trace the wall contours, smooth them into organic curves, and store the
+  // result as the single source of truth for rendering, collision, and pegs:
+  //   map.wallLoops — closed smooth polygons (world px) with bboxes
+  //   map.segGrid   — short segments binned by tile-cell, each with a unit
+  //                   normal pointing to the floor side (collision broadphase)
+  function buildSmoothWalls(map) {
+    const T = S.TUNING;
+    const ts = T.TILE_SIZE;
+    const loops = traceLoops(map);
+    map.stats.contourLoops = loops.length;
+
+    const wallLoops = [];
+    const segGrid = new Map();
+    let segId = 0;
+    let segCount = 0;
+
+    for (const loop of loops) {
+      // To world px, smooth, then DP-simplify to shed redundant points
+      // without losing the bumps.
+      let pts = loop.map(([vx, vy]) => [vx * ts, vy * ts]);
+      pts = chaikin(pts, T.WALL_SMOOTH_ITERS);
+      pts = simplifyLoop(pts, T.WALL_SIMPLIFY_PX);
+      if (pts.length < 3) continue;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const [x, y] of pts) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+      wallLoops.push({ pts, minX, minY, maxX, maxY });
+
+      // Bin each segment, with a floor-pointing normal found by sampling.
+      const n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const [ax, ay] = pts[i];
+        const [bx, by] = pts[(i + 1) % n];
+        let nx = -(by - ay);
+        let ny = bx - ax;
+        const nl = Math.hypot(nx, ny) || 1e-9;
+        nx /= nl; ny /= nl;
+        const mx = (ax + bx) / 2;
+        const my = (ay + by) / 2;
+        // Whichever side reads floor is outward; sample a hair off the edge.
+        if (!floorAt(map, mx + nx * 3, my + ny * 3)) {
+          if (floorAt(map, mx - nx * 3, my - ny * 3)) { nx = -nx; ny = -ny; }
+        }
+        const seg = { id: segId++, ax, ay, bx, by, nx, ny };
+        segCount++;
+        const x0 = Math.floor(Math.min(ax, bx) / ts);
+        const x1 = Math.floor(Math.max(ax, bx) / ts);
+        const y0 = Math.floor(Math.min(ay, by) / ts);
+        const y1 = Math.floor(Math.max(ay, by) / ts);
+        for (let cy = y0; cy <= y1; cy++) {
+          for (let cx = x0; cx <= x1; cx++) {
+            const k = cx * 100000 + cy;
+            let list = segGrid.get(k);
+            if (!list) segGrid.set(k, (list = []));
+            list.push(seg);
+          }
+        }
+      }
+    }
+    map.wallLoops = wallLoops;
+    map.segGrid = segGrid;
+    map.stats.segCount = segCount;
+  }
+
+  // Wrap pegs from the SMOOTH contour: re-corner each loop (coarse DP) and
+  // emit a peg at every convex-into-floor vertex sharp enough to catch the
+  // rope. Same duck-typed pivot the obstacles use.
   function derivePegs(map) {
     const T = S.TUNING;
     const minAngle = (T.WALL_PEG_MIN_ANGLE * Math.PI) / 180;
     const pegs = [];
-    const loops = traceLoops(map);
-    map.stats.contourLoops = loops.length;
+    const eps = T.PEG_DP_EPSILON * T.TILE_SIZE;
 
-    for (const loop of loops) {
-      const poly = simplifyLoop(loop, T.PEG_DP_EPSILON);
+    for (const loop of map.wallLoops) {
+      const poly = simplifyLoop(loop.pts, eps);
       const n = poly.length;
       if (n < 3) continue;
       for (let i = 0; i < n; i++) {
@@ -728,18 +847,24 @@ window.Tethered = window.Tethered || {};
         ax /= al; ay /= al; bx /= bl; by /= bl;
         const cross = ax * by - ay * bx;
         const dot = ax * bx + ay * by;
-        // Floor-on-left winding: cross > 0 = the path bends right around a
-        // wall corner protruding into floor — the wrappable convex case.
-        if (cross <= 0) continue;
         const turn = Math.atan2(Math.abs(cross), dot);
         if (turn < minAngle) continue;
-        // Bisector of the two wall-side (right) normals points into the wall.
-        let nx = -ay - by;
-        let ny = ax + bx;
+        // Inward bisector (into the wall). Orient it to the wall side by
+        // sampling: the peg sits just inside the wall so the rope arc kisses
+        // the visible edge.
+        let nx = -(ax + bx);
+        let ny = -(ay + by);
         const nl = Math.hypot(nx, ny) || 1e-9;
         nx /= nl; ny /= nl;
-        const x = v[0] * T.TILE_SIZE + nx * T.WALL_PEG_RADIUS;
-        const y = v[1] * T.TILE_SIZE + ny * T.WALL_PEG_RADIUS;
+        if (floorAt(map, v[0] + nx * T.WALL_PEG_RADIUS, v[1] + ny * T.WALL_PEG_RADIUS)) {
+          nx = -nx; ny = -ny; // bisector pointed at floor — flip into the wall
+          // (a concave-into-floor vertex; not a wrappable corner) → skip
+          if (floorAt(map, v[0] + nx * T.WALL_PEG_RADIUS, v[1] + ny * T.WALL_PEG_RADIUS)) continue;
+        } else if (!floorAt(map, v[0] - nx * T.WALL_PEG_RADIUS, v[1] - ny * T.WALL_PEG_RADIUS)) {
+          continue; // wall on both sides — a pinch, not a convex corner
+        }
+        const x = v[0] + nx * T.WALL_PEG_RADIUS;
+        const y = v[1] + ny * T.WALL_PEG_RADIUS;
         pegs.push({ x, y, _px: x, _py: y, r: T.WALL_PEG_RADIUS, obstacle: true });
       }
     }
@@ -833,6 +958,7 @@ window.Tethered = window.Tethered || {};
         break;
       }
     }
+    buildSmoothWalls(best); // smooth contours — drives render, collision, pegs
     derivePegs(best);
     best.stats.attempts = attempts;
     best.stats.pegCount = best.pegs.length;

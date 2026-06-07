@@ -62,29 +62,38 @@ window.Tethered = window.Tethered || {};
     S.drawDevPanel(ctx, game);
   };
 
-  // Cave walls: only the camera-visible tile range (plus a margin so screen
-  // shake never exposes an undrawn strip), with horizontal runs merged into
-  // single rects. The floor is the background color — walls are the painted
-  // thing, in the obstacle palette so they read as architecture.
+  // Cave walls: the smooth contour polygons are the source of truth (same
+  // curves the ball and rope collide with). Paint the world wall-colored,
+  // then punch the floor back out with an even-odd fill of every loop —
+  // nesting (a wall island inside a chamber) resolves automatically — and
+  // stroke the loops so the organic edge reads crisp. Only loops whose bbox
+  // meets the camera view are traced.
   function drawWalls(ctx, game) {
     const map = game.map;
-    if (!map) return;
-    const ts = S.TUNING.TILE_SIZE;
+    if (!map || !map.wallLoops) return;
     const cam = game.camera;
-    const x0 = Math.max(0, Math.floor(cam.x / ts) - 1);
-    const x1 = Math.min(map.tw - 1, Math.floor((cam.x + game.width) / ts) + 1);
-    const y0 = Math.max(0, Math.floor(cam.y / ts) - 1);
-    const y1 = Math.min(map.th - 1, Math.floor((cam.y + game.height) / ts) + 1);
+    const vx0 = cam.x;
+    const vy0 = cam.y;
+    const vx1 = cam.x + game.width;
+    const vy1 = cam.y + game.height;
+
     ctx.fillStyle = '#1c1f2a';
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        if (map.tiles[ty * map.tw + tx] !== 1) continue;
-        let run = tx;
-        while (run <= x1 && map.tiles[ty * map.tw + run] === 1) run++;
-        ctx.fillRect(tx * ts, ty * ts, (run - tx) * ts, ts);
-        tx = run;
-      }
+    ctx.fillRect(vx0 - 4, vy0 - 4, game.width + 8, game.height + 8);
+
+    ctx.beginPath();
+    for (const loop of map.wallLoops) {
+      if (loop.maxX < vx0 || loop.minX > vx1 || loop.maxY < vy0 || loop.minY > vy1) continue;
+      const pts = loop.pts;
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.closePath();
     }
+    ctx.fillStyle = '#0d0e14';
+    ctx.fill('evenodd');
+    ctx.strokeStyle = '#3a3f52';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
   }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
