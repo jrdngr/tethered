@@ -175,7 +175,8 @@ window.Tethered = window.Tethered || {};
     // is guaranteed.
     let r1 = radius(1);
     let r2 = radius(1);
-    const minGap = T.CHAMBER_GAP_TILES + 8; // ~8 tiles (256px) of genuine corridor
+    // Gap + ~2.5 corridor-widths of genuine corridor between the footprints.
+    const minGap = T.CHAMBER_GAP_TILES + 2.5 * T.MIN_PASSAGE_TILES;
     const spawn = { cx: B + r1 * 1.15 + 1, cy: jitterY(), r: r1, reserved: 'spawn' };
     const exit = { cx: map.tw - 1 - B - r2 * 1.15 - 1, cy: jitterY(), r: r2, reserved: 'exit' };
     const sep = () => Math.hypot(exit.cx - spawn.cx, exit.cy - spawn.cy) - (spawn.r + exit.r) * 1.15;
@@ -441,12 +442,15 @@ window.Tethered = window.Tethered || {};
   }
 
   // --- Width guarantee --------------------------------------------------------
-  // A floor tile is "thin" when nothing in its 8-neighborhood (or itself)
-  // reaches clearance 2 — i.e. it sits on a passage narrower than the
-  // 3-tile floor. Each pass dilates the floor there; carving only, never
+  // A passage at the MIN_PASSAGE_TILES floor has a spine of clearance
+  // ceil(width/2); every floor tile of a wide-enough passage sits within
+  // spine-1 of such a tile. A floor tile with no spine tile in that reach is
+  // "thin" — each pass dilates the floor there; carving only, never
   // filling, iterated to a bounded fixpoint.
   function widthGuarantee(map, mask) {
     const brush = S.TUNING.MIN_PASSAGE_TILES / 2;
+    const spine = Math.ceil(S.TUNING.MIN_PASSAGE_TILES / 2);
+    const reach = spine - 1;
     for (let pass = 0; pass < 3; pass++) {
       const clear = distanceTransform(map);
       const thin = [];
@@ -454,11 +458,11 @@ window.Tethered = window.Tethered || {};
         for (let tx = 0; tx < map.tw; tx++) {
           if (map.tiles[ty * map.tw + tx] === 1) continue;
           let ok = false;
-          for (let dy = -1; dy <= 1 && !ok; dy++) {
-            for (let dx = -1; dx <= 1 && !ok; dx++) {
+          for (let dy = -reach; dy <= reach && !ok; dy++) {
+            for (let dx = -reach; dx <= reach && !ok; dx++) {
               const nx = tx + dx;
               const ny = ty + dy;
-              if (nx >= 0 && ny >= 0 && nx < map.tw && ny < map.th && clear[ny * map.tw + nx] >= 2) ok = true;
+              if (nx >= 0 && ny >= 0 && nx < map.tw && ny < map.th && clear[ny * map.tw + nx] >= spine) ok = true;
             }
           }
           if (!ok) thin.push([tx, ty]);

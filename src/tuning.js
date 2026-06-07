@@ -361,19 +361,23 @@ Tethered.TUNING = {
   // corridors carved along a spanning tree, then organic-ized edges. Sizes
   // are in 32px tiles; a "screen" is the reference viewport below, so map
   // size reads in screens-of-play-area.
-  TILE_SIZE: 32,            // px — ball radius = 1 tile; 3-tile corridors = 96px
+  // Geometry scale: doubled after the M2 playtest (corridors/chambers felt
+  // cramped against the 192px rope). Tiles stay 32px so wall edges keep
+  // their grain — the doubling lives in the tile-denominated knobs below,
+  // so a "screen" stays an honest viewport and maps span more of them.
+  TILE_SIZE: 32,            // px — ball radius = 1 tile; 6-tile corridors = 192px
   MAP_SCREEN_W: 1600,       // px — reference screen for map sizing
   MAP_SCREEN_H: 900,
-  MAP_SCREENS_BASE: 2,      // depth 1 is a 2×2-screen map...
-  MAP_SCREENS_PER_DEPTH: 1, // ...growing one screen per depth...
-  MAP_SCREENS_CAP: 6,       // ...capped at 6×6 (depth 5+)
+  MAP_SCREENS_BASE: 4,      // depth 1 is a 4×4-screen map...
+  MAP_SCREENS_PER_DEPTH: 2, // ...growing two screens per depth...
+  MAP_SCREENS_CAP: 12,      // ...capped at 12×12 (depth 5+)
   MAX_DEPTH: 10,            // clearing this depth's exit wins the run
   MAP_BORDER_TILES: 2,      // solid wall band around the map, never carved
   CHAMBER_COUNT_BY_DEPTH: [2, 4, 6, 8, 10, 12, 13, 14, 15, 16], // sub-linear — no encounter-count cliffs
-  CHAMBER_RADIUS_MIN: 18,   // tiles — stamped chamber blob radius (576px)...
-  CHAMBER_RADIUS_MAX: 22,   // ...to 704px: arena-scale swing room guaranteed
-  CHAMBER_GAP_TILES: 6,     // tiles of wall kept between stamped chambers
-  MIN_PASSAGE_TILES: 3,     // tiles — corridor width floor (96px ≥ 3× enemy diameter)
+  CHAMBER_RADIUS_MIN: 36,   // tiles — stamped chamber blob radius (1152px)...
+  CHAMBER_RADIUS_MAX: 44,   // ...to 1408px: arena-scale swing room guaranteed
+  CHAMBER_GAP_TILES: 12,    // tiles of wall kept between stamped chambers
+  MIN_PASSAGE_TILES: 6,     // tiles — corridor width floor (192px ≈ 7× enemy diameter)
   CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
   CA_NOISE_FLOOR_P: 0.35,   // boundary wall→floor flip chance (erosion-biased...)
   CA_NOISE_WALL_P: 0.22,    // ...vs floor→wall, so organic-izing never seals space)

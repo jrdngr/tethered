@@ -413,7 +413,8 @@ window.Tethered = window.Tethered || {};
     for (let attempt = 0; attempt < 20; attempt++) {
       const tx = Math.floor(Math.random() * map.tw);
       const ty = Math.floor(Math.random() * map.th);
-      if (map.isWall(tx, ty) || map.clearance[ty * map.tw + tx] < 2) continue;
+      if (map.isWall(tx, ty) ||
+          map.clearance[ty * map.tw + tx] < Math.ceil(S.TUNING.MIN_PASSAGE_TILES / 2)) continue;
       const p = map.tileToWorld(tx, ty);
       x = p.x;
       y = p.y;
