@@ -57,21 +57,6 @@ window.Tethered = window.Tethered || {};
     });
   };
 
-  // Radial shockwave for pickups: shove every coin and health pickup within
-  // `radius` of (x, y) away, fading linearly with distance. The pickup
-  // counterpart of S.pushEnemies.
-  S.pushCoins = function (game, x, y, speed, radius) {
-    for (const c of game.coins) {
-      const dx = c.x - x;
-      const dy = c.y - y;
-      const d = Math.hypot(dx, dy) || 1;
-      if (d >= radius) continue;
-      const fade = 1 - d / radius;
-      c.vx += (dx / d) * speed * fade;
-      c.vy += (dy / d) * speed * fade;
-    }
-  };
-
   // Green spark burst where a health pickup was grabbed.
   function spawnHealParticles(game, x, y) {
     const T = S.TUNING;
@@ -109,18 +94,7 @@ window.Tethered = window.Tethered || {};
     const playing = game.state === S.STATE.PLAYING;
 
     // Advance heal-burst particles (same drag as coins).
-    for (let i = game.particles.length - 1; i >= 0; i--) {
-      const p = game.particles[i];
-      p.age += dt;
-      if (p.age >= p.life) {
-        game.particles.splice(i, 1);
-        continue;
-      }
-      p.vx *= decay;
-      p.vy *= decay;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-    }
+    S.advanceParticles(game.particles, dt, T.COIN_DRAG);
 
     // Pairwise merge dance, one value bucket at a time. First count, per
     // coin, how many bucket-mates sit inside merge range (itself included) —

@@ -216,16 +216,6 @@ window.Tethered = window.Tethered || {};
     return segs;
   };
 
-  // Closest point on the segment (x1,y1)-(x2,y2) to (cx,cy).
-  function segClosest(x1, y1, x2, y2, cx, cy) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len2 = dx * dx + dy * dy;
-    let t = len2 ? ((cx - x1) * dx + (cy - y1) * dy) / len2 : 0;
-    t = Math.max(0, Math.min(1, t));
-    return { x: x1 + t * dx, y: y1 + t * dy };
-  }
-
   // Weapon pass, run before the body-collision loop: each enemy takes at
   // most one weapon hit per tick; resolveSmash kills (flagging dead for the
   // sweep) or knocks the survivor flush against the weapon, so the body
@@ -243,20 +233,19 @@ window.Tethered = window.Tethered || {};
         // pokes — so without a guard it would re-hit a survivor it's still
         // plowing toward every tick. The hit flash doubles as the cooldown.
         if (s.kind === 'poker' && e.flash > 0) continue;
-        const p = segClosest(s.x1, s.y1, s.x2, s.y2, e.x, e.y);
-        const gap = Math.hypot(e.x - p.x, e.y - p.y);
-        if (gap >= s.r + e.r) continue;
+        const p = S.geom.segClosest(s.x1, s.y1, s.x2, s.y2, e.x, e.y);
+        const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, s.r);
+        if (!hit) continue;
         // Same normal convention as the body collision: from the enemy
         // toward the contact, so a tip hit bounces the ball back along the
         // weapon's axis and a side hit deflects it laterally.
-        let nx = (p.x - e.x) / (gap || 1);
-        let ny = (p.y - e.y) / (gap || 1);
+        let { nx, ny } = hit;
         // An enemy dead on the capsule axis has no contact direction — a
         // zero normal would zero the ball's bounce. It happens for real: a
         // body bounce off a survivor leaves ball, velocity, and enemy
         // collinear, putting the enemy exactly on the tail's axis next
         // tick. Fall back to enemy→ball, the line the weapon swept along.
-        if (gap < 1e-6) {
+        if (hit.d < 1e-6) {
           const d = Math.hypot(b.x - e.x, b.y - e.y) || 1;
           nx = (b.x - e.x) / d;
           ny = (b.y - e.y) / d;
@@ -274,7 +263,7 @@ window.Tethered = window.Tethered || {};
         });
         // TAIL special: wake — a tail hit also shoves everything nearby.
         if (s.kind === 'tail' && game.stats.tailWake) {
-          S.pushEnemies(game, b.x, b.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS);
+          S.geom.radialPush(game.enemies, b.x, b.y, T.ENEMY_POP_PUSH, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
         }
         break;
       }

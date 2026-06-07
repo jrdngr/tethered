@@ -66,7 +66,7 @@ window.Tethered = window.Tethered || {};
       });
     }
     // Shockwave: every enemy in the arena is flung away from the dying player.
-    S.pushEnemies(game, b.x, b.y, T.PLAYER_POP_PUSH, Infinity);
+    S.geom.radialPush(game.enemies, b.x, b.y, T.PLAYER_POP_PUSH, Infinity, 'kx', 'ky');
   };
 
   S.updateCombo = function (game, dt) {

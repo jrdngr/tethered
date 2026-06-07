@@ -232,13 +232,9 @@ window.Tethered = window.Tethered || {};
       for (let j = i + 1; j < list.length; j++) {
         const a = list[i];
         const b = list[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const d = Math.hypot(dx, dy) || 1;
-        const overlap = a.r + b.r - d;
-        if (overlap <= 0) continue;
-        const nx = dx / d;
-        const ny = dy / d;
+        const hit = S.geom.circleOverlap(a.x, a.y, a.r, b.x, b.y, b.r);
+        if (!hit) continue;
+        const { nx, ny, overlap } = hit;
         shiftEnemy(a, -nx * overlap / 2, -ny * overlap / 2);
         shiftEnemy(b, nx * overlap / 2, ny * overlap / 2);
         a.kx -= nx * T.ENEMY_BOUNCE;
@@ -248,21 +244,6 @@ window.Tethered = window.Tethered || {};
       }
     }
   }
-
-  // Radial shockwave: shove every enemy within `radius` of (x, y) away,
-  // fading linearly with distance, via the same decaying knockback a hit
-  // applies. Pass Infinity for a full-strength, arena-wide blast.
-  S.pushEnemies = function (game, x, y, speed, radius) {
-    for (const e of game.enemies) {
-      const dx = e.x - x;
-      const dy = e.y - y;
-      const d = Math.hypot(dx, dy) || 1;
-      if (d >= radius) continue;
-      const fade = 1 - d / radius; // d/Infinity is 0, so Infinity → full force
-      e.kx += (dx / d) * speed * fade;
-      e.ky += (dy / d) * speed * fade;
-    }
-  };
 
   // Closest live enemy to (x, y), or null. Used by the TOP SPEED special's
   // homing bend.
@@ -287,8 +268,8 @@ window.Tethered = window.Tethered || {};
     const T = S.TUNING;
     game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0 });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
-    S.pushEnemies(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
-    S.pushCoins(game, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
+    S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
+    S.geom.radialPush(game.coins, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     if (e.splitCount) {
       splitEnemy(game, e, e.splitCount);
     } else {
@@ -440,10 +421,9 @@ window.Tethered = window.Tethered || {};
       // the ball is already gone — and while a fresh split child's
       // invincibility runs down: it can't be hurt or deal a hit).
       if (game.state !== S.STATE.PLAYING || e.invuln > 0) continue;
-      const gap = Math.hypot(b.x - e.x, b.y - e.y);
-      if (gap >= b.r + e.r) continue;
-      const nx = (b.x - e.x) / (gap || 1); // unit normal from enemy to ball
-      const ny = (b.y - e.y) / (gap || 1);
+      const hit = S.geom.circleOverlap(e.x, e.y, e.r, b.x, b.y, b.r);
+      if (!hit) continue;
+      const { nx, ny } = hit; // unit normal from enemy to ball
 
       // Bumping an enemy snaps the tether. A fast ball smashes whether or
       // not it was tethered, but a tethered bump costs the combo: it resets
