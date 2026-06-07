@@ -23,6 +23,65 @@ window.Tethered = window.Tethered || {};
     return T.COIN_RADIUS * Math.pow(value, T.COIN_SIZE_GROWTH);
   }
 
+  // Pickup registry: one entry per pickup type, mirroring ENEMY_TYPES and
+  // WEAPONS. Pickups all share the `coins` array and its physics (scatter,
+  // drag, magnetism, wall bounce); everything type-specific — spawn radius,
+  // scoop grace, merge eligibility, the scoop effect, the visual — lives
+  // here, read from TUNING live so console tuning shows up immediately.
+  // A new pickup type is one entry plus a spawn call.
+  S.PICKUP_TYPES = {
+    coin: {
+      radius: (T) => T.COIN_RADIUS,
+      grace: () => 0, // scoopable the moment it drops
+      mergeable: true, // joins the denomination merge dance below
+      // Coins count toward the level; crossing a threshold queues a level-up.
+      onScoop(game, c) {
+        game.coinProgress += c.value;
+        while (game.coinProgress >= S.coinsForLevel(game.level)) {
+          game.coinProgress -= S.coinsForLevel(game.level);
+          game.level += 1;
+          game.pendingLevelUps += 1; // each level pauses for an upgrade pick
+        }
+        if (game.pendingLevelUps > 0 && game.state === S.STATE.PLAYING) {
+          S.startLevelUp(game);
+        }
+      },
+      // Pulsating gold disc; merged denominations read by size alone.
+      draw(ctx, c, game) {
+        const pulse = 0.925 + 0.075 * Math.sin(c.spin + game.time * 6);
+        ctx.fillStyle = '#ffc53d';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r * pulse, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    },
+    // Rare health drop. Heals on pickup instead of counting toward the
+    // level; immune to scoop/magnetism for a grace period so it visibly
+    // scatters and the grab is a deliberate move.
+    heal: {
+      radius: (T) => T.HEALTH_RADIUS,
+      grace: (T) => T.HEALTH_GRACE,
+      mergeable: false,
+      onScoop(game, c) {
+        const b = game.ball;
+        b.hp = Math.min(b.hp + S.TUNING.HEALTH_HEAL, game.stats.maxHp);
+        spawnHealParticles(game, c.x, c.y);
+      },
+      // Green disc with a white cross.
+      draw(ctx, c) {
+        ctx.fillStyle = '#46a758';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e8f5ec';
+        const arm = c.r * 0.55; // cross half-length
+        const thick = c.r * 0.3;
+        ctx.fillRect(c.x - thick / 2, c.y - arm, thick, arm * 2);
+        ctx.fillRect(c.x - arm, c.y - thick / 2, arm * 2, thick);
+      },
+    },
+  };
+
   // Scatter a burst of coins where an enemy was popped, × the current combo
   // (and × an optional per-enemy multiplier — tanks pay out more).
   S.spawnCoinBurst = function (game, x, y, mult) {
@@ -32,9 +91,10 @@ window.Tethered = window.Tethered || {};
     const count = base * game.combo * (mult || 1);
     for (let i = 0; i < count; i++) {
       game.coins.push({
+        type: 'coin',
         x, y,
         ...S.randomVelocity(T.COIN_BURST_SPEED, 0.3),
-        r: T.COIN_RADIUS,
+        r: S.PICKUP_TYPES.coin.radius(T),
         age: 0,
         value: 1,
         spin: Math.random() * Math.PI * 2, // render phase for the pulse
@@ -42,18 +102,15 @@ window.Tethered = window.Tethered || {};
     }
   };
 
-  // Rare health drop where an enemy was popped. It lives in the coins array
-  // and shares the same physics and magnetism, but heals on pickup instead
-  // of counting toward the level. Flung well clear of the pop, and immune to
-  // scoop/magnetism for a grace period so the grab is a deliberate move.
+  // Flung well clear of the pop, harder than a coin burst.
   S.spawnHealthPickup = function (game, x, y) {
     const T = S.TUNING;
     game.coins.push({
+      type: 'heal',
       x, y,
       ...S.randomVelocity(T.HEALTH_FLING_SPEED, 0.7),
-      r: T.HEALTH_RADIUS,
+      r: S.PICKUP_TYPES.heal.radius(T),
       age: 0,
-      heal: T.HEALTH_HEAL,
     });
   };
 
@@ -70,17 +127,18 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Index the coins eligible for the pairwise merge dance (near-counting,
-  // attraction/repulsion, merging): non-heal, past the merge grace, of a
-  // still-mergeable value. Grouped by value, since only same-value pairs
-  // interact — each group is its own small n² instead of one big one, and
-  // fresh burst drops (the bulk right after a kill) sit out entirely until
-  // their grace ends.
+  // Index the pickups eligible for the pairwise merge dance (near-counting,
+  // attraction/repulsion, merging): a mergeable type, past the merge grace,
+  // of a still-mergeable value. Grouped by value, since only same-value
+  // pairs interact — each group is its own small n² instead of one big one,
+  // and fresh burst drops (the bulk right after a kill) sit out entirely
+  // until their grace ends.
   function mergeBuckets(game) {
     const T = S.TUNING;
     const buckets = {};
     for (const c of game.coins) {
-      if (c.heal || c.merged || c.age < T.COIN_MERGE_GRACE || !T.COIN_MERGE_COUNTS[c.value]) continue;
+      if (!S.PICKUP_TYPES[c.type].mergeable || c.merged ||
+          c.age < T.COIN_MERGE_GRACE || !T.COIN_MERGE_COUNTS[c.value]) continue;
       (buckets[c.value] || (buckets[c.value] = [])).push(c);
     }
     return buckets;
@@ -155,27 +213,14 @@ window.Tethered = window.Tethered || {};
       const dy = b.y - c.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // Fresh health pickups fly free for a grace period so they visibly
-      // scatter instead of being scooped the instant they spawn.
-      const settled = !c.heal || c.age >= T.HEALTH_GRACE;
+      // Pickup types with a spawn grace fly free until it ends, so they
+      // visibly scatter instead of being scooped the instant they spawn.
+      const settled = c.age >= S.PICKUP_TYPES[c.type].grace(T);
 
-      // Scooped up on contact with the ball.
+      // Scooped up on contact with the ball: the type's effect, then gone.
       if (playing && settled && dist < b.r + c.r) {
         game.coins.splice(i, 1);
-        if (c.heal) {
-          b.hp = Math.min(b.hp + c.heal, game.stats.maxHp);
-          spawnHealParticles(game, c.x, c.y);
-          continue;
-        }
-        game.coinProgress += c.value;
-        while (game.coinProgress >= S.coinsForLevel(game.level)) {
-          game.coinProgress -= S.coinsForLevel(game.level);
-          game.level += 1;
-          game.pendingLevelUps += 1; // each level pauses for an upgrade pick
-        }
-        if (game.pendingLevelUps > 0 && game.state === S.STATE.PLAYING) {
-          S.startLevelUp(game);
-        }
+        S.PICKUP_TYPES[c.type].onScoop(game, c);
         continue;
       }
 
@@ -230,6 +275,7 @@ window.Tethered = window.Tethered || {};
         anyMerged = true;
         const merged = c.value * need; // the next denomination up
         game.coins.push({
+          type: 'coin',
           x: mx / need, y: my / need,
           vx: mvx / need, vy: mvy / need,
           r: coinRadius(merged),

@@ -83,30 +83,13 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Coins: pulsating gold discs, fading out at the end of their life;
-  // merged denominations read by size alone.
-  // Health pickups share the array: a green disc with a white cross.
+  // Pickups, each drawn by its PICKUP_TYPES entry, fading out at the end of
+  // their life.
   function drawCoins(ctx, game) {
     const T = S.TUNING;
     for (const c of game.coins) {
       ctx.globalAlpha = Math.min((T.COIN_LIFETIME - c.age) / 1.5, 1);
-      if (c.heal) {
-        ctx.fillStyle = '#46a758';
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#e8f5ec';
-        const arm = c.r * 0.55; // cross half-length
-        const thick = c.r * 0.3;
-        ctx.fillRect(c.x - thick / 2, c.y - arm, thick, arm * 2);
-        ctx.fillRect(c.x - arm, c.y - thick / 2, arm * 2, thick);
-      } else {
-        const pulse = 0.925 + 0.075 * Math.sin(c.spin + game.time * 6);
-        ctx.fillStyle = '#ffc53d';
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, c.r * pulse, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      S.PICKUP_TYPES[c.type].draw(ctx, c, game);
     }
     ctx.globalAlpha = 1;
   }
