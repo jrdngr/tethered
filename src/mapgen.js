@@ -227,14 +227,43 @@ window.Tethered = window.Tethered || {};
     return n;
   }
 
-  function isBoundary(map, tx, ty) {
+  // A tile is in the boundary band when the opposite tile type sits within
+  // `depth` (Chebyshev). depth 1 = the classic one-tile edge; deeper bands
+  // let the noise take bigger bites, so silhouettes get lumpy at a larger
+  // scale instead of merely fuzzy.
+  function inBand(map, tx, ty, depth) {
     const wall = map.isWall(tx, ty);
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -depth; dy <= depth; dy++) {
+      for (let dx = -depth; dx <= depth; dx++) {
         if ((dx || dy) && map.isWall(tx + dx, ty + dy) !== wall) return true;
       }
     }
     return false;
+  }
+
+  function isBoundary(map, tx, ty) {
+    return inBand(map, tx, ty, 1);
+  }
+
+  // One pass of boundary noise: walls flip to floor at pFloor, floors flip
+  // to wall at pWall (never the carve mask, never the border).
+  function noisePass(map, mask, rng, pFloor, pWall, depth) {
+    const B = S.TUNING.MAP_BORDER_TILES;
+    const flips = [];
+    for (let ty = B; ty < map.th - B; ty++) {
+      for (let tx = B; tx < map.tw - B; tx++) {
+        if (!inBand(map, tx, ty, depth)) continue;
+        const i = ty * map.tw + tx;
+        if (map.tiles[i] === 1) {
+          if (rng() < pFloor) flips.push([i, 0]);
+        } else if (!mask[i] && rng() < pWall) {
+          flips.push([i, 1]);
+        }
+      }
+    }
+    // Collected first, applied after: flips must not cascade through the
+    // band test mid-scan or the result drifts with iteration order.
+    for (const [i, v] of flips) map.tiles[i] = v;
   }
 
   function forceBorder(map) {
@@ -272,23 +301,13 @@ window.Tethered = window.Tethered || {};
   // Boundary noise then smoothing, restricted to the wall/floor boundary
   // band: chamber cores and deep walls never churn. The carve mask is
   // re-floored after every wall-converting pass — corridors cannot seal.
+  // A light post-smooth noise pass restores the fine grain the smoother
+  // melts, so edges read rough instead of rounded.
   function organicEdges(map, mask, rng) {
     const T = S.TUNING;
     const B = T.MAP_BORDER_TILES;
 
-    const band = [];
-    for (let ty = B; ty < map.th - B; ty++) {
-      for (let tx = B; tx < map.tw - B; tx++) {
-        if (isBoundary(map, tx, ty)) band.push(ty * map.tw + tx);
-      }
-    }
-    for (const i of band) {
-      if (map.tiles[i] === 1) {
-        if (rng() < T.CA_NOISE_FLOOR_P) map.tiles[i] = 0;
-      } else if (!mask[i] && rng() < T.CA_NOISE_WALL_P) {
-        map.tiles[i] = 1;
-      }
-    }
+    noisePass(map, mask, rng, T.CA_NOISE_FLOOR_P, T.CA_NOISE_WALL_P, Math.max(1, T.CA_NOISE_DEPTH));
 
     for (let iter = 0; iter < T.CA_EDGE_ITERS; iter++) {
       const flips = [];
@@ -302,6 +321,13 @@ window.Tethered = window.Tethered || {};
         }
       }
       for (const [i, v] of flips) map.tiles[i] = v;
+      reapplyMask(map, mask);
+    }
+
+    if (T.CA_POST_NOISE_P > 0) {
+      // Erosion-biased like the main pass (floor flips at 0.7×) so grain
+      // never strangles space the smoother just opened.
+      noisePass(map, mask, rng, T.CA_POST_NOISE_P, T.CA_POST_NOISE_P * 0.7, 1);
       reapplyMask(map, mask);
     }
     killWallNubs(map);

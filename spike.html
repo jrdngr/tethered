@@ -12,7 +12,8 @@
 <body>
   <!-- M0 spike: static mapgen harness. THROWAWAY — only src/mapgen.js is real.
        Keys: R = regenerate (new seed) · 1-9/0 = depth (0 = 10) · C = clearance
-       heatmap · P = pegs · S = same-seed regen -->
+       heatmap · P = pegs · S = same-seed regen · edge-roughness knobs below
+       regenerate the SAME seed so changes compare apples-to-apples. -->
   <canvas id="game"></canvas>
   <div id="hud"></div>
   <script src="src/tuning.js"></script>
@@ -27,6 +28,17 @@
       let map = null;
       let showClearance = false;
       let showPegs = true;
+
+      // Edge-roughness knobs, live-tweakable: [decreaseKey, increaseKey].
+      // Mutates TUNING directly — mapgen reads it fresh every generate.
+      const KNOBS = [
+        { key: 'CA_NOISE_FLOOR_P', label: 'noiseFloorP', dec: 'KeyQ', inc: 'KeyW', step: 0.05, min: 0, max: 0.9, fmt: (v) => v.toFixed(2) },
+        { key: 'CA_NOISE_WALL_P', label: 'noiseWallP', dec: 'KeyA', inc: 'KeyS', step: 0.05, min: 0, max: 0.9, fmt: (v) => v.toFixed(2) },
+        { key: 'CA_NOISE_DEPTH', label: 'noiseDepth', dec: 'KeyZ', inc: 'KeyX', step: 1, min: 1, max: 4, fmt: (v) => String(v) },
+        { key: 'CA_EDGE_ITERS', label: 'smoothIters', dec: 'KeyE', inc: 'KeyD', step: 1, min: 0, max: 6, fmt: (v) => String(v) },
+        { key: 'CA_POST_NOISE_P', label: 'postNoiseP', dec: 'KeyT', inc: 'KeyG', step: 0.03, min: 0, max: 0.6, fmt: (v) => v.toFixed(2) },
+      ];
+      const DEFAULTS = Object.fromEntries(KNOBS.map((k) => [k.key, S.TUNING[k.key]]));
 
       function regen(reuseSeed) {
         map = S.generateMap(depth, reuseSeed ? map && map.seed : seed);
@@ -90,6 +102,11 @@
         mark(map.exit, '#ff5d6e');
 
         const st = map.stats;
+        const knobLine = KNOBS.map((k) => {
+          const v = S.TUNING[k.key];
+          const dirty = v !== DEFAULTS[k.key] ? '*' : '';
+          return `${k.label}${dirty} ${k.fmt(v)} [${k.dec.slice(3).toLowerCase()}/${k.inc.slice(3).toLowerCase()}]`;
+        }).join('   ');
         hud.textContent =
           `depth ${depth}  seed ${map.seed}  ${map.tw}x${map.th} tiles (${map.w}x${map.h}px)\n` +
           `gen ${st.genMs.toFixed(1)}ms (${st.attempts} attempt${st.attempts > 1 ? 's' : ''})  ` +
@@ -97,14 +114,28 @@
           `loops ${st.contourLoops}  pegs ${st.pegCount}\n` +
           `spawn->exit ${Math.round(st.spawnExitPathPx)}px (need ${Math.round(st.gateNeedPx)}) ` +
           `gate ${st.gatePass ? 'PASS' : 'FAIL'}\n` +
-          `[R] reseed  [S] same seed  [1-9, 0] depth  [C] clearance ${showClearance ? 'on' : 'off'}  [P] pegs ${showPegs ? 'on' : 'off'}`;
+          `[R] reseed  [S] same seed  [1-9, 0] depth  [C] clearance ${showClearance ? 'on' : 'off'}  [P] pegs ${showPegs ? 'on' : 'off'}  [V] reset knobs\n` +
+          `edges:  ${knobLine}`;
       }
 
       window.addEventListener('keydown', (e) => {
+        for (const k of KNOBS) {
+          if (e.code === k.dec || e.code === k.inc) {
+            const dir = e.code === k.inc ? 1 : -1;
+            const v = S.TUNING[k.key] + dir * k.step;
+            S.TUNING[k.key] = Math.round(Math.min(k.max, Math.max(k.min, v)) * 100) / 100;
+            regen(true); // same seed: isolate the knob's effect
+            return;
+          }
+        }
         if (e.code === 'KeyR') { seed = null; regen(false); }
         else if (e.code === 'KeyS') regen(true);
         else if (e.code === 'KeyC') { showClearance = !showClearance; draw(); }
         else if (e.code === 'KeyP') { showPegs = !showPegs; draw(); }
+        else if (e.code === 'KeyV') {
+          for (const k of KNOBS) S.TUNING[k.key] = DEFAULTS[k.key];
+          regen(true);
+        }
         else if (/^Digit\d$/.test(e.code)) {
           depth = e.code === 'Digit0' ? 10 : Number(e.code.slice(5));
           regen(false);

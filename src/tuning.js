@@ -377,6 +377,8 @@ Tethered.TUNING = {
   CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
   CA_NOISE_FLOOR_P: 0.35,   // boundary wall→floor flip chance (erosion-biased...)
   CA_NOISE_WALL_P: 0.22,    // ...vs floor→wall, so organic-izing never seals space)
+  CA_NOISE_DEPTH: 2,        // tiles deep the noise band reaches — bigger bites, lumpier silhouettes
+  CA_POST_NOISE_P: 0.15,    // light boundary re-noise AFTER smoothing: fine grain the smoother can't melt
   MAX_GEN_ATTEMPTS: 10,     // reseeded tries before accepting the best-scoring map
   WALL_PEG_RADIUS: 10,      // px — wrap peg at each convex wall corner
   WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
