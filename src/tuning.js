@@ -23,6 +23,19 @@ Tethered.TUNING = {
   SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
   SLINGSHOT_WRAP_BONUS: 0.5, // each wrap pivot adds this fraction to the release impulse
 
+  // Wrap rewards: the rope reads like a drawn bow (thicker + glowing with
+  // stretch, highlight rings on wrap pivots), and tethered kills pay a
+  // per-wrap coin bonus through the normal payout path.
+  WRAP_KILL_BONUS: 3,        // bonus coins per wrap pivot on a tethered kill (× combo/coinMult)
+  WRAP_GLOW_STRETCH: 200,    // px of stretch at full rope tension color/width/glow
+  WRAP_ROPE_WIDTH: 3,        // extra px of rope width at full tension (on the base 2)
+  WRAP_GLOW_BLUR: 16,        // px of tension glow at full stretch
+  WRAP_RING_PAD: 5,          // px the wrap-pivot highlight ring sits off the pivot's edge
+
+  // Floating reward text (the "+N WRAP" payout callout).
+  FLOATER_LIFE: 0.9,         // s before the text fades out
+  FLOATER_RISE: 50,          // px/s initial upward drift
+
   // Invincibility
   SPEED_THRESHOLD: 420,   // px/s — smash without taking damage above this; tethered bumps reset the combo
   SPEED_COLOR_MAX: 700,   // px/s — ball color/glow gradient reaches full brightness

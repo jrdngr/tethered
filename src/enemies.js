@@ -281,7 +281,7 @@ window.Tethered = window.Tethered || {};
   // their own opposing fling), coin drop at the combo at the moment of the
   // kill, health-drop roll, and (for untethered kills) the combo bump.
   // Splitters drop nothing themselves — their children pay out instead.
-  function popEnemy(game, e, bash, bumpCombo) {
+  function popEnemy(game, e, bash, bumpCombo, wraps) {
     const T = S.TUNING;
     // Bash kills are the power moment: drop into slow-mo for a beat. min()
     // makes a bash during slow-mo a clean refresh, never a deepening jolt.
@@ -300,9 +300,15 @@ window.Tethered = window.Tethered || {};
     S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
     S.geom.radialPush(game.coins, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     if (e.splitCount) {
-      splitEnemy(game, e, e.splitCount);
+      splitEnemy(game, e, e.splitCount); // splitters drop nothing — no wrap bonus either
     } else {
-      S.spawnCoinBurst(game, e.x, e.y, e.coinMult);
+      // Wrapped-rope kills sweeten the payout: a flat per-wrap bonus rides
+      // the normal coin path (so combo and coinMult apply), with floating
+      // text so the reward is legible. The combo is already at the reset ×1
+      // here — wraps are paid in coins, not combo.
+      const bonus = (wraps || 0) * T.WRAP_KILL_BONUS;
+      S.spawnCoinBurst(game, e.x, e.y, e.coinMult, bonus);
+      if (bonus) S.spawnFloater(game, e.x, e.y, `+${bonus * game.combo * e.coinMult} WRAP`);
       if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
     }
     if (bumpCombo) S.bumpCombo(game);
@@ -347,6 +353,8 @@ window.Tethered = window.Tethered || {};
   //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
   //   ax/ay/ar     separation anchor a survivor is pushed flush against
   //                (defaults to the ball; weapons pass their contact point)
+  //   wraps        rope wrap count at impact — a kill pays the per-wrap
+  //                coin bonus (only tethered body smashes pass this)
   S.resolveSmash = function (game, e, nx, ny, tethered, opts = {}) {
     const T = S.TUNING;
     const b = game.ball;
@@ -360,7 +368,7 @@ window.Tethered = window.Tethered || {};
     const killed = e.hp <= 0;
     if (killed) {
       e.dead = true;
-      popEnemy(game, e, bash, !tethered);
+      popEnemy(game, e, bash, !tethered, opts.wraps);
       if (game.stats.specials.popExplode) explodePop(game, e);
     } else {
       // Armor absorbed the hit: flash, knock the enemy back, and separate
@@ -478,6 +486,9 @@ window.Tethered = window.Tethered || {};
       // itself is free — only cashing a kill through the rope isn't.
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
       const tethered = game.tether.active;
+      // Wrapped-rope kills pay a per-wrap coin bonus — capture the count
+      // before the release clears the wraps.
+      const wraps = tethered ? game.tether.wraps.length : 0;
       if (tethered) S.releaseTether(game);
 
       if (fast) {
@@ -486,7 +497,7 @@ window.Tethered = window.Tethered || {};
         // actually happened, not from wherever the ball ended up. MASS
         // special: smashes pierce — the ball plows through everything.
         S.resolveSmash(game, e, nx, ny, tethered,
-          { ax: p.x, ay: p.y, pierce: game.stats.specials.juggernaut });
+          { ax: p.x, ay: p.y, pierce: game.stats.specials.juggernaut, wraps });
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below

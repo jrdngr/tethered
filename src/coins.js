@@ -85,12 +85,14 @@ window.Tethered = window.Tethered || {};
   };
 
   // Scatter a burst of coins where an enemy was popped, × the current combo
-  // (and × an optional per-enemy multiplier — tanks pay out more).
-  S.spawnCoinBurst = function (game, x, y, mult) {
+  // (and × an optional per-enemy multiplier — tanks pay out more). `bonus`
+  // is flat extra coins folded in before the multipliers — the wrap-kill
+  // bonus rides the same payout math as everything else.
+  S.spawnCoinBurst = function (game, x, y, mult, bonus) {
     const T = S.TUNING;
     const base = T.COINS_PER_KILL_MIN +
       Math.floor(Math.random() * (T.COINS_PER_KILL_MAX - T.COINS_PER_KILL_MIN + 1));
-    const count = base * game.combo * (mult || 1);
+    const count = (base + (bonus || 0)) * game.combo * (mult || 1);
     for (let i = 0; i < count; i++) {
       game.coins.push({
         type: 'coin',
@@ -114,6 +116,13 @@ window.Tethered = window.Tethered || {};
       r: S.PICKUP_TYPES.heal.radius(T),
       age: 0,
     });
+  };
+
+  // Floating reward text at a payout site, drifting up and fading (drawn by
+  // render.js's floater layer; advanced with the particle integrator below).
+  S.spawnFloater = function (game, x, y, text) {
+    const T = S.TUNING;
+    game.floaters.push({ x, y, vx: 0, vy: -T.FLOATER_RISE, text, age: 0, life: T.FLOATER_LIFE });
   };
 
   // Green spark burst where a health pickup was grabbed.
@@ -153,8 +162,10 @@ window.Tethered = window.Tethered || {};
     // The popped ball can't scoop or attract anything during the death pop.
     const playing = game.state === S.STATE.PLAYING;
 
-    // Advance heal-burst particles (same drag as coins).
+    // Advance heal-burst particles (same drag as coins) and reward floaters
+    // (heavier drag, so the text settles as it fades).
     S.advanceParticles(game.particles, dt, T.COIN_DRAG);
+    S.advanceParticles(game.floaters, dt, 2);
 
     // Pairwise merge dance, one value bucket at a time. First count, per
     // coin, how many bucket-mates sit inside merge range (itself included) —

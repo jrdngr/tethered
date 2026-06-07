@@ -45,6 +45,7 @@ window.Tethered = window.Tethered || {};
       coins: [], // dropped by popped enemies (includes health pickups)
       paddles: [], // edge-patrolling launch paddles, granted by the PADDLE upgrade
       particles: [], // green sparks from grabbed health pickups
+      floaters: [], // floating reward text (wrap bonuses)
       // Weapons arm on tether release, expire when slow; the floppy tail
       // keeps its own sprung world angle and angular velocity.
       weaponState: { active: false, tailAngle: 0, tailVel: 0 },

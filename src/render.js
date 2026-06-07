@@ -16,6 +16,7 @@ window.Tethered = window.Tethered || {};
     drawPaddles,
     drawEnemies,
     drawPops,
+    drawFloaters,
     drawPlayerPop,
     drawBall,
     drawFlash,
@@ -53,16 +54,20 @@ window.Tethered = window.Tethered || {};
     ctx.strokeRect(2, 2, game.width - 4, game.height - 4);
   }
 
-  // Rope (cursor anchor -> wrap pivots -> ball), brighter the more it's
-  // stretched; it bends at each enemy it has wrapped around. Untethered,
+  // Rope (cursor anchor -> wrap pivots -> ball): the player should feel it
+  // loading like a drawn bow, so width, color, and glow all scale with
+  // stretch, and each wrap pivot gets a pulsing highlight ring. Untethered,
   // a grab hint ring shows when hovering near the ball.
   function drawTether(ctx, game) {
     const T = S.TUNING;
     const b = game.ball;
     if (game.tether.active) {
-      const tension = Math.min(game.tether.stretch / 200, 1);
+      const tension = Math.min(game.tether.stretch / T.WRAP_GLOW_STRETCH, 1);
+      ctx.save();
       ctx.strokeStyle = `rgba(255, ${Math.round(230 - 130 * tension)}, ${Math.round(230 - 200 * tension)}, 0.9)`;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 + T.WRAP_ROPE_WIDTH * tension;
+      ctx.shadowColor = '#ff641e';
+      ctx.shadowBlur = T.WRAP_GLOW_BLUR * tension;
       ctx.beginPath();
       ctx.moveTo(game.mouse.x, game.mouse.y);
       for (const w of game.tether.wraps) ctx.lineTo(w.e.x, w.e.y);
@@ -72,6 +77,17 @@ window.Tethered = window.Tethered || {};
       ctx.beginPath();
       ctx.arc(game.mouse.x, game.mouse.y, 6, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+      // Highlight ring on each wrap pivot, pulsing while the wrap holds —
+      // the rope is bent around this thing, and it's paying out.
+      const pulse = 1 + Math.sin(game.time * 10);
+      ctx.strokeStyle = `rgba(255, 160, 60, ${0.5 + 0.3 * tension})`;
+      ctx.lineWidth = 2;
+      for (const w of game.tether.wraps) {
+        ctx.beginPath();
+        ctx.arc(w.e.x, w.e.y, (w.e.r || 0) + T.WRAP_RING_PAD + pulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else if (game.state === S.STATE.PLAYING) {
       // Grab hint when hovering near the ball.
       const d = Math.hypot(game.mouse.x - b.x, game.mouse.y - b.y);
@@ -191,6 +207,20 @@ window.Tethered = window.Tethered || {};
       ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE * scale - 1) * ease), 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  // Floating reward text (e.g. "+6 WRAP"): drifts up and fades, making
+  // bonus payouts legible at the kill site.
+  function drawFloaters(ctx, game) {
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffc53d';
+    for (const f of game.floaters) {
+      ctx.globalAlpha = 1 - f.age / f.life;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Player death pop: staggered white-hot shockwave rings, far bigger and
