@@ -14,7 +14,7 @@ Tethered.TUNING = {
 
   // Tether (elastic spring to cursor)
   GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
-  ROPE_K: 12,             // 1/s^2 — spring constant (accel per px of stretch)
+  ROPE_K: 9,              // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
   ROPE_MAX_REST: 192,     // px — max rest length at grab time; = BALL_RADIUS + GRAB_RADIUS, so no grab starts pre-stretched (a clamp below the grab reach yanks the ball at grab and starves wraps of rope)
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
@@ -27,7 +27,7 @@ Tethered.TUNING = {
   WRAP_UNWRAP_EPS: 0.02,      // rad — a pivot whose contact arc shrinks below this releases
   WRAP_SAFETY_MAX_PIVOTS: 16, // degenerate-state cap on simultaneous pivots (not a balance knob)
   WRAP_MAX_PIVOT_ANGLE: 6 * Math.PI, // per-pivot accumulated contact-angle clamp (3 full turns)
-  WRAP_DRAG_K: 0.6,           // scale on rope tension dragging wrapped live enemies
+  WRAP_DRAG_K: 0.8,           // scale on rope tension dragging wrapped live enemies (raised with the ROPE_K 12 -> 9 cut to hold the product — drag strength is its own knob, not a tension follower)
 
   // Wrap rewards: the rope reads like a drawn bow (thicker + glowing with
   // stretch, highlight rings on wrap pivots), and tethered kills pay a
