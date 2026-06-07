@@ -20,7 +20,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 |---|---|---|
 | [Rope wrap invisible and unrewarded](issues/design-wrap-unrewarded.md) | High | Tension/wrap visuals + per-wrap kill coin bonus |
 | [Missing juice: shake, hit-stop, audio, bash feedback](issues/design-juice.md) | High | All four |
-| [Grab hard-resets combo](issues/design-grab-combo-reset.md) | Medium | Grabs no longer reset combo; decay keeps ticking |
 | [No counter to "stay fast"](issues/design-enemy-roster.md) | Medium | Ranged/zoning + speed-punisher + shielded enemies |
 | [Single static arena](issues/design-arena-variety.md) | Low | Interior obstacles the rope can wrap |
 

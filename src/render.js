@@ -214,7 +214,7 @@ window.Tethered = window.Tethered || {};
   // gradient that brightens (with growing glow) toward SPEED_COLOR_MAX
   // while fast. Just above the threshold it flashes the vulnerable dark
   // blue as an "about to drop out" warning. The glow is cyan when free
-  // and tether-red while held (grabbing breaks the combo).
+  // and tether-red while held.
   // Flash during i-frames. Once it pops, there's no ball to draw.
   function drawBall(ctx, game) {
     const T = S.TUNING;

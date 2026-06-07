@@ -464,8 +464,8 @@ window.Tethered = window.Tethered || {};
 
       // Bumping an enemy snaps the tether. A fast ball smashes whether or
       // not it was tethered, but a tethered bump costs the combo: it resets
-      // to ×1 (before the coins drop, so they pay out at ×1). The grab
-      // already broke it, but fast wall bounces while held rebuild it.
+      // to ×1 (before the coins drop, so they pay out at ×1). Grabbing
+      // itself is free — only cashing a kill through the rope isn't.
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
       const tethered = game.tether.active;
       if (tethered) S.releaseTether(game);

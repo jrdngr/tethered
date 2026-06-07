@@ -20,7 +20,9 @@ window.Tethered = window.Tethered || {};
     const m = game.mouse;
     const d = Math.hypot(m.x - b.x, m.y - b.y);
     if (d <= b.r + T.GRAB_RADIUS) {
-      game.combo = 1; // grabbing the ball breaks the combo
+      // Grabbing is neutral for the combo: steering shouldn't fight scoring.
+      // The idle-decay timer keeps running while tethered, so holding the
+      // ball is still time pressure.
       const tether = game.tether;
       tether.active = true;
       tether.restLength = Math.min(d, T.ROPE_MAX_REST);
