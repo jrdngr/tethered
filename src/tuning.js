@@ -356,6 +356,32 @@ Tethered.TUNING = {
   MAX_SPEED_FRACTION: 0.98,      // "at top speed" = ballSpeed >= this × stats.maxSpeed
   MOMENTUM_BASH_HP_FACTOR: 1,    // MOMENTUM — bash factor at top speed (else BASH_HP_FACTOR)
 
+  // Dungeon generation (src/mapgen.js): constructive caves — chamber blobs
+  // stamped first (arena-scale swing room is a precondition, not a lottery),
+  // corridors carved along a spanning tree, then organic-ized edges. Sizes
+  // are in 32px tiles; a "screen" is the reference viewport below, so map
+  // size reads in screens-of-play-area.
+  TILE_SIZE: 32,            // px — ball radius = 1 tile; 3-tile corridors = 96px
+  MAP_SCREEN_W: 1600,       // px — reference screen for map sizing
+  MAP_SCREEN_H: 900,
+  MAP_SCREENS_BASE: 2,      // depth 1 is a 2×2-screen map...
+  MAP_SCREENS_PER_DEPTH: 1, // ...growing one screen per depth...
+  MAP_SCREENS_CAP: 6,       // ...capped at 6×6 (depth 5+)
+  MAX_DEPTH: 10,            // clearing this depth's exit wins the run
+  MAP_BORDER_TILES: 2,      // solid wall band around the map, never carved
+  CHAMBER_COUNT_BY_DEPTH: [2, 4, 6, 8, 10, 12, 13, 14, 15, 16], // sub-linear — no encounter-count cliffs
+  CHAMBER_RADIUS_MIN: 18,   // tiles — stamped chamber blob radius (576px)...
+  CHAMBER_RADIUS_MAX: 22,   // ...to 704px: arena-scale swing room guaranteed
+  CHAMBER_GAP_TILES: 6,     // tiles of wall kept between stamped chambers
+  MIN_PASSAGE_TILES: 3,     // tiles — corridor width floor (96px ≥ 3× enemy diameter)
+  CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
+  CA_NOISE_FLOOR_P: 0.35,   // boundary wall→floor flip chance (erosion-biased...)
+  CA_NOISE_WALL_P: 0.22,    // ...vs floor→wall, so organic-izing never seals space)
+  MAX_GEN_ATTEMPTS: 10,     // reseeded tries before accepting the best-scoring map
+  WALL_PEG_RADIUS: 10,      // px — wrap peg at each convex wall corner
+  WALL_PEG_MIN_ANGLE: 25,   // ° — contour turn below this is "straight": no peg (anti-chatter)
+  PEG_DP_EPSILON: 0.8,      // tiles — Douglas-Peucker tolerance simplifying wall contours
+
   // Broadphase (src/grid.js)
   GRID_CELL: 64,          // px — uniform-grid cell, ≥ the largest enemy diameter so pair queries scan one neighbor ring
 
