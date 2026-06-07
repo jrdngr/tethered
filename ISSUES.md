@@ -33,7 +33,6 @@ Tracked issues from the [PoC deep review](docs/reports/POC_REVIEW.md) (2026-06-0
 | [Slow-mo on bash kills](issues/physics-slowmo.md) | High (feature) | Global `timeScale`; bash kills only |
 | [Discrete ball collision → latent tunneling](issues/physics-swept-ball.md) | Medium | Sweep prev→current segment (reuse `tether.pbx/pby`) |
 | [Elasticity/mass upgrade axes](issues/physics-elasticity-mass.md) | Medium (feature) | Both: wall-restitution upgrade + ball mass term |
-| [Hardcoded knockback decay](issues/physics-knockback-tuning.md) | Low | `ENEMY_KNOCKBACK_DECAY: 4` into TUNING |
 
 ## Engine
 

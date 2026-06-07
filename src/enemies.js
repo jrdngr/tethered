@@ -418,7 +418,7 @@ window.Tethered = window.Tethered || {};
 
       // Per-type steering brain (default: seek the ball), plus decaying
       // knockback integrated by each brain.
-      const decay = Math.exp(-4 * dt);
+      const decay = Math.exp(-T.ENEMY_KNOCKBACK_DECAY * dt);
       e.kx *= decay;
       e.ky *= decay;
       (S.ENEMY_TYPES[e.type].brain || seekBall)(game, e, dt);

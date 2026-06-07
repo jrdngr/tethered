@@ -40,6 +40,7 @@ Tethered.TUNING = {
   PLAYER_DAMAGE: 1,       // base damage per smash (upgradable)
   HIT_FLASH_DURATION: 0.15, // s — enemy flashes white when a hit doesn't kill
   ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (no stacking)
+  ENEMY_KNOCKBACK_DECAY: 4, // 1/s — exponential decay of every shove (hits, splits, pops, bumps)
 
   // Special spawn mix: each type unlocks after its SPAWN_DELAY of survival
   // and claims its CHANCE slice of every spawn roll; whatever's left is a
