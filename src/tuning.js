@@ -361,7 +361,7 @@ Tethered.TUNING = {
   CHAMBER_RADIUS_MIN: 18,   // tiles — stamped chamber blob radius (576px)...
   CHAMBER_RADIUS_MAX: 22,   // ...to 704px: arena-scale swing room
   CHAMBER_GAP_TILES: 6,     // tiles of wall kept between stamped chambers
-  MIN_PASSAGE_TILES: 3,     // tiles — corridor width floor (96px ≥ 3× enemy diameter)
+  MIN_PASSAGE_TILES: 7.5,   // tiles — corridor width floor (240px; 2.5× the original 96px — cramped corridors widened, chambers/map unchanged)
   CA_EDGE_ITERS: 2,         // smoothing passes over the wall/floor boundary band
   CA_NOISE_FLOOR_P: 0.35,   // boundary wall→floor flip chance (erosion-biased...)
   CA_NOISE_WALL_P: 0.22,    // ...vs floor→wall, so organic-izing never seals space)
