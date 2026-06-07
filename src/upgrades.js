@@ -16,7 +16,7 @@ window.Tethered = window.Tethered || {};
       maxHp: T.MAX_HP,
       damage: T.PLAYER_DAMAGE,
       maxSpeed: T.BALL_MAX_SPEED,
-      speedDamage: 1, // × damage at the speed cap (MOMENTUM); 1 = speed has no effect
+      momentumBonus: 0, // flat damage added at the speed cap (MOMENTUM); 0 = speed adds nothing
       killBoost: 0,   // px/s the ball gains per popped enemy (KILL SURGE)
       wallRestitution: T.WALL_RESTITUTION, // wall bounce retention (ELASTICITY)
       ballMass: 1,    // straightens bashes and keeps speed through hits (MASS); 1 = no effect
@@ -44,14 +44,12 @@ window.Tethered = window.Tethered || {};
     return game.upgradeLevels[u.name] || 0;
   };
 
-  // Damage per smash. With MOMENTUM picked, it scales with speed: ×1 at the
-  // invincibility threshold up to ×speedDamage at the speed cap.
+  // Damage per smash. MOMENTUM adds a flat speed-scaled bonus on top of the
+  // base: +0 at a standstill up to +momentumBonus at the speed cap. Additive
+  // (like the weapons), so no upgrade pair multiplies into an outlier build.
   S.smashDamage = function (game) {
-    const T = S.TUNING;
-    const f = Math.min(Math.max(
-      (S.ballSpeed(game.ball) - T.SPEED_THRESHOLD) /
-      (game.stats.maxSpeed - T.SPEED_THRESHOLD), 0), 1);
-    return game.stats.damage * (1 + (game.stats.speedDamage - 1) * f);
+    const f = Math.min(Math.max(S.ballSpeed(game.ball) / game.stats.maxSpeed, 0), 1);
+    return game.stats.damage + game.stats.momentumBonus * f;
   };
 
   // Icon helpers. Icons draw centered at (x, y) inside a size×size box,
@@ -182,8 +180,8 @@ window.Tethered = window.Tethered || {};
     },
     {
       name: 'MOMENTUM',
-      desc: () => `+${S.TUNING.UPGRADE_SPEED_DAMAGE}× dmg at top speed`,
-      apply: (game) => { game.stats.speedDamage += S.TUNING.UPGRADE_SPEED_DAMAGE; },
+      desc: () => `+${S.TUNING.MOMENTUM_BONUS_PER_LEVEL} dmg at top speed`,
+      apply: (game) => { game.stats.momentumBonus += S.TUNING.MOMENTUM_BONUS_PER_LEVEL; },
       specialDesc: () => 'easier bash at top speed',
       special: (game) => { game.stats.specials.bashEasy = true; },
       // A ball with fading motion-trail arcs behind it.

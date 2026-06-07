@@ -326,7 +326,7 @@ Tethered.TUNING = {
   UPGRADE_MAGNET_RADIUS: 40,  // px of coin magnet radius
   UPGRADE_MAGNET_ACCEL: 450,  // px/s^2 of coin pull (×2 = the MAGNET RANGE special)
   UPGRADE_MAX_SPEED: 150,     // px/s of ball speed cap
-  UPGRADE_SPEED_DAMAGE: 0.5,  // × damage at the speed cap per MOMENTUM pick
+  MOMENTUM_BONUS_PER_LEVEL: 1, // flat damage at the speed cap per MOMENTUM pick — additive, so a maxed MOMENTUM (+4) is directly comparable to a maxed weapon
   UPGRADE_KILL_BOOST: 140,    // px/s gained per popped enemy per KILL SURGE pick
   UPGRADE_WALL_RESTITUTION: 0.05, // wall bounce retention per ELASTICITY pick (combo engine)
   UPGRADE_BALL_MASS: 0.25,    // ball mass per MASS pick (base 1) — straighter bashes, more speed kept
