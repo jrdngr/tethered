@@ -196,25 +196,34 @@ window.Tethered = window.Tethered || {};
       chambers.every((c) => Math.hypot(c.cx - cx, c.cy - cy) >= (c.r + r) * 1.15 + T.CHAMBER_GAP_TILES);
     const jitterY = () => map.th / 2 + (rng() - 0.5) * map.th * 0.3;
 
-    // Reserved: spawn hugs the left edge, exit the right. On small maps two
-    // full-size chambers would merge into one kissing blob with no corridor
-    // between them — shrink both until a wall gap with real corridor room
-    // is guaranteed.
-    let r1 = radius(1);
-    let r2 = radius(1);
-    // Gap + ~2.5 corridor-widths of genuine corridor between the footprints.
-    const minGap = T.CHAMBER_GAP_TILES + 2.5 * T.MIN_PASSAGE_TILES;
-    const spawn = { cx: B + r1 * 1.15 + 1, cy: jitterY(), r: r1, reserved: 'spawn' };
-    const exit = { cx: map.tw - 1 - B - r2 * 1.15 - 1, cy: jitterY(), r: r2, reserved: 'exit' };
-    const sep = () => Math.hypot(exit.cx - spawn.cx, exit.cy - spawn.cy) - (spawn.r + exit.r) * 1.15;
-    if (sep() < minGap) {
-      const dist = Math.hypot(exit.cx - spawn.cx, exit.cy - spawn.cy);
-      const scale = Math.max(0.4, (dist - minGap) / ((spawn.r + exit.r) * 1.15));
-      spawn.r *= scale;
-      exit.r *= scale;
-      spawn.cx = B + spawn.r * 1.15 + 1;
-      exit.cx = map.tw - 1 - B - exit.r * 1.15 - 1;
+    // Reserved: spawn hugs the left edge, exit the right. They must leave a
+    // wall gap with real corridor room between them — but the chambers' x
+    // depend on their radius (they hug the edges), so a one-shot shrink
+    // overshoots. Binary-search the largest equal radius whose footprints
+    // still leave minGap of corridor, then keep our random target if it's
+    // smaller (variety) — never bigger (fit).
+    const spawnCy = jitterY();
+    const exitCy = jitterY();
+    const minGap = T.CHAMBER_GAP_TILES + 1.5 * T.MIN_PASSAGE_TILES;
+    const rMax = Math.min(T.CHAMBER_RADIUS_MAX, (map.th - 2 * B - 2) / 2 / 1.15);
+    const sepFor = (r) => {
+      const sx = B + r * 1.15 + 1;
+      const ex = map.tw - 1 - B - r * 1.15 - 1;
+      return Math.hypot(ex - sx, exitCy - spawnCy) - 2 * r * 1.15;
+    };
+    let fit = rMax;
+    if (sepFor(rMax) < minGap) {
+      let lo = 4;
+      let hi = rMax;
+      for (let it = 0; it < 24; it++) {
+        const mid = (lo + hi) / 2;
+        if (sepFor(mid) >= minGap) lo = mid; else hi = mid;
+      }
+      fit = lo;
     }
+    const rr = Math.min(radius(1), fit);
+    const spawn = { cx: B + rr * 1.15 + 1, cy: spawnCy, r: rr, reserved: 'spawn' };
+    const exit = { cx: map.tw - 1 - B - rr * 1.15 - 1, cy: exitCy, r: rr, reserved: 'exit' };
     chambers.push(spawn, exit);
 
     for (let n = chambers.length; n < target; n++) {
