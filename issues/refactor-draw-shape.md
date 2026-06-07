@@ -1,6 +1,6 @@
 # Shared drawShape — weapon/enemy shapes are drawn twice with drifting constants
 
-**Area:** Refactoring · **Impact:** Medium · **Status:** Open
+**Area:** Refactoring · **Impact:** Medium · **Status:** Done
 
 ## Problem
 

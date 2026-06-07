@@ -1,6 +1,6 @@
 # Naming/structure cleanup — group ad-hoc state
 
-**Area:** Refactoring · **Impact:** Low · **Status:** Open
+**Area:** Refactoring · **Impact:** Low · **Status:** Done
 
 ## Problem
 

@@ -1,6 +1,6 @@
 # PICKUP_TYPES registry — stop tag-discriminating pickups
 
-**Area:** Refactoring · **Impact:** Medium · **Status:** Open
+**Area:** Refactoring · **Impact:** Medium · **Status:** Done
 
 ## Problem
 

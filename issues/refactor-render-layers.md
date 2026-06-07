@@ -1,6 +1,6 @@
 # Extract render.js into ordered draw layers
 
-**Area:** Refactoring · **Impact:** High (enabler) · **Status:** Open
+**Area:** Refactoring · **Impact:** High (enabler) · **Status:** Done
 
 ## Problem
 

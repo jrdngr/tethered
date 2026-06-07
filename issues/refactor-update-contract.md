@@ -1,6 +1,6 @@
 # Document the update-ordering contract in main.js
 
-**Area:** Refactoring / Documentation · **Impact:** Medium · **Status:** Open
+**Area:** Refactoring / Documentation · **Impact:** Medium · **Status:** Done
 
 ## Problem
 

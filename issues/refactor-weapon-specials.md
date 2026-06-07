@@ -1,6 +1,6 @@
 # Co-locate weapon specials with their weapon definitions
 
-**Area:** Refactoring · **Impact:** High (for the specials gap) · **Status:** Open
+**Area:** Refactoring · **Impact:** High (for the specials gap) · **Status:** Done
 
 ## Problem
 

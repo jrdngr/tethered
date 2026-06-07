@@ -1,6 +1,6 @@
 # Shared geometry and particle helpers
 
-**Area:** Refactoring · **Impact:** Medium (enabler) · **Status:** Open
+**Area:** Refactoring · **Impact:** Medium (enabler) · **Status:** Done
 
 ## Problem
 
