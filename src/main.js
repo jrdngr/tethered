@@ -248,31 +248,33 @@ window.Tethered = window.Tethered || {};
     S.updateCamera(game, dt);
   }
 
-  // The exit. A short-range magnet pulls a deliberate slow approach onto the
-  // exit (coins-law accel, zero at the rim — the rope always overpowers it
-  // on a leave). Sitting in the exit below the speed gate charges the
-  // channel; leaving or speeding up resets it (a hit resets it via combo.js).
-  // A full channel transitions to the next depth. Returns true if it did.
+  // The exit. A strong magnet (coins-law accel, zero at the rim) snaps a
+  // free-flying ball onto the exit — but it's cut while the rope is held, so
+  // a tethered player keeps control and can pull away. Sitting inside the
+  // exit charges the channel (no speed gate); leaving resets it (a hit
+  // resets it via combo.js). A full channel transitions. Returns true if it did.
   function updateExit(dt) {
+    const T = S.TUNING;
     const ex = game.exit;
     if (!ex || game.state !== S.STATE.PLAYING) return false;
     const b = game.ball;
     const dx = ex.x - b.x;
     const dy = ex.y - b.y;
     const d = Math.hypot(dx, dy);
-    if (d < S.TUNING.EXIT_MAGNET_RADIUS && d > 1e-3) {
-      const f = S.TUNING.EXIT_MAGNET_ACCEL * (1 - d / S.TUNING.EXIT_MAGNET_RADIUS);
+    if (d < T.EXIT_MAGNET_RADIUS && d > 1e-3) {
+      let f = T.EXIT_MAGNET_ACCEL * (1 - d / T.EXIT_MAGNET_RADIUS);
+      if (game.tether.active) f *= T.EXIT_MAGNET_TETHER_MULT;
       b.vx += (dx / d) * f * dt;
       b.vy += (dy / d) * f * dt;
     }
-    if (d < ex.r && S.ballSpeed(b) < S.TUNING.EXIT_CHANNEL_MAX_SPEED) {
+    if (d < ex.r) {
       ex.channel += dt;
-      if (ex.channel >= S.TUNING.EXIT_CHANNEL_TIME) {
+      if (ex.channel >= T.EXIT_CHANNEL_TIME) {
         nextMap();
         return true;
       }
     } else {
-      ex.channel = 0; // left the pad or moving too fast — start over
+      ex.channel = 0; // left the pad — start over
     }
     return false;
   }

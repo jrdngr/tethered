@@ -669,9 +669,11 @@ window.Tethered = window.Tethered || {};
     const theme = game.mapTheme;
     const budget = Math.max(2, Math.round(T.ROOM_BUDGET_BASE + T.ROOM_BUDGET_PER_DEPTH * (depth - 1)));
     for (const ch of game.map.chambers) {
-      if (ch.reserved === 'spawn') continue; // the breather room
       if (ch.reserved === 'exit') { placeGarrison(game, ch, depth, theme); continue; }
-      placePattern(game, ch, rollPattern(depth), depth, theme, budget);
+      // The start room gets a gentle loose scatter (never an ambush at the
+      // door); the SAFE_SPAWN_RADIUS bubble keeps it off the player.
+      const pattern = ch.reserved === 'spawn' ? 'SCATTER' : rollPattern(depth);
+      placePattern(game, ch, pattern, depth, theme, budget);
     }
     placeDebut(game, depth, theme);
     placePassages(game, depth, theme);

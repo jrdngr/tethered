@@ -141,14 +141,17 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Depth-1 onboarding: two lines of world-space text in the start room, so
-  // a first-time player knows the two verbs (grab, exit). Fades as the ball
-  // leaves the spawn area.
+  // Depth-1 onboarding: two lines of world-space text centered in the start
+  // room, so a first-time player knows the two verbs (grab, exit). Fades as
+  // the ball leaves the room.
   function drawOnboarding(ctx, game) {
     if (game.depth !== 1 || !game.map) return;
-    const sp = game.map.spawn;
-    const d = Math.hypot(game.ball.x - sp.x, game.ball.y - sp.y);
-    const alpha = Math.max(0, 1 - d / 700);
+    const room = game.map.chambers.find((c) => c.reserved === 'spawn');
+    if (!room) return;
+    const cx = room.cx * S.TUNING.TILE_SIZE;
+    const cy = room.cy * S.TUNING.TILE_SIZE;
+    const d = Math.hypot(game.ball.x - cx, game.ball.y - cy);
+    const alpha = Math.max(0, 1 - d / (room.r * S.TUNING.TILE_SIZE + 200));
     if (alpha <= 0.01) return;
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -156,8 +159,8 @@ window.Tethered = window.Tethered || {};
     ctx.font = '20px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('hold near the ball to grab, release to fling', sp.x, sp.y - 30);
-    ctx.fillText('find the exit', sp.x, sp.y);
+    ctx.fillText('hold near the ball to grab, release to fling', cx, cy - 16);
+    ctx.fillText('find the exit', cx, cy + 16);
     ctx.restore();
   }
 

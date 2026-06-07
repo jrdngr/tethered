@@ -236,7 +236,7 @@ Tethered.TUNING = {
   ROOM_BUDGET_BASE: 3,             // enemies per room at depth 1...
   ROOM_BUDGET_PER_DEPTH: 0.6,      // ...growing this much per depth
   PASSAGE_ENEMY_CHANCE: 0.2,       // chance a given corridor gets 1-2 stragglers
-  SAFE_SPAWN_RADIUS: 1100,         // px around the player spawn kept enemy-free
+  SAFE_SPAWN_RADIUS: 480,          // px of personal space around the player spawn kept enemy-free (enemies fill the rest of the start room)
   EXIT_GUARD_BASE: 4,              // exit-room garrison size at depth 1...
   EXIT_GUARD_PER_DEPTH: 0.8,       // ...growing per depth (depth 10 the heaviest)
   // Per-pattern weights by depth band [d1-3, d4-6, d7-10]: early rooms favor
@@ -258,16 +258,17 @@ Tethered.TUNING = {
   ],
 
   // Exit: always present, but practically gated by clearing the room. The
-  // ball must sit in the exit below EXIT_CHANNEL_MAX_SPEED for
-  // EXIT_CHANNEL_TIME; any hit or leaving hard-resets the channel (being
-  // bumped out is intended). A short-range magnet (coins-law, zero at the
-  // rim) only engages on a deliberate slow approach — the spring always wins
-  // a leave. Reaching the next depth heals a fraction of max HP.
+  // ball charges the channel whenever it's inside EXIT_RADIUS (no speed
+  // gate); any hit or leaving hard-resets it (being bumped out is intended).
+  // A strong magnet (coins-law, zero at the rim) snaps a free-flying ball
+  // into the exit so you can just fling yourself in — but it's cut to
+  // EXIT_MAGNET_TETHER_MULT while the rope is held, so a tethered player
+  // keeps full control and can pull away. Reaching the next depth heals.
   EXIT_RADIUS: 46,             // px — the channel/touch zone
-  EXIT_CHANNEL_TIME: 5,        // s of sitting in the exit to activate
-  EXIT_CHANNEL_MAX_SPEED: 110, // px/s — above this, "sitting" doesn't count (a swing-by won't charge it)
-  EXIT_MAGNET_RADIUS: 46,      // px — magnet reach (short, so it doesn't trap)
-  EXIT_MAGNET_ACCEL: 1400,     // px/s^2 pull at point-blank, fading to 0 at the rim
+  EXIT_CHANNEL_TIME: 5,        // s inside the exit to activate
+  EXIT_MAGNET_RADIUS: 160,     // px — magnet reach (catches a passing ball)
+  EXIT_MAGNET_ACCEL: 6000,     // px/s^2 pull at point-blank, fading to 0 at the rim
+  EXIT_MAGNET_TETHER_MULT: 0.12, // magnet scaled to this while tethered (below the spring's pull, so you can leave)
   HEAL_ON_EXIT_FRACTION: 0.3,  // max HP restored on reaching the next depth
 
   // Combo
