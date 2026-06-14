@@ -1,7 +1,13 @@
-// Arena rooms: every room is a sealed combat arena. Entering a room that
-// still holds enemies drops energy gates across its corridor mouths; clearing
-// the last enemy in the room raises them for good. The exit room holds no
+// Arena rooms: every room is a sealed combat arena. Entering a room seals it —
+// energy gates drop across *every* corridor mouth (a room with several exits
+// gets several gates) and its garrison spawns in — trapping the player until
+// the last enemy falls; then the gates raise for good. The exit room holds no
 // enemies, so it never seals — reach it and leave.
+//
+// Enemies don't exist in the world until their room locks: placeEnemies builds
+// each room's garrison at generation, buildRooms parks it on the room, and the
+// lock spawns it. So an unentered room is empty and quiet until the player
+// commits to it.
 //
 // Gates are duck-typed obstacle shapes (a capsule `part`, no wrap pegs), so
 // the same circle-vs-part collision the freestanding pillars use applies to
@@ -53,21 +59,31 @@ window.Tethered = window.Tethered || {};
       isExit: ch.reserved === 'exit',
       cleared: false,
       locked: false,
+      spawned: false,
+      garrison: [], // placed enemies, held back until the room locks
       alive: 0,
       gates: [],
     }));
     // Each corridor seals both the rooms it joins, at the mouth facing the
-    // other end.
+    // other end. A room with several corridors gets a gate per mouth.
     for (const e of (game.map.corridorEdges || [])) {
       addMouthGate(rooms[e.i], rooms[e.j]);
       addMouthGate(rooms[e.j], rooms[e.i]);
     }
+    // Park each placed enemy on its room's garrison and pull it out of the live
+    // world — nothing exists until its room locks. placeEnemies tagged e.room.
+    for (const e of game.enemies) {
+      const rm = rooms[e.room];
+      if (rm) rm.garrison.push(e);
+    }
+    game.enemies = [];
     game.rooms = rooms;
     game.gates = [];
     game.currentRoom = -1;
 
-    // Seed the live counts, then lock the start room straight away: the player
-    // spawns inside it and must clear it before any corridor opens.
+    // Enter the start room straight away: the player spawns inside it, so it
+    // seals and its garrison spawns immediately (the SAFE_SPAWN_RADIUS bubble
+    // keeps that garrison off the player).
     countAlive(game);
     const start = rooms.find((rm) => rm.ch.reserved === 'spawn');
     if (start) enterRoom(game, start.idx);
@@ -94,14 +110,28 @@ window.Tethered = window.Tethered || {};
     return best;
   }
 
-  // Become "in" room idx. If it still holds enemies, seal it (its gates go
-  // live); otherwise (cleared, empty, or the exit room) the corridors stay open.
+  // Drop the room's held-back garrison into the live world (and the broadphase,
+  // since the step's rebuild already ran by the time the arena updates).
+  function spawnGarrison(game, rm) {
+    for (const e of rm.garrison) {
+      game.enemies.push(e);
+      S.grid.insert(e);
+    }
+    rm.spawned = true;
+  }
+
+  // Become "in" room idx. If it has an uncleared garrison, seal it (its gates
+  // go live) and spawn that garrison on the slam; otherwise (cleared, empty, or
+  // the exit room) the corridors stay open.
   function enterRoom(game, idx) {
     const rm = game.rooms[idx];
     game.currentRoom = idx;
-    if (!rm.cleared && !rm.isExit && rm.alive > 0) {
-      if (!rm.locked) S.audio.play('bounce'); // the gates slam shut
-      rm.locked = true;
+    if (!rm.cleared && !rm.isExit && rm.garrison.length > 0) {
+      if (!rm.locked) { // the gates slam shut and the room fills
+        rm.locked = true;
+        S.audio.play('bounce');
+        spawnGarrison(game, rm);
+      }
       game.gates = rm.gates;
     } else {
       game.gates = [];
