@@ -54,6 +54,7 @@ window.Tethered = window.Tethered || {};
       damagePops: [], // floating damage numbers (enemies.js spawns/ages, render.js draws)
       projectiles: [],
       pickups: [],
+      pegs: [], // static circular obstacles (pegs.js scatters them below)
       particles: [],
       playerPop: null,
       tether: S.createTether(),
@@ -68,6 +69,7 @@ window.Tethered = window.Tethered || {};
       state: S.STATE.PLAYING,
     };
     game.camera = S.createCamera(game);
+    S.scatterPegs(game); // needs the ball + viewport size set above
   }
 
   // Dev-panel RESTART action (defined here, where beginRun lives).
@@ -171,6 +173,7 @@ window.Tethered = window.Tethered || {};
       S.grid.rebuild(game.enemies); // broadphase for this step's wrap queries
       S.updateTether(game, dt);
       S.updateBall(game, dt);
+      S.bounceBallOffPegs(game); // ricochet off pegs once the ball's settled
     }
     S.updateEnemies(game, dt);
     S.updateWaves(game, dt); // time-based; also spawns early once the floor clears

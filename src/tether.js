@@ -226,7 +226,9 @@ window.Tethered = window.Tethered || {};
     // Drop pivots whose enemy died: the rope rejoins its neighbors straight.
     for (let i = wraps.length - 1; i >= 0; i--) {
       const pe = wraps[i].e;
-      if (pe.dead || !game.enemies.includes(pe)) wraps.splice(i, 1);
+      // Pegs are static and permanent — they only release via the arc-collapse
+      // test below, never the enemy death/removal check.
+      if (!pe.peg && (pe.dead || !game.enemies.includes(pe))) wraps.splice(i, 1);
     }
 
     // Refresh tangent geometry and accumulated angles, then release any pivot
@@ -265,7 +267,9 @@ window.Tethered = window.Tethered || {};
       const candidates = S.grid.queryRect(
         Math.min(A.x, A.px, B.x, B.px) - m, Math.min(A.y, A.py, B.y, B.py) - m,
         Math.max(A.x, A.px, B.x, B.px) + m, Math.max(A.y, A.py, B.y, B.py) + m);
-      for (const e of candidates) {
+      // Static pegs aren't in the broadphase grid; add them as candidates (few,
+      // and the crossing test below rejects any the rope didn't actually sweep).
+      for (const e of candidates.concat(game.pegs)) {
         if (e._px === undefined) continue; // spawned this step: no sweep yet
         // Skip the segment's own endpoints (wraps[i-1] and wraps[i] flank segment i).
         if ((i > 0 && wraps[i - 1].e === e) || (i < wraps.length && wraps[i].e === e)) continue;
@@ -341,6 +345,7 @@ window.Tethered = window.Tethered || {};
     const tension = T.WRAP_DRAG_K * T.ROPE_K * stretch * dt;
     for (let i = 0; i < wraps.length; i++) {
       const w = wraps[i];
+      if (w.e.peg) continue; // pegs are immovable — tension never drags them
       const prev = i > 0 ? wraps[i - 1] : null;
       const next = i + 1 < wraps.length ? wraps[i + 1] : null;
       let ix = (prev ? prev.exitX : game.mouse.x) - w.entryX;

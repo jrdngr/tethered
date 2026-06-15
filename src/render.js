@@ -11,6 +11,7 @@ window.Tethered = window.Tethered || {};
   // ordering contract (see main.js), the order is load-bearing — overlays
   // must cover the world, the ball sits above the things it hits, etc.
   const WORLD_LAYERS = [
+    drawPegs, // arena features, under everything
     drawTether,
     drawPickups,
     drawParticles,
@@ -118,6 +119,20 @@ window.Tethered = window.Tethered || {};
   function drawPickups(ctx, game) {
     for (const c of game.pickups) {
       S.PICKUP_TYPES[c.type].draw(ctx, c, game);
+    }
+  }
+
+  // Pegs: static circular obstacles, a neutral slate so they read as arena
+  // structure rather than another enemy color.
+  function drawPegs(ctx, game) {
+    for (const peg of game.pegs) {
+      ctx.fillStyle = '#39404d';
+      ctx.beginPath();
+      ctx.arc(peg.x, peg.y, peg.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#525a6b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
   }
 

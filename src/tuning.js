@@ -13,6 +13,16 @@ Tethered.TUNING = {
   BALL_MAX_SPEED: 1000,   // px/s — speed cap
   WALL_RESTITUTION: 0.9,  // arena-border bounce energy retention
 
+  // Pegs: static circular obstacles scattered around the arena. The ball
+  // bounces off them, the rope wraps them like enemies, and enemies are blocked
+  // by them. The count is derived from PEG_PER_SCREEN so on-screen density holds
+  // regardless of window size (viewport is 1:1 with world px, no zoom).
+  PEG_RADIUS: 32,         // px — ~2× the ball radius
+  PEG_PER_SCREEN: 1.5,    // target pegs visible at once; drives the total count
+  PEG_MIN: 2,             // clamp floor on the derived peg count
+  PEG_MAX: 12,            // clamp ceiling on the derived peg count
+  PEG_RESTITUTION: 0.9,   // ball bounce energy retention off a peg (like a wall)
+
   // Tether (elastic spring to cursor)
   GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
   ROPE_K: 9,              // 1/s^2 — spring constant (accel per px of stretch)

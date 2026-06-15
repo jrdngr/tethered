@@ -603,6 +603,20 @@ window.Tethered = window.Tethered || {};
     }
   }
 
+  // Pegs are solid for enemies too: any enemy overlapping a peg is pushed fully
+  // clear along the contact normal (the peg never moves). shiftEnemy keeps the
+  // type's derived state — an orbiter's anchor — in step. Pegs are few, so the
+  // O(enemies × pegs) sweep is cheap.
+  function resolvePegOverlaps(game) {
+    if (!game.pegs.length) return;
+    for (const e of game.enemies) {
+      for (const peg of game.pegs) {
+        const hit = S.geom.circleOverlap(peg.x, peg.y, peg.r, e.x, e.y, e.r);
+        if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
+      }
+    }
+  }
+
   // Pop a dead enemy: ring animation, shockwave to nearby enemies and
   // pickups, splitter split after the shockwave (so the children only get
   // their own opposing fling), a health-drop roll, and the combo bump.
@@ -839,5 +853,6 @@ window.Tethered = window.Tethered || {};
     // the border — runs in updateWaves.)
     S.grid.rebuild(game.enemies);
     resolveEnemyOverlaps(game);
+    resolvePegOverlaps(game); // shove enemies out of pegs after they've separated
   };
 })(Tethered);
