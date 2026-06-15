@@ -268,7 +268,7 @@ Tethered.TUNING = {
   ARENA_H: 1700,                  // px — fixed arena height
   WAVE_COUNT_BASE: 6,             // enemies in wave 1...
   WAVE_COUNT_PER_WAVE: 2,         // ...growing this many per wave (capped at ENEMY_CAP)
-  WAVE_INTERVAL: 18,              // s between waves — counts down regardless of kills, so
+  WAVE_INTERVAL: 60,              // s between waves — counts down regardless of kills, so
                                   // waves can stack; clearing the floor starts the next early
   WAVE_SPAWN_BALL_CLEARANCE: 320, // px around the ball kept spawn-free
 
