@@ -3,33 +3,29 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  // Steering brains. Each integrates position from its own steering plus the
-  // shared decaying knockback (kx/ky). Default: seek the ball along the flow
-  // field (straight when in line of sight) so chasers round walls instead of
-  // pressing into them.
+  // Steering. The open arena has no walls, so enemies seek the ball in a
+  // straight line (and the runner flees in a straight line); the shared
+  // decaying knockback (kx/ky) rides on top, integrated by each brain.
+  function seekDir(game, e) {
+    const dx = game.ball.x - e.x;
+    const dy = game.ball.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d };
+  }
+
+  function fleeDir(game, e) {
+    const dx = e.x - game.ball.x;
+    const dy = e.y - game.ball.y;
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d };
+  }
+
+  // Default brain: seek the ball.
   function seekBall(game, e, dt) {
-    const dir = S.desiredDir(game, e);
+    const dir = seekDir(game, e);
     e.x += (dir.x * e.speed + e.kx) * dt;
     e.y += (dir.y * e.speed + e.ky) * dt;
   }
-
-  // Advance the aggro state. An enemy idles until the ball comes within
-  // AGGRO_RADIUS, then it's awake for good — it chases forever, no deaggro.
-  // Returns false while dormant (the caller skips it entirely this step).
-  function updateAggro(game, e) {
-    if (e.aggro === 'awake') return true;
-    // Arena has no garrison/explore loop — enemies chase from any distance.
-    if (game.mode === 'arena') { e.aggro = 'awake'; return true; }
-    const d = Math.hypot(game.ball.x - e.x, game.ball.y - e.y);
-    if (d <= S.TUNING.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
-    return false;
-  }
-
-  // Contact aggro: anything that touches an enemy wakes it (a wrap can reach
-  // a sleeper the proximity check hasn't tripped yet).
-  S.wakeEnemy = function (e) {
-    e.aggro = 'awake';
-  };
 
   // Runner: chase like a chaser, but bolt once the ball gets close — pinned
   // inside the arena so fleeing can't leave the screen. A smash-speed ball
@@ -68,13 +64,12 @@ window.Tethered = window.Tethered || {};
           S.ballSpeed(game.ball) > T.SPEED_THRESHOLD) {
         bs.windup = T.RUNNER_DASH_WINDUP;
       }
-      // Close: flee down an open corridor (clearance-aware, so it doesn't
-      // corner-trap). Far: chase along the flow field.
-      const dir = d < T.RUNNER_FLEE_RADIUS ? S.fleeDir(game, e) : S.desiredDir(game, e);
+      // Close: flee straight away from the ball. Far: chase straight at it.
+      const dir = d < T.RUNNER_FLEE_RADIUS ? fleeDir(game, e) : seekDir(game, e);
       e.x += (dir.x * e.speed + e.kx) * dt;
       e.y += (dir.y * e.speed + e.ky) * dt;
     }
-    // No bounds clamp: the end-of-update wall pass keeps everyone on floor.
+    // No bounds clamp: updateWaves keeps everyone inside the arena.
   }
 
   // Orbiter brain. Drift: creep toward the ball, bleeding speed. Stalled:
@@ -85,7 +80,7 @@ window.Tethered = window.Tethered || {};
     const bs = e.brainState;
     if (bs.phase === 'drift') {
       bs.driftSpeed *= Math.exp(-T.ORBITER_DECEL * dt);
-      const dir = S.desiredDir(game, e);
+      const dir = seekDir(game, e);
       e.x += (dir.x * bs.driftSpeed + e.kx) * dt;
       e.y += (dir.y * bs.driftSpeed + e.ky) * dt;
       if (bs.driftSpeed <= T.ORBITER_STOP_SPEED) {
@@ -108,21 +103,8 @@ window.Tethered = window.Tethered || {};
         bs.phase = 'drift';
         bs.driftSpeed = T.ORBITER_SPEED;
       }
-      // Clamp the effective radius to the anchor's clearance so the orbit
-      // shrinks gracefully in a tight chamber/corridor instead of writing
-      // the orbiter into a wall (a raw push-out can't hold — the next tick
-      // recomputes position from the anchor).
-      let r = bs.radius;
-      if (game.map) {
-        const tx = Math.floor(bs.cx / T.TILE_SIZE);
-        const ty = Math.floor(bs.cy / T.TILE_SIZE);
-        if (!game.map.isWall(tx, ty)) {
-          const clrPx = game.map.clearance[ty * game.map.tw + tx] * T.TILE_SIZE;
-          r = Math.min(r, Math.max(0, clrPx - e.r));
-        }
-      }
-      e.x = bs.cx + Math.cos(bs.angle) * r;
-      e.y = bs.cy + Math.sin(bs.angle) * r;
+      e.x = bs.cx + Math.cos(bs.angle) * bs.radius;
+      e.y = bs.cy + Math.sin(bs.angle) * bs.radius;
     }
   }
 
@@ -146,10 +128,10 @@ window.Tethered = window.Tethered || {};
     const dy = game.ball.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     const bs = e.brainState;
-    // Hold the standoff band, pathing via the flow field when the line is
-    // broken (advance toward the ball when far, retreat when crowded).
+    // Hold the standoff band: advance toward the ball when far, retreat when
+    // crowded.
     if (d > T.SPITTER_RANGE) {
-      const dir = S.desiredDir(game, e);
+      const dir = seekDir(game, e);
       e.x += (dir.x * e.speed + e.kx) * dt;
       e.y += (dir.y * e.speed + e.ky) * dt;
     } else if (d < T.SPITTER_RANGE * 0.7) {
@@ -159,9 +141,9 @@ window.Tethered = window.Tethered || {};
       e.x += e.kx * dt;
       e.y += e.ky * dt;
     }
-    // Fire only with a clear line — no wasting shots into a wall. A short
-    // telegraphed wind-up (the tell, drawn by render) precedes the shot.
-    const los = S.geom && d <= T.SPITTER_RANGE * 1.2 && clearLine(game, e.x, e.y);
+    // Fire when the ball is in range. A short telegraphed wind-up (the tell,
+    // drawn by render) precedes the shot.
+    const los = d <= T.SPITTER_RANGE * 1.2;
     if (bs.windup > 0) {
       bs.windup -= dt;
       if (bs.windup <= 0 && game.state === S.STATE.PLAYING) {
@@ -181,24 +163,6 @@ window.Tethered = window.Tethered || {};
         bs.windup = T.SPITTER_WINDUP; // telegraph, then fire
       }
     }
-  }
-
-  // Clear tile line from a spitter to the ball — the same DDA the flow
-  // field's LOS uses, but unbounded by range (the caller gates range).
-  function clearLine(game, x, y) {
-    const T = S.TUNING;
-    const map = game.map;
-    if (!map) return true;
-    const dx = game.ball.x - x;
-    const dy = game.ball.y - y;
-    const dist = Math.hypot(dx, dy);
-    const steps = Math.ceil(dist / (T.TILE_SIZE * 0.5));
-    for (let s = 1; s < steps; s++) {
-      const px = x + (dx * s) / steps;
-      const py = y + (dy * s) / steps;
-      if (map.isWall(Math.floor(px / T.TILE_SIZE), Math.floor(py / T.TILE_SIZE))) return false;
-    }
-    return true;
   }
 
   // Shieldbearer: seeks like a chaser with its guard raised toward the
@@ -233,9 +197,8 @@ window.Tethered = window.Tethered || {};
       bs.fx = Math.cos(a);
       bs.fy = Math.sin(a);
     }
-    // Guard faces the ball (above); movement follows the flow field so it
-    // closes around walls rather than pressing its shield into one.
-    const dir = S.desiredDir(game, e);
+    // Guard faces the ball (above); movement seeks the ball straight on.
+    const dir = seekDir(game, e);
     e.x += (dir.x * e.speed + e.kx) * dt;
     e.y += (dir.y * e.speed + e.ky) * dt;
   }
@@ -275,13 +238,13 @@ window.Tethered = window.Tethered || {};
   S.ENEMY_TYPES = {
     chaser: {
       color: '#e5484d', // red
-      stats: (T) => ({ r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED }),
     },
     // Gated types claim their roll slice in this order (see the spawn-mix
     // notes in tuning.js).
     tank: {
       color: '#b558f6', // purple
-      stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, coinMult: T.TANK_COIN_MULT }),
+      stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED }),
       spawnGate: (T) => ({ unlock: T.TANK_UNLOCK_DEPTH, weight: T.TANK_CHANCE }),
       // Armor ring above 1 HP that breaks off with the first hit.
       draw(ctx, e) {
@@ -295,13 +258,13 @@ window.Tethered = window.Tethered || {};
     },
     splitter: {
       color: '#f76b15', // orange
-      stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED }),
       spawnGate: (T) => ({ unlock: T.SPLITTER_UNLOCK_DEPTH, weight: T.SPLITTER_CHANCE }),
       splitCount: 2,
     },
     supersplitter: {
       color: '#ff3300', // red-orange — a splitter, but angrier
-      stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED }),
       spawnGate: (T) => ({ unlock: T.SUPER_SPLITTER_UNLOCK_DEPTH, weight: T.SUPER_SPLITTER_CHANCE }),
       splitCount: 2,
       splitChild: 'splitter',
@@ -309,7 +272,7 @@ window.Tethered = window.Tethered || {};
     },
     orbiter: {
       color: '#e93d82', // pink
-      stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED }),
       spawnGate: (T) => ({ unlock: T.ORBITER_UNLOCK_DEPTH, weight: T.ORBITER_CHANCE }),
       onSpawn(e) {
         e.brainState = {
@@ -322,7 +285,7 @@ window.Tethered = window.Tethered || {};
     },
     runner: {
       color: '#cc9a1f', // dark gold — it's the payday target
-      stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, coinMult: T.RUNNER_COIN_MULT }),
+      stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED }),
       spawnGate: (T) => ({ unlock: T.RUNNER_UNLOCK_DEPTH, weight: T.RUNNER_CHANCE }),
       onSpawn(e) {
         e.brainState = { windup: 0, danger: 0, cooldown: 0, baseDamage: e.damage };
@@ -352,7 +315,7 @@ window.Tethered = window.Tethered || {};
     },
     spitter: {
       color: '#3dd68c', // mint — the zoner
-      stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED }),
       spawnGate: (T) => ({ unlock: T.SPITTER_UNLOCK_DEPTH, weight: T.SPITTER_CHANCE }),
       onSpawn(e) {
         // Desynced fire timers so a pack doesn't volley in lockstep.
@@ -370,7 +333,7 @@ window.Tethered = window.Tethered || {};
     spiker: {
       color: '#8d93a5', // steel — a drifting mine
       punishesSpeed: true,
-      stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED }),
       spawnGate: (T) => ({ unlock: T.SPIKER_UNLOCK_DEPTH, weight: T.SPIKER_CHANCE }),
       // The spike ring — the "don't hit me fast" warning.
       draw(ctx, e) {
@@ -387,7 +350,7 @@ window.Tethered = window.Tethered || {};
     },
     shieldbearer: {
       color: '#5472f0', // blue — the guard
-      stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED, coinMult: 1 }),
+      stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED }),
       spawnGate: (T) => ({ unlock: T.SHIELD_UNLOCK_DEPTH, weight: T.SHIELD_CHANCE }),
       onSpawn(e) {
         e.brainState = { fx: 0, fy: 0, stun: 0, glint: 0 }; // facing set by the brain
@@ -412,13 +375,11 @@ window.Tethered = window.Tethered || {};
     },
   };
 
-  // One roll decides a spawn type for the given depth: each type unlocked at
-  // its depth claims its weight slice; whatever's left is a basic chaser.
-  // Weights ramp with depth (one shared factor, proportions hold), clamped
-  // so the specials' total never exceeds MIX_SPECIAL_TOTAL_MAX. An optional
-  // theme multiplies one type's weight (themed floors); `pool`, if given,
-  // restricts to those unlocked types (pattern-specific mixes).
-  function rollTypeForDepth(depth, theme, pool) {
+  // One roll decides a spawn type for the given wave depth: each type unlocked
+  // at its depth claims its weight slice; whatever's left is a basic chaser.
+  // Weights ramp with depth (one shared factor, proportions hold), clamped so
+  // the specials' total never exceeds MIX_SPECIAL_TOTAL_MAX.
+  function rollTypeForDepth(depth) {
     const T = S.TUNING;
     const list = [];
     let total = 0;
@@ -427,11 +388,8 @@ window.Tethered = window.Tethered || {};
       if (!gate) continue;
       const g = gate(T);
       if (depth < g.unlock) continue;
-      if (pool && pool.indexOf(type) < 0) continue;
-      let w = g.weight;
-      if (theme && theme.type === type) w *= theme.mult;
-      list.push([type, w]);
-      total += w;
+      list.push([type, g.weight]);
+      total += g.weight;
     }
     if (!total) return 'chaser';
     const ramp = Math.min(1 + depth / T.MIX_RAMP_DEPTH, T.MIX_SPECIAL_TOTAL_MAX / total);
@@ -443,16 +401,14 @@ window.Tethered = window.Tethered || {};
     }
     return 'chaser';
   }
-  // Arena waves roll the same depth-driven mix the dungeon places with.
-  S.rollTypeForDepth = rollTypeForDepth;
 
   function makeEnemy(game, type, x, y) {
     const T = S.TUNING;
     const def = S.ENEMY_TYPES[type];
     const stats = def.stats(T);
-    // Depth stat scaling, baked in at spawn: deeper enemies are tougher and
-    // a touch faster, not just more numerous. HP rounds so hits-to-kill
-    // stays a clean integer step.
+    // Depth stat scaling, baked in at spawn: deeper waves are tougher and a
+    // touch faster, not just more numerous. HP rounds so hits-to-kill stays a
+    // clean integer step.
     const d = (game.depth || 1) - 1;
     const hp = Math.round(stats.hp * (1 + T.ENEMY_SCALE_HP_PER_DEPTH * d));
     const e = {
@@ -463,13 +419,8 @@ window.Tethered = window.Tethered || {};
       maxHp: hp,
       damage: stats.damage,
       speed: stats.speed * (1 + T.ENEMY_SCALE_SPEED_PER_DEPTH * d),
-      coinMult: stats.coinMult,
       flash: 0, // hit-feedback timer when a smash doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
-      // Aggro: placed enemies idle until the ball nears (proximity is always
-      // a wider net than contact, so a dormant enemy can't be touched), then
-      // chase for good.
-      aggro: 'dormant', // 'dormant' | 'awake'
     };
     if (def.splitCount) {
       e.splitCount = def.splitCount;
@@ -479,167 +430,6 @@ window.Tethered = window.Tethered || {};
     if (def.onSpawn) def.onSpawn(e);
     return e;
   }
-
-  // === Generation-time placement (M5) ======================================
-  // Enemies are dropped into the map once, at generation, by a pattern
-  // library — no trickle spawner. Depth drives count, mix, and which
-  // patterns dominate.
-
-  // Clearance (px) a type needs around a placement point — orbiter needs its
-  // whole orbit, spiker wants chamber interior; the rest just their body.
-  function minClearPx(type, r) {
-    const T = S.TUNING;
-    if (type === 'orbiter') return T.ORBITER_MAX_RADIUS + r + 10;
-    if (type === 'spiker') return r + T.TILE_SIZE * 2;
-    return r + 8;
-  }
-
-  // Try to create an enemy of `type` at (x, y): rejects walls, too-tight
-  // floor, overlapping a shape, or inside the spawn safe-zone. Returns the
-  // enemy or null. Honors the global cap.
-  function tryPlace(game, type, x, y) {
-    const T = S.TUNING;
-    const map = game.map;
-    if (game.enemies.length >= T.ENEMY_CAP) return null;
-    const r = S.ENEMY_TYPES[type].stats(T).r;
-    const tx = Math.floor(x / T.TILE_SIZE);
-    const ty = Math.floor(y / T.TILE_SIZE);
-    if (map.isWall(tx, ty)) return null;
-    if (map.clearance[ty * map.tw + tx] * T.TILE_SIZE < minClearPx(type, r)) return null;
-    if (Math.hypot(x - map.spawn.x, y - map.spawn.y) < T.SAFE_SPAWN_RADIUS) return null;
-    for (const o of game.obstacles) if (S.obstacleHit(o, x, y, r)) return null;
-    const e = makeEnemy(game, type, x, y);
-    game.enemies.push(e);
-    return e;
-  }
-
-  // Place `count` enemies around (cx, cy) within `spread` px. typeFn() picks
-  // each type; a type that won't fit after a few tries substitutes a chaser
-  // (always placeable), so budgets are met without leaving gaps.
-  function placeCluster(game, cx, cy, spread, count, typeFn) {
-    for (let i = 0; i < count; i++) {
-      let placed = null;
-      for (let tries = 0; tries < 10 && !placed; tries++) {
-        const a = Math.random() * Math.PI * 2;
-        const d = Math.random() * spread;
-        const type = tries < 7 ? typeFn() : 'chaser';
-        placed = tryPlace(game, type, cx + Math.cos(a) * d, cy + Math.sin(a) * d);
-      }
-    }
-  }
-
-  const PATTERN_POOLS = {
-    PACK: ['chaser', 'splitter', 'runner', 'super-splitter'],
-    AMBUSH: null,   // any unlocked type (the mixed surprise)
-    GUARD: ['shieldbearer', 'spitter', 'orbiter', 'tank'],
-    SCATTER: null,  // any unlocked type, loosely spread
-  };
-
-  function rollPattern(depth) {
-    const T = S.TUNING;
-    const band = depth <= 3 ? 0 : depth <= 6 ? 1 : 2;
-    const w = T.PATTERN_WEIGHTS;
-    const keys = Object.keys(w);
-    let total = 0;
-    for (const k of keys) total += w[k][band];
-    let r = Math.random() * total;
-    for (const k of keys) { if (r < w[k][band]) return k; r -= w[k][band]; }
-    return 'SCATTER';
-  }
-
-  // Lay one pattern into a room.
-  function placePattern(game, ch, pattern, depth, theme, budget) {
-    const T = S.TUNING;
-    const cx = ch.cx * T.TILE_SIZE;
-    const cy = ch.cy * T.TILE_SIZE;
-    const rw = ch.r * T.TILE_SIZE;
-    const pool = PATTERN_POOLS[pattern];
-    const pick = () => rollTypeForDepth(depth, theme, pool);
-    if (pattern === 'PACK') {
-      // A tight knot of fodder off-center — combo bait.
-      const a = Math.random() * Math.PI * 2;
-      const ox = cx + Math.cos(a) * rw * 0.4;
-      const oy = cy + Math.sin(a) * rw * 0.4;
-      placeCluster(game, ox, oy, rw * 0.3, budget + 2, pick);
-    } else if (pattern === 'GUARD') {
-      // A couple of controllers anchored at the room center.
-      placeCluster(game, cx, cy, rw * 0.4, Math.max(2, Math.round(budget * 0.6)), pick);
-    } else if (pattern === 'AMBUSH') {
-      // A waiting group on the room's far side (they're dormant by default).
-      const a = Math.random() * Math.PI * 2;
-      placeCluster(game, cx + Math.cos(a) * rw * 0.55, cy + Math.sin(a) * rw * 0.55, rw * 0.35, budget + 1, pick);
-    } else {
-      // SCATTER: loose across the whole room.
-      placeCluster(game, cx, cy, rw * 0.75, budget, pick);
-    }
-  }
-
-  // One instance of a freshly-unlocked type, dropped in an early room on the
-  // path so the player meets it before packs/themes pile on (the debut beat).
-  function placeDebut(game, depth, theme) {
-    let debutType = null;
-    for (const type in S.ENEMY_TYPES) {
-      const g = S.ENEMY_TYPES[type].spawnGate;
-      if (g && g(S.TUNING).unlock === depth) { debutType = type; break; }
-    }
-    if (!debutType) return;
-    // Nearest non-spawn room to the player.
-    let best = null;
-    for (const ch of game.map.chambers) {
-      if (ch.reserved === 'spawn') continue;
-      const d = Math.hypot(ch.cx * S.TUNING.TILE_SIZE - game.map.spawn.x,
-        ch.cy * S.TUNING.TILE_SIZE - game.map.spawn.y);
-      if (!best || d < best.d) best = { ch, d };
-    }
-    if (best) placeCluster(game, best.ch.cx * S.TUNING.TILE_SIZE, best.ch.cy * S.TUNING.TILE_SIZE,
-      best.ch.r * S.TUNING.TILE_SIZE * 0.4, 1, () => debutType);
-  }
-
-  // Tag each placed enemy with the room (chamber index) it garrisons, so the
-  // arena lock knows when a room is cleared. Placement keeps enemies well
-  // inside their room, so the nearest chamber center is an unambiguous owner.
-  function assignRooms(game) {
-    const T = S.TUNING;
-    const chambers = game.map.chambers;
-    for (const e of game.enemies) {
-      let best = -1;
-      let bestD = Infinity;
-      for (let i = 0; i < chambers.length; i++) {
-        const c = chambers[i];
-        const d = Math.hypot(e.x - c.cx * T.TILE_SIZE, e.y - c.cy * T.TILE_SIZE);
-        if (d < bestD) { bestD = d; best = i; }
-      }
-      e.room = best;
-    }
-  }
-
-  // Pick a themed-floor skew for this depth, or null.
-  S.pickMapTheme = function (game) {
-    const T = S.TUNING;
-    if (Math.random() > T.THEME_CHANCE) { game.mapTheme = null; return; }
-    const eligible = T.THEMES.filter((th) => game.depth >= th.minDepth);
-    game.mapTheme = eligible.length ? eligible[Math.floor(Math.random() * eligible.length)] : null;
-  };
-
-  // Populate the whole map: a pattern per room (the exit room stays empty —
-  // just the portal) plus the new type's debut. Every room is an arena the
-  // player seals on entry and must clear, so there are no corridor stragglers.
-  // Called once per map at generation (reset / nextMap).
-  S.placeEnemies = function (game) {
-    const T = S.TUNING;
-    const depth = game.depth;
-    const theme = game.mapTheme;
-    const budget = Math.max(2, Math.round(T.ROOM_BUDGET_BASE + T.ROOM_BUDGET_PER_DEPTH * (depth - 1)));
-    for (const ch of game.map.chambers) {
-      if (ch.reserved === 'exit') continue; // exit room is empty — reach it and leave
-      // The start room gets a gentle loose scatter (never an ambush at the
-      // door); the SAFE_SPAWN_RADIUS bubble keeps it off the player.
-      const pattern = ch.reserved === 'spawn' ? 'SCATTER' : rollPattern(depth);
-      placePattern(game, ch, pattern, depth, theme, budget);
-    }
-    placeDebut(game, depth, theme);
-    assignRooms(game);
-  };
 
   // Spawn a forced type at a world point — the dev panel drops one just
   // outside the ball's reach.
@@ -681,14 +471,12 @@ window.Tethered = window.Tethered || {};
   // Arena waves: once the floor is clear, wait WAVE_INTER_DELAY then spawn the
   // next (larger) burst at the edges. Wave number drives game.depth, so the
   // existing makeEnemy stat scaling and rollTypeForDepth unlocks ramp the
-  // difficulty for free. No-op outside Arena — the dungeon uses placeEnemies
-  // and room garrisons instead.
+  // difficulty for free.
   S.updateWaves = function (game, dt) {
-    if (game.mode !== 'arena' || game.state !== S.STATE.PLAYING) return;
+    if (game.state !== S.STATE.PLAYING) return;
     const T = S.TUNING;
-    // Contain enemies inside the arena: there's no wall geometry here, so a
-    // knockback that would slide an enemy through a cave wall in the dungeon
-    // just parks it against the arena border instead.
+    // Contain enemies inside the arena: a knockback that would shove an enemy
+    // past the border just parks it against the border instead.
     for (const e of game.enemies) {
       e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
       e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
@@ -703,8 +491,7 @@ window.Tethered = window.Tethered || {};
     const count = Math.min(T.ENEMY_CAP, T.WAVE_COUNT_BASE + T.WAVE_COUNT_PER_WAVE * (wave.number - 1));
     for (let i = 0; i < count; i++) {
       const p = arenaEdgeSpawn(game);
-      const e = S.spawnEnemyAt(game, rollTypeForDepth(game.depth, null, null), p.x, p.y);
-      e.aggro = 'awake'; // arena enemies hunt at once — no dormant garrison
+      S.spawnEnemyAt(game, rollTypeForDepth(game.depth), p.x, p.y);
     }
   };
 
@@ -720,8 +507,6 @@ window.Tethered = window.Tethered || {};
       child.kx = Math.cos(a) * T.SPLIT_FLING;
       child.ky = Math.sin(a) * T.SPLIT_FLING;
       child.invuln = T.SPLIT_INVULN;
-      child.aggro = 'awake'; // born into a fight, already chasing
-      child.room = e.room; // garrisons the same room — must die to clear it
       game.enemies.push(child);
       S.grid.insert(child);
     }
@@ -766,28 +551,13 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Closest live enemy to (x, y), or null. Used by the TOP SPEED special's
-  // homing bend.
-  S.nearestEnemy = function (game, x, y) {
-    let best = null;
-    let bestD = Infinity;
-    for (const e of game.enemies) {
-      if (e.dead) continue;
-      const d = Math.hypot(e.x - x, e.y - y);
-      if (d < bestD) { bestD = d; best = e; }
-    }
-    return best;
-  };
-
   // Pop a dead enemy: ring animation, shockwave to nearby enemies and
-  // pickups (before this kill's own coins drop, so they only get their burst
-  // scatter), splitter split after the shockwave (so the children only get
-  // their own opposing fling), coin drop at the combo at the moment of the
-  // kill, health-drop roll, and (for untethered kills) the combo bump.
-  // Splitters drop nothing themselves — their children pay out instead.
-  function popEnemy(game, e, bash, bumpCombo, wraps) {
+  // pickups, splitter split after the shockwave (so the children only get
+  // their own opposing fling), a health-drop roll, and the combo bump.
+  // Splitters split instead of dropping anything.
+  function popEnemy(game, e, bash, bumpCombo) {
     const T = S.TUNING;
-    game.kills = (game.kills || 0) + 1; // run kill count for the end screens
+    game.kills = (game.kills || 0) + 1; // run kill count for the end screen
     // Bash kills are the power moment: drop into slow-mo for a beat. min()
     // makes a bash during slow-mo a clean refresh, never a deepening jolt.
     // The screen flash marks the same beat.
@@ -803,80 +573,33 @@ window.Tethered = window.Tethered || {};
     game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0, bash });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
     S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
-    S.geom.radialPush(game.coins, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
+    S.geom.radialPush(game.pickups, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     if (e.splitCount) {
-      splitEnemy(game, e, e.splitCount); // splitters drop nothing — no wrap bonus either
-    } else {
-      // Wrapped-rope kills sweeten the payout: a flat bonus per half-turn
-      // wrap unit rides the normal coin path (so combo and coinMult apply),
-      // with floating text so the reward is legible. The bonus is on top of
-      // the combo the kill itself builds.
-      const bonus = (wraps || 0) * T.WRAP_KILL_BONUS;
-      S.spawnCoinBurst(game, e.x, e.y, e.coinMult, bonus);
-      if (bonus) S.spawnFloater(game, e.x, e.y, `+${Math.round(bonus * S.comboPayout(game.combo) * e.coinMult)} WRAP`);
-      if (Math.random() < T.HEALTH_DROP_CHANCE) S.spawnHealthPickup(game, e.x, e.y);
+      splitEnemy(game, e, e.splitCount); // splitters split instead of dropping
+    } else if (Math.random() < T.HEALTH_DROP_CHANCE) {
+      S.spawnHealthPickup(game, e.x, e.y);
     }
     if (bumpCombo) S.bumpCombo(game);
   }
 
-  // DAMAGE special: a smashed enemy's pop splash-damages the live enemies
-  // inside its push radius; deaths pop normally (coins, combo) but don't
-  // explode in turn — only enemies the player actually hits explode.
-  // Corpses are flagged `dead` and swept at the end of updateEnemies.
-  function explodePop(game, e) {
-    const T = S.TUNING;
-    // Distinct death animation: a blast wave out to the actual splash radius
-    // on top of the normal pop ring (`explode` pops render fiery and live
-    // POP_EXPLODE_DURATION instead of POP_DURATION).
-    game.pops.push({ x: e.x, y: e.y, r: T.ENEMY_POP_PUSH_RADIUS, t: 0, explode: true });
-    S.addShake(game, T.SHAKE_EXPLODE);
-    for (const o of game.enemies) {
-      if (o.dead || o.invuln > 0) continue;
-      if (Math.hypot(o.x - e.x, o.y - e.y) >= T.ENEMY_POP_PUSH_RADIUS) continue;
-      o.hp -= T.POP_EXPLODE_DAMAGE;
-      if (o.hp <= 0) {
-        o.dead = true;
-        popEnemy(game, o, false, true);
-      } else {
-        o.flash = T.HIT_FLASH_DURATION;
-      }
-    }
-  }
-
-  // Resolve a fast hit on an enemy — shared by body smashes and weapon hits.
-  // nx/ny is the unit normal from the enemy toward the contact point. The
-  // enemy takes the player's damage (speed-scaled once MOMENTUM is picked);
-  // the ball bounces off along the normal (same shape as the damage
-  // knockback) keeping most of its speed either way. Bashing — damage past
-  // BASH_HP_FACTOR × max HP — plows through instead (deflected but never
-  // bounced backwards) and pops with BASH_POP_PUSH × force. opts:
-  //   dmgBonus     extra damage on top of smashDamage (weapon hits)
-  //   pierce       the hit never redirects the ball — it keeps its heading
-  //                (poker). The enemy is resolved normally, so a survivor
-  //                still blocks and bounces the ball's body.
-  //   bashOverride force a bash regardless of the damage threshold
-  //   knockMult    × KNOCKBACK_SPEED on a surviving enemy
-  //   ax/ay/ar     separation anchor a survivor is pushed flush against
-  //                (defaults to the ball; weapons pass their contact point)
-  //   wraps        half-turn wrap units at impact — a kill pays the wrap
-  //                coin bonus (only tethered body smashes pass this)
-  // Would a hit dealing `dmg` bash this enemy? (MOMENTUM special: bashing
-  // comes easier at top speed.) Shared by resolveSmash and the spiker's
-  // fast-contact exception in updateEnemies.
+  // Would a hit dealing `dmg` bash this enemy? Shared by resolveSmash and the
+  // spiker's fast-contact exception in updateEnemies.
   S.wouldBash = function (game, e, dmg) {
-    const T = S.TUNING;
-    const bashFactor = game.stats.specials.bashEasy && S.atMaxSpeed(game)
-      ? T.MOMENTUM_BASH_HP_FACTOR : T.BASH_HP_FACTOR;
-    return dmg > e.maxHp * bashFactor;
+    return dmg > e.maxHp * S.TUNING.BASH_HP_FACTOR;
   };
 
-  S.resolveSmash = function (game, e, nx, ny, tethered, opts = {}) {
+  // Resolve a fast body hit on an enemy. nx/ny is the unit normal from the
+  // enemy toward the contact point. The enemy takes the player's damage; the
+  // ball bounces off along the normal keeping most of its speed. Bashing —
+  // damage past BASH_HP_FACTOR × max HP — plows through instead (deflected but
+  // never bounced backwards) and pops with BASH_POP_PUSH × force. opts:
+  //   ax/ay/ar  separation anchor a survivor is pushed flush against
+  //             (defaults to the ball; the body smash passes its contact point)
+  S.resolveSmash = function (game, e, nx, ny, opts = {}) {
     const T = S.TUNING;
     const b = game.ball;
-    // Wrap/tethered kills BUILD combo now (no reset) — the rope is a scoring
-    // verb, with its coin bonus on top.
-    const dmg = S.smashDamage(game) + (opts.dmgBonus || 0);
-    const bash = opts.bashOverride || S.wouldBash(game, e, dmg);
+    const dmg = T.PLAYER_DAMAGE;
+    const bash = S.wouldBash(game, e, dmg);
     // A type can guard hits (shieldbearer): its hook inspects the contact
     // normal and refuses the damage — a bash breaks the guard open instead.
     // The ball still bounces/deflects below either way, so a blocked smash
@@ -887,43 +610,30 @@ window.Tethered = window.Tethered || {};
     const killed = e.hp <= 0;
     if (killed) {
       e.dead = true;
-      popEnemy(game, e, bash, true, opts.wraps); // every kill builds combo (tethered too)
-      if (game.stats.specials.popExplode) explodePop(game, e);
+      popEnemy(game, e, bash, true); // every kill builds combo
     } else {
       // Armor (or a guard) absorbed the hit: knock the enemy back and
       // separate so the next physics step doesn't land a second hit. No
       // combo — that only counts kills. Guards glint instead of flashing.
-      const knock = T.KNOCKBACK_SPEED * (opts.knockMult || 1);
       const ax = opts.ax !== undefined ? opts.ax : b.x;
       const ay = opts.ay !== undefined ? opts.ay : b.y;
       const ar = opts.ar !== undefined ? opts.ar : b.r;
       if (!guarded) e.flash = T.HIT_FLASH_DURATION;
-      e.kx = -nx * knock;
-      e.ky = -ny * knock;
+      e.kx = -nx * T.KNOCKBACK_SPEED;
+      e.ky = -ny * T.KNOCKBACK_SPEED;
       e.x = ax - nx * (ar + e.r);
       e.y = ay - ny * (ar + e.r);
     }
-    // KILL SURGE: pops feed speed back into the ball (capped next step);
-    // its special pays out on every smash, kill or not. A bash plows
-    // through: it deflects toward the bounce normal but never backwards
-    // — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
-    // ball always keeps forward momentum. Otherwise it bounces off along
-    // the normal.
-    const surge = killed || game.stats.specials.surgeEverySmash ? game.stats.killBoost : 0;
-    // Mass keeps speed through hits: the fraction lost shrinks as 1/mass.
-    const keep = 1 - (1 - T.KILL_SPEED_KEEP) / game.stats.ballMass;
-    const speed = S.ballSpeed(b) * keep + surge;
-    if (opts.pierce) {
-      // Pierce: straight through — the heading never changes.
-      const heading = Math.atan2(b.vy, b.vx);
-      b.vx = Math.cos(heading) * speed;
-      b.vy = Math.sin(heading) * speed;
-    } else if (bash) {
+    // A bash plows through: it deflects toward the bounce normal but never
+    // backwards — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
+    // ball always keeps forward momentum. Otherwise it bounces off along the
+    // normal.
+    const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
+    if (bash) {
       const heading = Math.atan2(b.vy, b.vx);
       let dev = Math.atan2(ny, nx) - heading;
       dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
-      // Mass straightens bashes: the deflection clamp shrinks as 1/mass.
-      const max = (T.BASH_DEFLECT_MAX / game.stats.ballMass) * Math.PI / 180;
+      const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
       const out = heading + Math.max(-max, Math.min(max, dev));
       b.vx = Math.cos(out) * speed;
       b.vy = Math.sin(out) * speed;
@@ -933,10 +643,9 @@ window.Tethered = window.Tethered || {};
     }
   };
 
-  // Projectiles (spitter shots): straight flight, expiring on walls,
-  // obstacles (cover works), or timeout. They hit the ball regardless of
-  // its speed — only i-frames (and the shield, via damageBall) protect —
-  // so they're dodged by pathing, not pace.
+  // Projectiles (spitter shots): straight flight, expiring at the arena edge
+  // or on timeout. They hit the ball regardless of its speed — only i-frames
+  // protect — so they're dodged by pathing, not pace.
   function updateProjectiles(game, dt) {
     const T = S.TUNING;
     const b = game.ball;
@@ -947,13 +656,6 @@ window.Tethered = window.Tethered || {};
       p.y += p.vy * dt;
       let gone = p.age >= T.PROJECTILE_LIFETIME ||
         p.x < -p.r || p.x > game.world.w + p.r || p.y < -p.r || p.y > game.world.h + p.r;
-      // Die on a wall tile — a shot can't pass through the cave.
-      if (!gone && game.map &&
-          game.map.isWall(Math.floor(p.x / T.TILE_SIZE), Math.floor(p.y / T.TILE_SIZE))) gone = true;
-      for (const o of game.obstacles) {
-        if (gone) break;
-        if (S.obstacleHit(o, p.x, p.y, p.r)) gone = true;
-      }
       if (!gone && game.state === S.STATE.PLAYING && b.iframes <= 0 &&
           S.geom.circleOverlap(p.x, p.y, p.r, b.x, b.y, b.r)) {
         const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
@@ -968,20 +670,12 @@ window.Tethered = window.Tethered || {};
   S.updateEnemies = function (game, dt) {
     const T = S.TUNING;
 
-    // Advance death-pop animations (explosion blast waves run longer).
+    // Advance death-pop animations.
     for (let i = game.pops.length - 1; i >= 0; i--) {
       const p = game.pops[i];
       p.t += dt;
-      if (p.t >= (p.explode ? T.POP_EXPLODE_DURATION : T.POP_DURATION)) game.pops.splice(i, 1);
+      if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
     }
-
-    // No trickle spawner — the map's population is placed at generation
-    // (placeEnemies). Clearing a room keeps it clear.
-
-    // Weapon pass first: kills are flagged dead and survivors are knocked
-    // out of body range, so the body-collision loop below can't land a
-    // second hit the same step.
-    if (game.state === S.STATE.PLAYING) S.updateWeaponCollisions(game);
 
     updateProjectiles(game, dt);
 
@@ -996,10 +690,6 @@ window.Tethered = window.Tethered || {};
       if (e.flash > 0) e.flash -= dt;
       if (e.invuln > 0) e.invuln -= dt;
 
-      // Aggro gate. Dormant enemies do nothing but a distance check — and
-      // can't be touched, since the wake radius is far wider than contact.
-      if (!updateAggro(game, e)) continue;
-
       // Per-type steering brain (default: seek the ball), plus decaying
       // knockback integrated by each brain.
       const decay = Math.exp(-T.ENEMY_KNOCKBACK_DECAY * dt);
@@ -1011,54 +701,43 @@ window.Tethered = window.Tethered || {};
       // the ball is already gone — and while a fresh split child's
       // invincibility runs down: it can't be hurt or deal a hit).
       if (game.state !== S.STATE.PLAYING || e.invuln > 0) continue;
-      // Swept, not point-overlap: a capped ball can cross most of a small
-      // enemy's shell in one step (and upgrades raise the cap), so test the
-      // prev→current segment — the same segClosest approach the weapons use.
-      // The previous position is the tether's sweep snapshot (stamped every
-      // step, tethered or not).
+      // Swept, not point-overlap: a fast slingshot can cross most of a small
+      // enemy's shell in one step, so test the prev→current segment. The
+      // previous position is the tether's sweep snapshot (stamped every step,
+      // tethered or not).
       const p = S.geom.segClosest(game.tether.pbx, game.tether.pby, b.x, b.y, e.x, e.y);
       const hit = S.geom.circleOverlap(e.x, e.y, e.r, p.x, p.y, b.r);
       if (!hit) continue;
-      S.wakeEnemy(e); // touched — wake it (proximity usually already has)
       let { nx, ny } = hit; // unit normal from enemy to the impact point
-      // An enemy dead on the sweep line has no contact direction (the same
-      // degenerate case the weapon capsules guard against) — a zero normal
-      // would zero the bounce. Fall back to the direction the ball came from.
+      // An enemy dead on the sweep line has no contact direction — a zero
+      // normal would zero the bounce. Fall back to the direction the ball
+      // came from.
       if (hit.d < 1e-6) {
         const d = Math.hypot(game.tether.pbx - e.x, game.tether.pby - e.y) || 1;
         nx = (game.tether.pbx - e.x) / d;
         ny = (game.tether.pby - e.y) / d;
       }
 
-      // Bumping an enemy snaps the tether. A fast ball smashes whether or
-      // not it was tethered; the kill builds combo either way (the rope is a
-      // scoring verb now), and a wrapped kill pays its coin bonus on top.
+      // Bumping an enemy snaps the tether. A fast ball smashes whether or not
+      // it was tethered; the kill builds combo either way (the rope is a
+      // scoring verb now).
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
-      const tethered = game.tether.active;
-      // Wrapped-rope kills pay a coin bonus per half-turn of total contact
-      // angle — capture the units before the release clears the wraps.
-      const wraps = tethered
-        ? Math.floor(S.totalContactAngle(game.tether) / T.WRAP_UNIT_ANGLE) : 0;
-      if (tethered) S.releaseTether(game);
+      if (game.tether.active) S.releaseTether(game);
 
       // Spikers invert the speed rule: a fast ball that can't bash through
       // gets pricked (damageBall: damage plus the knockback's hard speed
       // bleed) instead of smashing, while a slow touch is the safe hit.
-      // Bashes — and the MASS juggernaut — plow through spikes like
-      // anything else.
+      // Bashes plow through spikes like anything else.
       let smashes = fast;
       if (S.ENEMY_TYPES[e.type].punishesSpeed) {
-        smashes = !fast || game.stats.specials.juggernaut ||
-          S.wouldBash(game, e, S.smashDamage(game));
+        smashes = !fast || S.wouldBash(game, e, T.PLAYER_DAMAGE);
       }
 
       if (smashes) {
         // Anchor the resolution at the impact point along the sweep, so a
         // survivor separates (and the ball bounces) from where contact
-        // actually happened, not from wherever the ball ended up. MASS
-        // special: smashes pierce — the ball plows through everything.
-        S.resolveSmash(game, e, nx, ny, tethered,
-          { ax: p.x, ay: p.y, pierce: game.stats.specials.juggernaut, wraps });
+        // actually happened, not from wherever the ball ended up.
+        S.resolveSmash(game, e, nx, ny, { ax: p.x, ay: p.y });
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below
@@ -1078,42 +757,9 @@ window.Tethered = window.Tethered || {};
     // its rebuild) entirely.
     if (game.state === S.STATE.DYING) return;
     // Re-bucket before the pair pass: brains and knockback moved everyone
-    // since the step-start rebuild.
+    // since the step-start rebuild. (Arena containment — clamping enemies to
+    // the border — runs in updateWaves.)
     S.grid.rebuild(game.enemies);
     resolveEnemyOverlaps(game);
-
-    // Walls and obstacles are solid to enemies: push any overlapper out
-    // flush (anchor-aware, so the shove sticks on an orbiting orbiter).
-    // Deliberately the LAST pass of the step — brains, knockback, and
-    // separation can all shove an enemy wallward, and whatever runs after a
-    // wall pass can re-embed; nothing runs after this one.
-    for (const e of game.enemies) {
-      for (const o of game.obstacles) {
-        const hit = S.obstacleHit(o, e.x, e.y, e.r);
-        if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
-      }
-      // Arena gates are solid to enemies too, so a bashed enemy can't be
-      // knocked out into a corridor and strand the room uncleared.
-      for (const g of game.gates) {
-        const hit = S.obstacleHit(g, e.x, e.y, e.r);
-        if (hit) shiftEnemy(e, hit.nx * hit.overlap, hit.ny * hit.overlap);
-      }
-      collideEnemyTiles(game, e);
-    }
   };
-
-  // Wall-tile push-out for one enemy: probe the shared circle-vs-tiles
-  // resolver, then apply the shift anchor-aware and keep the velocity
-  // (knockback channel) slide — the wall-normal component is zeroed, so a
-  // shove along a wall glides instead of pinning.
-  function collideEnemyTiles(game, e) {
-    if (!game.map) return;
-    const probe = { x: e.x, y: e.y, r: e.r, vx: e.kx, vy: e.ky };
-    S.collideCircleWalls(game.map, probe, null);
-    if (probe.x !== e.x || probe.y !== e.y) {
-      shiftEnemy(e, probe.x - e.x, probe.y - e.y);
-      e.kx = probe.vx;
-      e.ky = probe.vy;
-    }
-  }
 })(Tethered);

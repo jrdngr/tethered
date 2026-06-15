@@ -1,8 +1,7 @@
 // Dev panel: a key-toggled debug column on the right edge of the canvas —
-// pause, heal, invincibility, per-type enemy spawners, and per-upgrade
-// grants. Drawn and hit-tested in raw canvas coordinates; the arena shrinks
-// to S.arenaWidth while it's open. Dev state lives here, not on game, so it
-// survives resets.
+// pause, restart, heal, invincibility, and per-type enemy spawners. Drawn and
+// hit-tested in raw canvas coordinates; the arena shrinks to S.arenaWidth
+// while it's open. Dev state lives here, not on game, so it survives resets.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -23,7 +22,7 @@ window.Tethered = window.Tethered || {};
     return canvasWidth - S.devPanelWidth();
   };
 
-  // Pure layout, local like upgradeCardRects' card sizes.
+  // Pure layout constants.
   const PAD = 10;    // panel inner padding
   const ROW_H = 26;  // button row height
   const ROW_GAP = 3;
@@ -44,9 +43,8 @@ window.Tethered = window.Tethered || {};
   }
 
   // The full item list — section headers and buttons — with rects in raw
-  // canvas coordinates, shared by drawing and hit-testing (the same pattern
-  // as upgradeCardRects). Rebuilt per use (~20 items) so labels, toggle
-  // states, and upgrade levels stay live.
+  // canvas coordinates, shared by drawing and hit-testing. Rebuilt per use so
+  // labels and toggle states stay live.
   S.devItems = function (game, canvasWidth) {
     const T = S.TUNING;
     const x = canvasWidth - T.DEV_PANEL_WIDTH + PAD;
@@ -70,12 +68,12 @@ window.Tethered = window.Tethered || {};
       action: () => { S.dev.paused = !S.dev.paused; },
     });
     button({
-      label: 'MENU',
-      action: () => S.toMenu(),
+      label: 'RESTART',
+      action: () => S.restartRun(),
     });
     button({
       label: 'HEAL',
-      action: () => { if (game.ball) game.ball.hp = game.stats.maxHp; },
+      action: () => { if (game.ball) game.ball.hp = S.TUNING.MAX_HP; },
     });
     button({
       label: 'INVINCIBLE',
@@ -88,8 +86,7 @@ window.Tethered = window.Tethered || {};
       action: () => { S.dev.bruteForce = !S.dev.bruteForce; },
     });
 
-    // SPAWN/UPGRADES need a live run (a ball, stats, upgrade levels). Hidden on
-    // the start menu, where none of that exists yet.
+    // SPAWN needs a live run (a ball to drop enemies near).
     if (game.ball) {
       header('SPAWN');
       for (const type in S.ENEMY_TYPES) {
@@ -104,20 +101,6 @@ window.Tethered = window.Tethered || {};
               game.ball.x + Math.cos(a) * 480,
               game.ball.y + Math.sin(a) * 480);
           },
-        });
-      }
-
-      header('UPGRADES');
-      for (const u of S.UPGRADES) {
-        const lvl = S.upgradeLevel(game, u);
-        const maxed = lvl >= T.UPGRADE_LEVEL_MAX;
-        button({
-          label: u.name,
-          icon: (ctx, cx, cy) => u.icon(ctx, cx, cy, 18),
-          levelText: `${lvl}/${T.UPGRADE_LEVEL_MAX}`,
-          maxed,
-          disabled: maxed,
-          action: () => S.grantUpgrade(game, u),
         });
       }
     }
@@ -171,8 +154,8 @@ window.Tethered = window.Tethered || {};
         ctx.fillText(it.label, it.x, it.y + it.h / 2 + 2);
         return;
       }
-      // Button chrome matches the level-up cards' idle/hover treatment;
-      // engaged toggles (pause, invincibility) go warm + gold.
+      // Button chrome: idle/hover, with engaged toggles (pause,
+      // invincibility) going warm + gold.
       const hover = i === S.dev.hover;
       ctx.fillStyle = it.on ? '#3a2f12' : hover ? '#242838' : '#1c1f2a';
       ctx.fillRect(it.x, it.y, it.w, it.h);
@@ -196,15 +179,11 @@ window.Tethered = window.Tethered || {};
       ctx.globalAlpha = 1;
     });
 
-    // Live debug readouts at the column foot (only during a run — the menu has
-    // no enemies/obstacles yet).
+    // Live debug readout at the column foot.
     if (game.enemies) {
       ctx.fillStyle = '#6b6f80';
       ctx.textAlign = 'left';
-      let awake = 0;
-      for (const e of game.enemies) if (e.aggro && e.aggro !== 'dormant') awake++;
-      ctx.fillText(`shapes ${(game.obstacles || []).length}`, px + PAD, ctx.canvas.height - 34);
-      ctx.fillText(`awake ${awake}/${game.enemies.length}`, px + PAD, ctx.canvas.height - 20);
+      ctx.fillText(`enemies ${game.enemies.length}`, px + PAD, ctx.canvas.height - 20);
     }
   };
 })(Tethered);

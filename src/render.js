@@ -1,4 +1,4 @@
-// All canvas drawing: arena, rope, ball, enemies, coins, HUD, game-over overlay.
+// All canvas drawing: arena, rope, ball, enemies, pickups, HUD, game-over overlay.
 window.Tethered = window.Tethered || {};
 
 (function (S) {
@@ -11,30 +11,20 @@ window.Tethered = window.Tethered || {};
   // ordering contract (see main.js), the order is load-bearing — overlays
   // must cover the world, the ball sits above the things it smashes, etc.
   const WORLD_LAYERS = [
-    drawExit, // on the floor, under everything that moves over it
     drawTether,
-    drawWalls, // above the rope, so a rope wrapped on a corner tucks behind the wall
-    drawObstacles, // ditto for pillar wraps
-    drawGates, // arena barriers sealing the current room's corridor mouths
-    drawOnboarding, // spawn-room hints (depth 1)
-    drawCoins,
+    drawPickups,
     drawParticles,
     drawProjectiles,
     drawEnemies,
     drawPops,
-    drawFloaters,
     drawPlayerPop, // the shockwave rings; the death flash is a screen layer
     drawBall,
   ];
   const SCREEN_LAYERS = [
     drawPlayerPopFlash,
     drawFlash,
-    layerEdgePips, // offscreen-threat warnings
-    layerMinimap, // explored-fog minimap (under the overlays)
     drawOverlays,
   ];
-  function layerMinimap(ctx, game) { S.drawMinimap(ctx, game); }
-  function layerEdgePips(ctx, game) { S.drawEdgePips(ctx, game); }
 
   S.drawGame = function (ctx, game) {
     const T = S.TUNING;
@@ -42,19 +32,6 @@ window.Tethered = window.Tethered || {};
     // Background (HUD band + viewport), then the HUD in its own band up top.
     ctx.fillStyle = '#0d0e14';
     ctx.fillRect(0, 0, game.width, T.HUD_HEIGHT + game.height);
-
-    // Start menu: no world/ball/camera exists yet, so draw only the menu (and
-    // the dev panel column) and bail before the HUD/world passes. Draw under
-    // the HUD-band translate, the same space mouseScreen is measured in, so the
-    // widget hit-tests line up with the cursor.
-    if (game.state === S.STATE.MENU) {
-      ctx.save();
-      ctx.translate(0, T.HUD_HEIGHT);
-      S.drawMenu(ctx, game);
-      ctx.restore();
-      S.drawDevPanel(ctx, game);
-      return;
-    }
 
     drawHud(ctx, game);
 
@@ -81,137 +58,6 @@ window.Tethered = window.Tethered || {};
     // fills above only cover game.width, so the two tile exactly.
     S.drawDevPanel(ctx, game);
   };
-
-  // Cave walls: the smooth contour polygons are the source of truth (same
-  // curves the ball and rope collide with). Fill ONLY the wall region —
-  // even-odd of (viewport rect + visible loops) leaves the floor
-  // transparent, so the rope drawn underneath shows on floor but tucks
-  // behind a wall it crosses. The viewport rect as the base makes the
-  // bbox cull safe: a loop enclosing the view has a bbox covering it (kept);
-  // a loop off to the side encloses no visible point (dropping it is fine).
-  function drawWalls(ctx, game) {
-    const map = game.map;
-    if (!map || !map.wallLoops) return;
-    const cam = game.camera;
-    const vx0 = cam.x - 4;
-    const vy0 = cam.y - 4;
-    const vw = game.width + 8;
-    const vh = game.height + 8;
-    const vx1 = vx0 + vw;
-    const vy1 = vy0 + vh;
-
-    const visible = [];
-    for (const loop of map.wallLoops) {
-      if (loop.maxX < vx0 || loop.minX > vx1 || loop.maxY < vy0 || loop.minY > vy1) continue;
-      visible.push(loop);
-    }
-
-    // Wall fill: viewport rect minus the floor loops (even-odd).
-    ctx.beginPath();
-    ctx.rect(vx0, vy0, vw, vh);
-    for (const loop of visible) tracePath(ctx, loop.pts);
-    ctx.fillStyle = '#1c1f2a';
-    ctx.fill('evenodd');
-
-    // Edge stroke (loops only — not the viewport rect).
-    ctx.beginPath();
-    for (const loop of visible) tracePath(ctx, loop.pts);
-    ctx.strokeStyle = '#3a3f52';
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
-
-  function tracePath(ctx, pts) {
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath();
-  }
-
-  // The exit: a glowing portal disc with a pulsing rim. While the player
-  // channels it (sitting still inside), a bright arc winds around the rim as
-  // a progress ring — full circle = transition.
-  function drawExit(ctx, game) {
-    const T = S.TUNING;
-    const ex = game.exit;
-    if (!ex) return;
-    ctx.save();
-    ctx.fillStyle = 'rgba(94, 255, 160, 0.12)';
-    ctx.beginPath();
-    ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
-    ctx.fill();
-    const pulse = 0.6 + 0.4 * Math.sin(game.time * 4);
-    ctx.strokeStyle = `rgba(94, 255, 160, ${0.5 + 0.3 * pulse})`;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#5effa0';
-    ctx.shadowBlur = 12 * pulse;
-    ctx.beginPath();
-    ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    if (ex.channel > 0) {
-      const frac = Math.min(ex.channel / T.EXIT_CHANNEL_TIME, 1);
-      ctx.strokeStyle = '#aef4ff';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(ex.x, ex.y, ex.r + 6, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-
-  // Arena gates: the energy barriers sealing the current room's corridor
-  // mouths while it's being cleared. A pulsing red capsule with a hot core —
-  // reads as "blocked, kill everything to pass". Only the locked room's gates
-  // are in game.gates, so this draws nothing in cleared rooms or corridors.
-  function drawGates(ctx, game) {
-    const gates = game.gates;
-    if (!gates || !gates.length) return;
-    const pulse = 0.6 + 0.4 * Math.sin(game.time * 6);
-    ctx.save();
-    ctx.lineCap = 'round';
-    for (const g of gates) {
-      const p = g.parts[0];
-      ctx.strokeStyle = `rgba(229, 72, 77, ${0.5 + 0.35 * pulse})`;
-      ctx.shadowColor = '#e5484d';
-      ctx.shadowBlur = 16 * pulse;
-      ctx.lineWidth = p.r * 2;
-      ctx.beginPath();
-      ctx.moveTo(p.x1, p.y1);
-      ctx.lineTo(p.x2, p.y2);
-      ctx.stroke();
-      ctx.shadowBlur = 0; // bright inner filament
-      ctx.strokeStyle = `rgba(255, 205, 205, ${0.45 + 0.3 * pulse})`;
-      ctx.lineWidth = Math.max(2, p.r * 0.6);
-      ctx.beginPath();
-      ctx.moveTo(p.x1, p.y1);
-      ctx.lineTo(p.x2, p.y2);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // Depth-1 onboarding: two lines of world-space text centered in the start
-  // room, so a first-time player knows the two verbs (grab, exit). Fades as
-  // the ball leaves the room.
-  function drawOnboarding(ctx, game) {
-    if (game.depth !== 1 || !game.map) return;
-    const room = game.map.chambers.find((c) => c.reserved === 'spawn');
-    if (!room) return;
-    const cx = room.cx * S.TUNING.TILE_SIZE;
-    const cy = room.cy * S.TUNING.TILE_SIZE;
-    const d = Math.hypot(game.ball.x - cx, game.ball.y - cy);
-    const alpha = Math.max(0, 1 - d / (room.r * S.TUNING.TILE_SIZE + 200));
-    if (alpha <= 0.01) return;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#9aa0b4';
-    ctx.font = '20px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('hold near the ball to grab, release to fling', cx, cy - 16);
-    ctx.fillText('clear the room to open the gates, then find the exit', cx, cy + 16);
-    ctx.restore();
-  }
 
   // Rope (cursor anchor -> tangents and contact arcs -> ball): the player
   // should feel it loading like a drawn bow, so width, color, and glow all
@@ -266,42 +112,10 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Interior shapes: each part drawn to match its collision/wrap silhouette
-  // exactly — circles as discs, capsules as round-capped bars. A slightly
-  // larger edge-colored pass under the fill gives a 2px border without
-  // tracing capsule outlines by hand. Palette is the wall chrome, a shade
-  // lighter, so shapes read as architecture distinct from the walls.
-  function drawObstacles(ctx, game) {
-    ctx.lineCap = 'round';
-    for (const o of game.obstacles) {
-      // Edge pass (wider), then fill pass (on top).
-      for (let pass = 0; pass < 2; pass++) {
-        const color = pass === 0 ? '#3a3f52' : '#262a38';
-        const grow = pass === 0 ? 2 : 0;
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color;
-        for (const part of o.parts) {
-          if (part.type === 'circle') {
-            ctx.beginPath();
-            ctx.arc(part.x, part.y, part.r + grow, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            ctx.lineWidth = (part.r + grow) * 2;
-            ctx.beginPath();
-            ctx.moveTo(part.x1, part.y1);
-            ctx.lineTo(part.x2, part.y2);
-            ctx.stroke();
-          }
-        }
-      }
-    }
-  }
-
-  // Pickups, each drawn by its PICKUP_TYPES entry, fading out at the end of
-  // their life.
-  function drawCoins(ctx, game) {
-    for (const c of game.coins) {
-      S.PICKUP_TYPES[c.type].draw(ctx, c, game); // coins persist — no lifetime fade
+  // Pickups, each drawn by its PICKUP_TYPES entry.
+  function drawPickups(ctx, game) {
+    for (const c of game.pickups) {
+      S.PICKUP_TYPES[c.type].draw(ctx, c, game);
     }
   }
 
@@ -367,9 +181,7 @@ window.Tethered = window.Tethered || {};
   function drawEnemies(ctx, game) {
     const T = S.TUNING;
     for (const e of game.enemies) {
-      if (e.aggro === 'dormant') ctx.globalAlpha = 0.5; // asleep reads dimmer
       S.drawEnemyBody(ctx, e.type, e);
-      ctx.globalAlpha = 1;
       // Spitter charge tell: a hot ring tightening onto the muzzle over the
       // wind-up, so an incoming shot is telegraphed even from off-center.
       const bs = e.brainState;
@@ -385,27 +197,9 @@ window.Tethered = window.Tethered || {};
   }
 
   // Death pops: an expanding, fading ring where an enemy was smashed.
-  // DAMAGE-special explosions (`explode`) render as a fiery blast wave
-  // instead — a filled flash plus a hot ring expanding to the splash
-  // radius (p.r holds the radius itself, not an enemy radius to scale).
   function drawPops(ctx, game) {
     const T = S.TUNING;
     for (const p of game.pops) {
-      if (p.explode) {
-        const t = p.t / T.POP_EXPLODE_DURATION;
-        const ease = 1 - (1 - t) * (1 - t);
-        const r = p.r * ease;
-        ctx.fillStyle = `rgba(247, 107, 21, ${0.3 * (1 - t)})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = `rgba(255, 200, 60, ${1 - t})`;
-        ctx.lineWidth = 2 + 5 * (1 - t);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.stroke();
-        continue;
-      }
       const t = p.t / T.POP_DURATION;
       const ease = 1 - (1 - t) * (1 - t); // ease-out: fast burst, slow settle
       // Bash pops are the power read: a bigger, hotter, thicker ring than
@@ -417,20 +211,6 @@ window.Tethered = window.Tethered || {};
       ctx.arc(p.x, p.y, p.r * (1 + (T.POP_SCALE * scale - 1) * ease), 0, Math.PI * 2);
       ctx.stroke();
     }
-  }
-
-  // Floating reward text (e.g. "+6 WRAP"): drifts up and fades, making
-  // bonus payouts legible at the kill site.
-  function drawFloaters(ctx, game) {
-    ctx.font = 'bold 13px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffc53d';
-    for (const f of game.floaters) {
-      ctx.globalAlpha = 1 - f.age / f.life;
-      ctx.fillText(f.text, f.x, f.y);
-    }
-    ctx.globalAlpha = 1;
   }
 
   // Player death pop: staggered white-hot shockwave rings, far bigger and
@@ -476,11 +256,6 @@ window.Tethered = window.Tethered || {};
     const flashDark = nearThreshold && Math.sin(game.time * 25) > 0;
     ctx.save();
     if (b.iframes > 0 && Math.sin(game.time * 30) > 0) ctx.globalAlpha = 0.35;
-    // Weapons draw first, under the ball, so the shapes emerge from its rim.
-    // Armed weapons at full size; while tethered, a small faded preview
-    // hints that they'll deploy on release.
-    if (game.weaponState.active) S.drawWeapons(ctx, game);
-    else if (game.tether.active) S.drawWeapons(ctx, game, true);
     if (speed > T.SPEED_THRESHOLD && !flashDark) {
       const f = Math.min(
         (speed - T.SPEED_THRESHOLD) / (T.SPEED_COLOR_MAX - T.SPEED_THRESHOLD), 1);
@@ -494,15 +269,6 @@ window.Tethered = window.Tethered || {};
     ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-
-    // VITALITY special: the held one-hit shield is a cyan ring.
-    if (b.shield) {
-      ctx.strokeStyle = '#aef4ff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2);
-      ctx.stroke();
-    }
   }
 
   // Bash screen flash: a brief white pop over the whole viewport, fading out.
@@ -517,22 +283,12 @@ window.Tethered = window.Tethered || {};
   // card/click rects line up with game.mouseScreen; the HUD stays visible
   // above.
   function drawOverlays(ctx, game) {
-    if (game.state === S.STATE.LEVELUP) drawLevelUp(ctx, game);
     if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
-    if (game.state === S.STATE.VICTORY) drawVictory(ctx, game);
   }
 
   function lerpColor(a, b, t) {
     const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-  }
-
-  // Survival time as M:SS.
-  function formatTime(seconds) {
-    const secs = Math.floor(seconds);
-    const mm = Math.floor(secs / 60);
-    const ss = String(secs % 60).padStart(2, '0');
-    return `${mm}:${ss}`;
   }
 
   function drawHud(ctx, game) {
@@ -561,44 +317,22 @@ window.Tethered = window.Tethered || {};
     ctx.fillStyle = '#33212a';
     ctx.fillRect(16, 42, hpW, hpH);
     ctx.fillStyle = '#e5484d';
-    ctx.fillRect(16, 42, hpW * Math.max(b.hp / game.stats.maxHp, 0), hpH);
+    ctx.fillRect(16, 42, hpW * Math.max(b.hp / T.MAX_HP, 0), hpH);
     ctx.strokeStyle = '#2a2d3a';
     ctx.lineWidth = 1;
     ctx.strokeRect(15.5, 41.5, hpW + 1, hpH + 1);
 
-    // Level + coin progress bar, top center — only when upgrades are on (it
-    // drives nothing otherwise, so an upgrades-off run hides it).
-    const barW = 260;
-    const barH = 8;
-    const bx = (game.width - barW) / 2;
-    const by = 18;
-    if (game.upgradesEnabled) {
-      const need = S.coinsForLevel(game.level);
-      ctx.fillStyle = '#1c1f2a';
-      ctx.fillRect(bx, by, barW, barH);
-      ctx.fillStyle = '#ffc53d';
-      ctx.fillRect(bx, by, barW * Math.min(game.coinProgress / need, 1), barH);
-      ctx.strokeStyle = '#2a2d3a';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bx - 0.5, by - 0.5, barW + 1, barH + 1);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#ffc53d';
-      ctx.fillText(`LV ${game.level}`, bx - 10, 14);
-    }
-
-    // Progression readout, top-right: depth in the dungeon, wave in the arena.
+    // Wave readout, top-right.
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e8e8f0';
-    const prog = game.mode === 'arena' ? `WAVE ${game.wave.number}` : `DEPTH ${game.depth}/${T.MAX_DEPTH}`;
-    ctx.fillText(prog, game.width - 16, 14);
+    ctx.fillText(`WAVE ${game.wave.number}`, game.width - 16, 14);
 
-    // Speed meter, top center just below the level bar: shows how close the
-    // ball is to the invincibility threshold (the key feedback for learning
-    // the mechanic).
+    // Speed meter, top center: shows how close the ball is to the
+    // invincibility threshold (the key feedback for learning the mechanic).
     const meterW = 240;
     const meterH = 10;
     const mx = (game.width - meterW) / 2;
-    const my = by + barH + 10;
+    const my = 26;
     const maxShown = T.SPEED_THRESHOLD * 1.6;
     const frac = Math.min(S.ballSpeed(b) / maxShown, 1);
     ctx.fillStyle = '#1c1f2a';
@@ -611,8 +345,8 @@ window.Tethered = window.Tethered || {};
     ctx.fillStyle = '#e8e8f0';
     ctx.fillRect(tx - 1, my - 3, 2, meterH + 6);
 
-    // Rope-length lever (both modes): a min→max track on the right with a tick
-    // at the current maximum length — shown whenever the tether is held.
+    // Rope-length lever: a min→max track on the right with a tick at the
+    // current maximum length — shown whenever the tether is held.
     if (game.tether.active) {
       const rw = 160;
       const rh = 8;
@@ -637,65 +371,6 @@ window.Tethered = window.Tethered || {};
     }
   }
 
-  // Level-up pause: up to three upgrade cards, hover to highlight, click to
-  // pick. Each card shows its level as a row of pips; an upgrade one pick
-  // from the cap advertises its special in gold instead of the normal gain.
-  function drawLevelUp(ctx, game) {
-    ctx.fillStyle = 'rgba(13, 14, 20, 0.8)';
-    ctx.fillRect(0, 0, game.width, game.height);
-
-    const cx = game.width / 2;
-    const cy = game.height / 2;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffc53d';
-    ctx.font = 'bold 36px monospace';
-    ctx.fillText(`LEVEL ${game.level}`, cx, cy - 130);
-    ctx.fillStyle = '#e8e8f0';
-    ctx.font = '16px monospace';
-    ctx.fillText('choose an upgrade', cx, cy - 95);
-
-    const rects = S.upgradeCardRects(game);
-    game.upgradeChoices.forEach((u, i) => {
-      const r = rects[i];
-      const hover = game.mouseScreen.x >= r.x && game.mouseScreen.x <= r.x + r.w &&
-        game.mouseScreen.y >= r.y && game.mouseScreen.y <= r.y + r.h;
-      ctx.fillStyle = hover ? '#242838' : '#1c1f2a';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-      ctx.strokeStyle = hover ? '#ffc53d' : '#2a2d3a';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(r.x, r.y, r.w, r.h);
-      // The upgrade's glyph — the same icon the dev panel buttons use.
-      ctx.save(); // icons set their own colors/joins/alpha
-      u.icon(ctx, r.x + r.w / 2, r.y + 26, 28);
-      ctx.restore();
-      ctx.fillStyle = '#ffc53d';
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText(u.name, r.x + r.w / 2, r.y + 58);
-      const lvl = S.upgradeLevel(game, u);
-      const final = lvl === S.TUNING.UPGRADE_LEVEL_MAX - 1; // next pick is the special
-      ctx.fillStyle = final ? '#ffc53d' : '#9aa0b4';
-      ctx.font = '13px monospace';
-      ctx.fillText(final ? u.specialDesc() : u.desc(), r.x + r.w / 2, r.y + 86);
-      // Level pips: one per level, filled up to the current level.
-      const max = S.TUNING.UPGRADE_LEVEL_MAX;
-      const pipGap = 14;
-      const px0 = r.x + r.w / 2 - ((max - 1) * pipGap) / 2;
-      for (let p = 0; p < max; p++) {
-        ctx.beginPath();
-        ctx.arc(px0 + p * pipGap, r.y + r.h - 16, 3.5, 0, Math.PI * 2);
-        if (p < lvl) {
-          ctx.fillStyle = '#ffc53d';
-          ctx.fill();
-        } else {
-          ctx.strokeStyle = '#2a2d3a';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-      }
-    });
-  }
-
   function drawGameOver(ctx, game) {
     ctx.fillStyle = 'rgba(13, 14, 20, 0.8)';
     ctx.fillRect(0, 0, game.width, game.height);
@@ -710,125 +385,11 @@ window.Tethered = window.Tethered || {};
 
     ctx.fillStyle = '#e8e8f0';
     ctx.font = '20px monospace';
-    const head = game.mode === 'arena'
-      ? `WAVE ${game.wave.number}`
-      : `DEPTH ${game.depth}/${S.TUNING.MAX_DEPTH}`;
-    ctx.fillText(head, cx, cy);
-    ctx.fillText(`${game.kills || 0} KILLS${game.upgradesEnabled ? ` · LEVEL ${game.level}` : ''}`, cx, cy + 32);
+    ctx.fillText(`WAVE ${game.wave.number}`, cx, cy);
+    ctx.fillText(`${game.kills || 0} KILLS`, cx, cy + 32);
 
     ctx.fillStyle = '#6b6f80';
     ctx.font = '16px monospace';
     ctx.fillText('click to restart', cx, cy + 80);
   }
-
-  // Victory: cleared the final depth.
-  function drawVictory(ctx, game) {
-    ctx.fillStyle = 'rgba(13, 14, 20, 0.85)';
-    ctx.fillRect(0, 0, game.width, game.height);
-    const cx = game.width / 2;
-    const cy = game.height / 2;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#5effa0';
-    ctx.font = 'bold 48px monospace';
-    ctx.fillText('ESCAPED', cx, cy - 60);
-    ctx.fillStyle = '#e8e8f0';
-    ctx.font = '20px monospace';
-    ctx.fillText(`all ${S.TUNING.MAX_DEPTH} depths cleared`, cx, cy);
-    ctx.fillText(`${game.kills || 0} KILLS · ${formatTime(game.time)}`, cx, cy + 32);
-    ctx.fillStyle = '#6b6f80';
-    ctx.font = '16px monospace';
-    ctx.fillText('click to play again', cx, cy + 80);
-  }
-
-  // Start-menu widget layout (screen space, hit-tested against mouseScreen) —
-  // one source of truth shared by drawMenu and main.js's menuClick, the same
-  // pattern as upgradeCardRects/devItems. A segmented mode pair, an upgrades
-  // checkbox, and the START button. Control is one scheme for both modes
-  // (hold to swing, A/D adjust rope length), so there's no scheme picker.
-  S.menuWidgets = function (game) {
-    const cfg = game.config;
-    const cx = game.width / 2;
-    const cy = game.height / 2;
-    const segW = 150;
-    const segH = 40;
-    const gap = 8;
-    const rowGap = 64;
-    const left = cx - segW - gap / 2; // left edge of a centered two-segment row
-    const fullW = segW * 2 + gap;
-    const w = [];
-    let y = cy - 40;
-    [['dungeon', 'DUNGEON'], ['arena', 'ARENA']].forEach(([value, label], i) => {
-      w.push({ id: 'mode', value, label, caption: i === 0 ? 'MODE' : null,
-        x: left + i * (segW + gap), y, w: segW, h: segH, selected: cfg.mode === value });
-    });
-    y += rowGap;
-    w.push({ id: 'upgrades', label: 'UPGRADES', checkbox: true, checked: cfg.upgrades,
-      x: left, y, w: fullW, h: segH });
-    y += rowGap + 12;
-    w.push({ id: 'start', label: 'START', start: true, x: left, y, w: fullW, h: segH + 6 });
-    return w;
-  };
-
-  S.drawMenu = function (ctx, game) {
-    const cx = game.width / 2;
-    const cy = game.height / 2;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#56e8ff';
-    ctx.font = 'bold 56px monospace';
-    ctx.fillText('TETHERED', cx, cy - 150);
-    ctx.fillStyle = '#6b6f80';
-    ctx.font = '15px monospace';
-    ctx.fillText('swing the ball — smash everything', cx, cy - 112);
-    ctx.font = '12px monospace';
-    ctx.fillText('hold to grab & swing · A / D adjust rope length', cx, cy - 88);
-
-    for (const wdg of S.menuWidgets(game)) {
-      const hover = !wdg.disabled &&
-        game.mouseScreen.x >= wdg.x && game.mouseScreen.x <= wdg.x + wdg.w &&
-        game.mouseScreen.y >= wdg.y && game.mouseScreen.y <= wdg.y + wdg.h;
-      const on = wdg.selected || (wdg.checkbox && wdg.checked);
-      if (wdg.caption) {
-        ctx.fillStyle = wdg.disabled ? '#3a3f52' : '#6b6f80';
-        ctx.font = '12px monospace';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(wdg.caption, wdg.x, wdg.y - 8);
-      }
-      ctx.textBaseline = 'middle';
-      ctx.globalAlpha = wdg.disabled ? 0.35 : 1;
-      ctx.fillStyle = wdg.start ? (hover ? '#1f6f4a' : '#17593b')
-        : on ? '#3a2f12' : hover ? '#242838' : '#1c1f2a';
-      ctx.fillRect(wdg.x, wdg.y, wdg.w, wdg.h);
-      ctx.strokeStyle = wdg.start ? '#5effa0' : (on || hover) ? '#ffc53d' : '#2a2d3a';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(wdg.x + 1, wdg.y + 1, wdg.w - 2, wdg.h - 2);
-
-      let labelX = wdg.x + wdg.w / 2;
-      ctx.textAlign = 'center';
-      if (wdg.checkbox) {
-        const bs = 18;
-        const bx = wdg.x + 16;
-        const by = wdg.y + wdg.h / 2 - bs / 2;
-        ctx.strokeStyle = '#e8e8f0';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bs, bs);
-        if (wdg.checked) { ctx.fillStyle = '#5effa0'; ctx.fillRect(bx + 3, by + 3, bs - 6, bs - 6); }
-        labelX = bx + bs + 12;
-        ctx.textAlign = 'left';
-      }
-      ctx.fillStyle = wdg.start ? '#aef4ff' : '#e8e8f0';
-      ctx.font = wdg.start ? 'bold 20px monospace' : '15px monospace';
-      ctx.fillText(wdg.checkbox ? `${wdg.label}  ${wdg.checked ? 'ON' : 'OFF'}` : wdg.label,
-        labelX, wdg.y + wdg.h / 2 + 1);
-      ctx.globalAlpha = 1;
-    }
-
-    ctx.fillStyle = '#6b6f80';
-    ctx.font = '12px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText('`  toggles the dev panel', cx, game.height - 22);
-  };
 })(Tethered);

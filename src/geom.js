@@ -46,6 +46,14 @@ window.Tethered = window.Tethered || {};
     },
   };
 
+  // Random scatter velocity for burst spawns: a uniform angle at
+  // maxSpeed × (minFrac..1). Shared by health-pickup and death-particle bursts.
+  S.randomVelocity = function (maxSpeed, minFrac) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = maxSpeed * (minFrac + (1 - minFrac) * Math.random());
+    return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+  };
+
   // Advance a list of short-lived particles in place: age them (splicing out
   // the expired), apply exponential drag — the standard exp(-rate·dt) idiom,
   // framerate-independent — and integrate position.

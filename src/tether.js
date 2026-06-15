@@ -1,6 +1,6 @@
 // Elastic spring tether: anchor is the cursor while the mouse is held.
-// The rope wraps around pivot circles (enemies, obstacle pegs) the way a
-// real rope wraps a post: tangent lines into a contact arc hugging the
+// The rope wraps around pivot circles (enemies) the way a real rope wraps a
+// post: tangent lines into a contact arc hugging the
 // circle's edge. The path runs mouse -> tangent/arc per pivot -> ball.
 // Pivots are frictionless (tension is uniform along the rope), the spring
 // acts on total path length including arcs — so winding consumes rope and
@@ -55,12 +55,11 @@ window.Tethered = window.Tethered || {};
   // stretch. Impulse is linear in stretch (not the spring-energy form): more
   // predictable to learn, and the codebase never computes spring PE anyway.
   // The speed cap and the swept ball collision both absorb the spike, so no
-  // tunneling risk. Applied before triggerWeapons, so a hard sling arms the
-  // weapons by itself.
+  // tunneling risk.
   S.releaseTether = function (game) {
     const T = S.TUNING;
     const tether = game.tether;
-    if (!tether) return; // no tether on the menu (no run yet)
+    if (!tether) return; // defensive: no tether before the first run is built
     if (tether.active && tether.stretch > 0) {
       const b = game.ball;
       const wraps = tether.wraps;
@@ -75,32 +74,22 @@ window.Tethered = window.Tethered || {};
         b.vx += (dx / d) * impulse;
         b.vy += (dy / d) * impulse;
         // Clamp here too (updateBall caps before integrating anyway):
-        // nothing — including the tile-collision sub-step count — should
-        // ever observe a super-cap velocity, even for one step.
+        // nothing should ever observe a super-cap velocity, even for one step.
         const sp = Math.hypot(b.vx, b.vy);
-        if (sp > game.stats.maxSpeed) {
-          b.vx *= game.stats.maxSpeed / sp;
-          b.vy *= game.stats.maxSpeed / sp;
+        if (sp > S.TUNING.BALL_MAX_SPEED) {
+          b.vx *= S.TUNING.BALL_MAX_SPEED / sp;
+          b.vy *= S.TUNING.BALL_MAX_SPEED / sp;
         }
       }
     }
     tether.active = false;
     tether.stretch = 0;
     tether.wraps.length = 0;
-    S.triggerWeapons(game); // every release while fast (re)arms the weapons
   };
 
-  // Control is one scheme for both modes: classic grab/release (tryGrab on
-  // mousedown, releaseTether on mouseup), with A/D cinching the rope's maximum
-  // length in or out while held (the lever, applied in updateActiveTether).
-
-  // Total accumulated contact angle over all pivots — the wrap-kill bonus
-  // reads this in half-turn units. Fresh from this step's tether pass.
-  S.totalContactAngle = function (tether) {
-    let sum = 0;
-    for (const w of tether.wraps) sum += w.angle || 0;
-    return sum;
-  };
+  // Control: classic grab/release (tryGrab on mousedown, releaseTether on
+  // mouseup), with A/D cinching the rope's maximum length in or out while
+  // held (the lever, applied in updateActiveTether).
 
   function cross(ax, ay, bx, by) {
     return ax * by - ay * bx;
@@ -109,8 +98,8 @@ window.Tethered = window.Tethered || {};
   // Tangent contact point on circle (Ox,Oy,r) as seen from point P; `side`
   // (±1) picks which of the two tangents. phi is the contact's bearing from
   // the circle center. When P is inside the circle the tangent degenerates
-  // to the surface point nearest P — finite and stable (mouse dragged into
-  // a pillar, ball pressed against the pillar it's wrapped on).
+  // to the surface point nearest P — finite and stable (mouse dragged onto
+  // a pivot, ball pressed against the enemy it's wrapped on).
   const cpOut = { x: 0, y: 0, phi: 0 }; // hot loop: reused, consume immediately
   function contactPoint(Px, Py, Ox, Oy, r, side) {
     const dx = Px - Ox;
@@ -247,10 +236,9 @@ window.Tethered = window.Tethered || {};
     }
 
     // Drop pivots whose enemy died: the rope rejoins its neighbors straight.
-    // Obstacle pegs never die, so they hold until the rope unwinds.
     for (let i = wraps.length - 1; i >= 0; i--) {
       const pe = wraps[i].e;
-      if (!pe.obstacle && (pe.dead || !game.enemies.includes(pe))) wraps.splice(i, 1);
+      if (pe.dead || !game.enemies.includes(pe)) wraps.splice(i, 1);
     }
 
     // Refresh tangent geometry and accumulated angles, then release any pivot
@@ -361,12 +349,10 @@ window.Tethered = window.Tethered || {};
     // the frictionless-pulley net force — inward bisector with magnitude
     // 2·sin(arc/2) — for free. Written to the decaying knockback channel
     // (kx/ky) the enemy brains already integrate, so it composes with seek
-    // and stays self-limiting. Obstacle pegs are static and skip it.
+    // and stays self-limiting.
     const tension = T.WRAP_DRAG_K * T.ROPE_K * stretch * dt;
     for (let i = 0; i < wraps.length; i++) {
       const w = wraps[i];
-      if (w.e.obstacle) continue;
-      if (S.wakeEnemy) S.wakeEnemy(w.e); // wrapped → wake (so it integrates the drag)
       const prev = i > 0 ? wraps[i - 1] : null;
       const next = i + 1 < wraps.length ? wraps[i + 1] : null;
       let ix = (prev ? prev.exitX : game.mouse.x) - w.entryX;

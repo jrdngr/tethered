@@ -15,49 +15,32 @@ window.Tethered = window.Tethered || {};
     game.freeze = Math.max(game.freeze, s);
   };
 
-  // Combo is a multiplier on coins dropped per kill: baseline ×1,
-  // +1 per obstacle bounce / enemy kill while fast.
-  // Arena-wall bounces don't count — only objects inside the play area.
+  // Combo is a kill streak shown in the HUD: baseline ×1, +1 per enemy kill,
+  // reset to ×1 by taking a hit (or COMBO_TIMEOUT of no kills).
   S.bumpCombo = function (game) {
     game.combo += 1;
     game.comboIdle = 0;
-    // VITALITY special: crossing the threshold grants a one-hit shield
-    // (max 1 held — losing it means rebuilding the combo for another, and
-    // a broken shield keeps a fresh one away for the cooldown).
-    if (game.stats.specials.comboShield && game.combo >= S.TUNING.COMBO_SHIELD_THRESHOLD &&
-        !game.ball.shield && game.ball.shieldCooldown <= 0) {
-      game.ball.shield = true;
-    }
   };
 
   // Vulnerable ball touched by an enemy. (nx, ny) is the unit normal from
-  // enemy to ball. A shield eats the damage, but the hit still knocks back,
-  // grants i-frames, and resets the combo.
+  // enemy to ball. The hit deals damage, knocks back, grants i-frames, and
+  // resets the combo.
   S.damageBall = function (game, enemy, nx, ny) {
     const T = S.TUNING;
     const b = game.ball;
     // Dev-panel invincibility: the hit fully no-ops (no damage, knockback,
-    // combo reset, or shield loss). I-frames still apply so the collision
-    // loop doesn't re-enter every tick. (S.dev is defined in devpanel.js,
-    // which loads after this file — guard for safety.)
+    // or combo reset). I-frames still apply so the collision loop doesn't
+    // re-enter every tick. (S.dev is defined in devpanel.js, which loads
+    // after this file — guard for safety.)
     if (S.dev && S.dev.invincible) {
       b.iframes = T.IFRAME_DURATION;
       return;
     }
-    if (b.shield) {
-      b.shield = false;
-      b.shieldCooldown = T.COMBO_SHIELD_COOLDOWN;
-    } else {
-      b.hp -= enemy.damage;
-    }
+    b.hp -= enemy.damage;
     S.addShake(game, T.SHAKE_HIT); // taking a hit is the heaviest shake
     S.audio.play('hurt');
     b.iframes = T.IFRAME_DURATION;
     game.combo = 1;
-    if (game.exit) {
-      game.exit.channel = 0; // any hit knocks you off the exit...
-      game.exit.magnetLockout = T.EXIT_MAGNET_HIT_LOCKOUT; // ...and the magnet can't yank you back for a beat
-    }
     // Knock both apart — the ball harder than the enemy, so a hit throws
     // the player clear of a swarm instead of leaving it in chain-hit range.
     b.vx = nx * T.PLAYER_KNOCKBACK_SPEED;

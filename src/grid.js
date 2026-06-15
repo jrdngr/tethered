@@ -1,5 +1,5 @@
 // Uniform-grid broadphase over enemies, shared by every all-pairs consumer:
-// enemy separation, rope wrap detection, and the weapon capsule pass.
+// enemy separation and rope wrap detection.
 // Enemies are bucketed by center point once per pass (rebuild is O(N));
 // queries return a candidate superset and leave the exact narrow-phase tests
 // to the caller, so behavior matches the brute-force scans — just without
@@ -58,8 +58,8 @@ window.Tethered = window.Tethered || {};
     maxR: 0, // largest enemy radius seen at rebuild — pads pair-test query radii
 
     // Re-bucket everything by current center. Runs at the top of the step
-    // (for the wrap and weapon queries) and again before separation, once
-    // the brains have moved everyone — see main.js's ordering contract.
+    // (for the wrap queries) and again before separation, once the brains
+    // have moved everyone — see main.js's ordering contract.
     rebuild(enemies) {
       for (const b of used) b.length = 0;
       used.length = 0;

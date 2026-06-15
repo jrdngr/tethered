@@ -27,14 +27,6 @@ window.Tethered = window.Tethered || {};
     };
   };
 
-  // Hard recenter — resets and map transitions, where a smooth pan from the
-  // old position would be a lie.
-  S.snapCamera = function (game) {
-    const t = target(game);
-    game.camera.x = clampAxis(t.x, game.world.w, game.width);
-    game.camera.y = clampAxis(t.y, game.world.h, game.height);
-  };
-
   // dt = 0 is a pure re-clamp (called on resize, when the viewport changes
   // under a paused game).
   S.updateCamera = function (game, dt) {

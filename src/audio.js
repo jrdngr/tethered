@@ -7,7 +7,7 @@ window.Tethered = window.Tethered || {};
 
 (function (S) {
   let actx = null;
-  const lastPlay = {}; // per-voice throttle — coin bursts scoop dozens per frame
+  const lastPlay = {}; // per-voice throttle — pop chains fire dozens per frame
 
   // One synth voice: an oscillator sweeping f0 → f1 over dur seconds under
   // an exponential-decay gain envelope. Every sound is a few of these.
@@ -36,18 +36,10 @@ window.Tethered = window.Tethered || {};
       tone('square', 130, 30, 0.22, 0.8);
       tone('sawtooth', 500, 50, 0.15, 0.4);
     },
-    // Wall/obstacle bounce: a soft low boing.
+    // Arena-border bounce: a soft low boing.
     bounce: () => tone('sine', 240, 120, 0.07, 0.3),
-    // Coin scoop: a bright chirp, pitch-jittered so bursts shimmer.
-    coin: () => tone('triangle', 1100 + Math.random() * 300, 1800, 0.06, 0.18),
     // Health pickup: a warm upward swell.
     heal: () => tone('sine', 400, 800, 0.18, 0.3),
-    // Level-up: a little ascending arpeggio.
-    levelup: () => {
-      tone('triangle', 520, 520, 0.09, 0.4);
-      tone('triangle', 660, 660, 0.09, 0.4, 0.09);
-      tone('triangle', 880, 880, 0.16, 0.4, 0.18);
-    },
     // Player hit: a harsh falling buzz.
     hurt: () => tone('sawtooth', 180, 60, 0.25, 0.6),
     // Player death: a long descending groan under the pop visuals.
@@ -70,8 +62,8 @@ window.Tethered = window.Tethered || {};
 
     play(name) {
       if (!actx || actx.state !== 'running' || S.TUNING.AUDIO_VOLUME <= 0) return;
-      // Same-voice calls inside ~a frame collapse into one — pop chains and
-      // coin showers would otherwise stack into a blast.
+      // Same-voice calls inside ~a frame collapse into one — pop chains would
+      // otherwise stack into a blast.
       const now = actx.currentTime;
       if (now - (lastPlay[name] || -1) < 0.03) return;
       lastPlay[name] = now;
