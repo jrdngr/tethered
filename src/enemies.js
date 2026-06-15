@@ -468,8 +468,10 @@ window.Tethered = window.Tethered || {};
     return { x: game.ball.x > w / 2 ? pad : w - pad, y: game.ball.y > h / 2 ? pad : h - pad };
   }
 
-  // Arena waves: once the floor is clear, wait WAVE_INTER_DELAY then spawn the
-  // next (larger) burst at the edges. Wave number drives game.depth, so the
+  // Arena waves: time-based. wave.timer counts down every step regardless of
+  // how many enemies are alive, so a slow wave stacks the next one on top of
+  // the survivors. Clearing the floor (0 enemies remaining) spawns the next
+  // wave early instead of idling. Wave number drives game.depth, so the
   // existing makeEnemy stat scaling and rollTypeForDepth unlocks ramp the
   // difficulty for free.
   S.updateWaves = function (game, dt) {
@@ -482,13 +484,17 @@ window.Tethered = window.Tethered || {};
       e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
     }
     const wave = game.wave;
-    if (game.enemies.length > 0) return; // clear the current wave first
-    wave.betweenTimer -= dt;
-    if (wave.betweenTimer > 0) return; // inter-wave breather
+    wave.timer -= dt;
+    // Spawn when the timer expires OR the floor is clear (0 enemies remaining).
+    // Boot lands here with timer 0 and no enemies, so wave 1 spawns instantly.
+    if (wave.timer > 0 && game.enemies.length > 0) return;
     wave.number += 1;
     game.depth = wave.number; // shared difficulty knob (stat scaling + type unlocks)
-    wave.betweenTimer = T.WAVE_INTER_DELAY; // gap before the wave after this one
-    const count = Math.min(T.ENEMY_CAP, T.WAVE_COUNT_BASE + T.WAVE_COUNT_PER_WAVE * (wave.number - 1));
+    wave.timer = T.WAVE_INTERVAL; // countdown to the wave after this one
+    // Per-wave size grows with the wave number, clamped to the arena's
+    // remaining headroom so stacked waves never blow past ENEMY_CAP.
+    const want = T.WAVE_COUNT_BASE + T.WAVE_COUNT_PER_WAVE * (wave.number - 1);
+    const count = Math.min(want, T.ENEMY_CAP - game.enemies.length);
     for (let i = 0; i < count; i++) {
       const p = arenaEdgeSpawn(game);
       S.spawnEnemyAt(game, rollTypeForDepth(game.depth), p.x, p.y);

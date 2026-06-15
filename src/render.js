@@ -23,6 +23,7 @@ window.Tethered = window.Tethered || {};
   const SCREEN_LAYERS = [
     drawPlayerPopFlash,
     drawFlash,
+    drawEdgePips, // offscreen-enemy warnings at the viewport rim
     drawOverlays,
   ];
 
@@ -282,6 +283,52 @@ window.Tethered = window.Tethered || {};
   // Overlays render in the screen pass (viewport coordinates), so their
   // card/click rects line up with game.mouseScreen; the HUD stays visible
   // above.
+  // Edge pips: red chevrons at the viewport rim pointing at the nearest
+  // enemies the camera has scrolled offscreen, so an incoming swarm (or a
+  // wave that spawned across the arena) is never a total surprise. Drawn in
+  // viewport coordinates — the world translate is already restored here.
+  function drawEdgePips(ctx, game) {
+    const T = S.TUNING;
+    if (game.state !== S.STATE.PLAYING) return;
+    const cam = game.camera;
+    const offscreen = [];
+    for (const e of game.enemies) {
+      const sx = e.x - cam.x;
+      const sy = e.y - cam.y;
+      if (sx >= 0 && sx <= game.width && sy >= 0 && sy <= game.height) continue; // on screen
+      offscreen.push({ e, d: Math.hypot(e.x - game.ball.x, e.y - game.ball.y) });
+    }
+    offscreen.sort((a, b) => a.d - b.d);
+    const cx = game.width / 2;
+    const cy = game.height / 2;
+    const margin = T.PIP_MARGIN;
+    for (let i = 0; i < offscreen.length && i < T.PIP_MAX; i++) {
+      const e = offscreen[i].e;
+      let dx = e.x - cam.x - cx;
+      let dy = e.y - cam.y - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      // Project the direction onto the viewport rim (inset by margin).
+      const halfW = cx - margin;
+      const halfH = cy - margin;
+      const scale = Math.min(halfW / Math.abs(dx || 1e-6), halfH / Math.abs(dy || 1e-6));
+      const px = cx + dx * scale;
+      const py = cy + dy * scale;
+      const alpha = Math.max(0.25, 1 - offscreen[i].d / 2500);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(Math.atan2(dy, dx));
+      ctx.fillStyle = `rgba(229, 72, 77, ${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-6, -5);
+      ctx.lineTo(-6, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   function drawOverlays(ctx, game) {
     if (game.state === S.STATE.GAMEOVER) drawGameOver(ctx, game);
   }
@@ -322,10 +369,17 @@ window.Tethered = window.Tethered || {};
     ctx.lineWidth = 1;
     ctx.strokeRect(15.5, 41.5, hpW + 1, hpH + 1);
 
-    // Wave readout, top-right.
+    // Wave readout, top-right, with the next-wave countdown just to its left.
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`WAVE ${game.wave.number}`, game.width - 16, 14);
+    const waveLabel = `WAVE ${game.wave.number}`;
+    ctx.fillText(waveLabel, game.width - 16, 14);
+    const waveW = ctx.measureText(waveLabel).width; // measured at 16px, before the font swap
+    const secs = Math.max(0, Math.ceil(game.wave.timer));
+    ctx.font = '13px monospace';
+    ctx.fillStyle = '#6b6f80';
+    ctx.fillText(`NEXT ${secs}s`, game.width - 16 - waveW - 14, 16);
+    ctx.font = '16px monospace';
 
     // Speed meter, top center: shows how close the ball is to the
     // invincibility threshold (the key feedback for learning the mechanic).

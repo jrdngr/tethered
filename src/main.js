@@ -48,7 +48,7 @@ window.Tethered = window.Tethered || {};
       ball: S.createBall(T.ARENA_W / 2, T.ARENA_H / 2),
       mouseScreen: { x: w / 2, y: playHeight() / 2 },
       mouse: { x: T.ARENA_W / 2, y: T.ARENA_H / 2 },
-      wave: { number: 0, betweenTimer: 0 },
+      wave: { number: 0, timer: 0 }, // timer: s until the next wave; updateWaves drives it
       enemies: [],
       pops: [],
       projectiles: [],
@@ -179,7 +179,7 @@ window.Tethered = window.Tethered || {};
       S.updateBall(game, dt);
     }
     S.updateEnemies(game, dt);
-    S.updateWaves(game, dt); // spawn the next wave once the floor clears
+    S.updateWaves(game, dt); // time-based; also spawns early once the floor clears
     S.updatePickups(game, dt);
     S.updateCombo(game, dt);
     // Camera last, on this step's (scaled) time: render sees the settled

@@ -268,8 +268,14 @@ Tethered.TUNING = {
   ARENA_H: 1700,                  // px — fixed arena height
   WAVE_COUNT_BASE: 6,             // enemies in wave 1...
   WAVE_COUNT_PER_WAVE: 2,         // ...growing this many per wave (capped at ENEMY_CAP)
-  WAVE_INTER_DELAY: 2.0,          // s pause between a cleared wave and the next
+  WAVE_INTERVAL: 18,              // s between waves — counts down regardless of kills, so
+                                  // waves can stack; clearing the floor starts the next early
   WAVE_SPAWN_BALL_CLEARANCE: 320, // px around the ball kept spawn-free
+
+  // Edge pips: red chevrons at the viewport rim pointing at enemies the camera
+  // has scrolled offscreen, so an incoming swarm is never a total surprise.
+  PIP_MARGIN: 18,                 // px the chevrons sit inside the viewport rim
+  PIP_MAX: 8,                     // most pips shown at once (the nearest offscreen enemies)
 
   // Loop
   PHYSICS_HZ: 120,
