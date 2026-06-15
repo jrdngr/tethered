@@ -4,4 +4,4 @@ default:
 
 # Open the game in Chrome
 run:
-    open -a "Google Chrome" index.html
+    open index.html

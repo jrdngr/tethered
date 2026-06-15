@@ -9,7 +9,7 @@ window.Tethered = window.Tethered || {};
   // the z-order: each layer is one (ctx, game) function. Adding a visual
   // means one function plus an index in the right pass. Like update()'s
   // ordering contract (see main.js), the order is load-bearing — overlays
-  // must cover the world, the ball sits above the things it smashes, etc.
+  // must cover the world, the ball sits above the things it hits, etc.
   const WORLD_LAYERS = [
     drawTether,
     drawPickups,
@@ -17,6 +17,7 @@ window.Tethered = window.Tethered || {};
     drawProjectiles,
     drawEnemies,
     drawPops,
+    drawDamagePops, // floating damage numbers, above the bodies they came off
     drawPlayerPop, // the shockwave rings; the death flash is a screen layer
     drawBall,
   ];
@@ -214,6 +215,25 @@ window.Tethered = window.Tethered || {};
     }
   }
 
+  // Floating damage numbers: drift up and fade over their life, each tilted a
+  // few degrees so a cluster doesn't read as a single column.
+  function drawDamagePops(ctx, game) {
+    const T = S.TUNING;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = T.DAMAGE_POP_FONT;
+    for (const d of game.damagePops) {
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.angle);
+      ctx.globalAlpha = 1 - d.age / d.life;
+      ctx.fillStyle = '#ffe08a';
+      ctx.fillText(String(d.amount), 0, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // Player death pop: staggered white-hot shockwave rings, far bigger and
   // longer than an enemy pop. World layer — the rings expand where the ball
   // died; the companion flash is the screen layer below.
@@ -398,31 +418,6 @@ window.Tethered = window.Tethered || {};
     const tx = mx + meterW * (T.SPEED_THRESHOLD / maxShown);
     ctx.fillStyle = '#e8e8f0';
     ctx.fillRect(tx - 1, my - 3, 2, meterH + 6);
-
-    // Rope-length lever: a min→max track on the right with a tick at the
-    // current maximum length — shown whenever the tether is held.
-    if (game.tether.active) {
-      const rw = 160;
-      const rh = 8;
-      const rx = game.width - 16 - rw;
-      const ry = 42;
-      const frac = Math.min(Math.max(
-        (game.tether.restLength - T.ROPE_MIN_REST) / (T.ROPE_MAX_REST - T.ROPE_MIN_REST), 0), 1);
-      ctx.fillStyle = '#1c1f2a';
-      ctx.fillRect(rx, ry, rw, rh);
-      ctx.strokeStyle = '#2a2d3a';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(rx - 0.5, ry - 0.5, rw + 1, rh + 1);
-      const tickX = rx + rw * frac;
-      ctx.fillStyle = '#ff641e';
-      ctx.fillRect(tickX - 2, ry - 3, 4, rh + 6);
-      ctx.fillStyle = '#6b6f80';
-      ctx.font = '11px monospace';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('ROPE', rx - 8, ry + rh / 2);
-      ctx.textBaseline = 'top';
-    }
   }
 
   function drawGameOver(ctx, game) {

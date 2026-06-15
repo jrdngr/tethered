@@ -203,7 +203,7 @@ window.Tethered = window.Tethered || {};
     e.y += (dir.y * e.speed + e.ky) * dt;
   }
 
-  // Guard hook (see resolveSmash): refuse front-arc damage while the guard
+  // Guard hook (see resolveBallHit): refuse front-arc damage while the guard
   // is up. A bash deals no damage either, but breaks the guard open — the
   // stun is the payoff, making angle play (wraps, slingshots, rear hits)
   // the answer rather than raw damage.
@@ -238,13 +238,13 @@ window.Tethered = window.Tethered || {};
   S.ENEMY_TYPES = {
     chaser: {
       color: '#e5484d', // red
-      stats: (T) => ({ r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED }),
+      stats: (T) => ({ r: T.ENEMY_RADIUS, hp: T.ENEMY_HP, damage: T.ENEMY_DAMAGE, speed: T.ENEMY_SPEED, mass: T.ENEMY_MASS }),
     },
     // Gated types claim their roll slice in this order (see the spawn-mix
     // notes in tuning.js).
     tank: {
       color: '#b558f6', // purple
-      stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED }),
+      stats: (T) => ({ r: T.TANK_RADIUS, hp: T.TANK_HP, damage: T.TANK_DAMAGE, speed: T.TANK_SPEED, mass: T.TANK_MASS }),
       spawnGate: (T) => ({ unlock: T.TANK_UNLOCK_DEPTH, weight: T.TANK_CHANCE }),
       // Armor ring above 1 HP that breaks off with the first hit.
       draw(ctx, e) {
@@ -258,13 +258,13 @@ window.Tethered = window.Tethered || {};
     },
     splitter: {
       color: '#f76b15', // orange
-      stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED }),
+      stats: (T) => ({ r: T.SPLITTER_RADIUS, hp: T.SPLITTER_HP, damage: T.SPLITTER_DAMAGE, speed: T.SPLITTER_SPEED, mass: T.SPLITTER_MASS }),
       spawnGate: (T) => ({ unlock: T.SPLITTER_UNLOCK_DEPTH, weight: T.SPLITTER_CHANCE }),
       splitCount: 2,
     },
     supersplitter: {
       color: '#ff3300', // red-orange — a splitter, but angrier
-      stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED }),
+      stats: (T) => ({ r: T.SUPER_SPLITTER_RADIUS, hp: T.SUPER_SPLITTER_HP, damage: T.SUPER_SPLITTER_DAMAGE, speed: T.SUPER_SPLITTER_SPEED, mass: T.SUPER_SPLITTER_MASS }),
       spawnGate: (T) => ({ unlock: T.SUPER_SPLITTER_UNLOCK_DEPTH, weight: T.SUPER_SPLITTER_CHANCE }),
       splitCount: 2,
       splitChild: 'splitter',
@@ -272,7 +272,7 @@ window.Tethered = window.Tethered || {};
     },
     orbiter: {
       color: '#e93d82', // pink
-      stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED }),
+      stats: (T) => ({ r: T.ORBITER_RADIUS, hp: T.ORBITER_HP, damage: T.ORBITER_DAMAGE, speed: T.ORBITER_SPEED, mass: T.ORBITER_MASS }),
       spawnGate: (T) => ({ unlock: T.ORBITER_UNLOCK_DEPTH, weight: T.ORBITER_CHANCE }),
       onSpawn(e) {
         e.brainState = {
@@ -285,7 +285,7 @@ window.Tethered = window.Tethered || {};
     },
     runner: {
       color: '#cc9a1f', // dark gold — it's the payday target
-      stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED }),
+      stats: (T) => ({ r: T.RUNNER_RADIUS, hp: T.RUNNER_HP, damage: T.RUNNER_DAMAGE, speed: T.RUNNER_SPEED, mass: T.RUNNER_MASS }),
       spawnGate: (T) => ({ unlock: T.RUNNER_UNLOCK_DEPTH, weight: T.RUNNER_CHANCE }),
       onSpawn(e) {
         e.brainState = { windup: 0, danger: 0, cooldown: 0, baseDamage: e.damage };
@@ -315,7 +315,7 @@ window.Tethered = window.Tethered || {};
     },
     spitter: {
       color: '#3dd68c', // mint — the zoner
-      stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED }),
+      stats: (T) => ({ r: T.SPITTER_RADIUS, hp: T.SPITTER_HP, damage: T.SPITTER_DAMAGE, speed: T.SPITTER_SPEED, mass: T.SPITTER_MASS }),
       spawnGate: (T) => ({ unlock: T.SPITTER_UNLOCK_DEPTH, weight: T.SPITTER_CHANCE }),
       onSpawn(e) {
         // Desynced fire timers so a pack doesn't volley in lockstep.
@@ -333,7 +333,7 @@ window.Tethered = window.Tethered || {};
     spiker: {
       color: '#8d93a5', // steel — a drifting mine
       punishesSpeed: true,
-      stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED }),
+      stats: (T) => ({ r: T.SPIKER_RADIUS, hp: T.SPIKER_HP, damage: T.SPIKER_DAMAGE, speed: T.SPIKER_SPEED, mass: T.SPIKER_MASS }),
       spawnGate: (T) => ({ unlock: T.SPIKER_UNLOCK_DEPTH, weight: T.SPIKER_CHANCE }),
       // The spike ring — the "don't hit me fast" warning.
       draw(ctx, e) {
@@ -350,7 +350,7 @@ window.Tethered = window.Tethered || {};
     },
     shieldbearer: {
       color: '#5472f0', // blue — the guard
-      stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED }),
+      stats: (T) => ({ r: T.SHIELD_RADIUS, hp: T.SHIELD_HP, damage: T.SHIELD_DAMAGE, speed: T.SHIELD_SPEED, mass: T.SHIELD_MASS }),
       spawnGate: (T) => ({ unlock: T.SHIELD_UNLOCK_DEPTH, weight: T.SHIELD_CHANCE }),
       onSpawn(e) {
         e.brainState = { fx: 0, fy: 0, stun: 0, glint: 0 }; // facing set by the brain
@@ -418,9 +418,11 @@ window.Tethered = window.Tethered || {};
       hp,
       maxHp: hp,
       damage: stats.damage,
+      mass: stats.mass,
       speed: stats.speed * (1 + T.ENEMY_SCALE_SPEED_PER_DEPTH * d),
-      flash: 0, // hit-feedback timer when a smash doesn't kill
+      flash: 0, // hit-feedback timer when a hit doesn't kill
       invuln: 0, // can't be hurt (or hurt the ball) while this runs down
+      ehit: 0, // cooldown between enemy-vs-enemy force hits
     };
     if (def.splitCount) {
       e.splitCount = def.splitCount;
@@ -527,8 +529,13 @@ window.Tethered = window.Tethered || {};
     if (onShift) onShift(e, dx, dy);
   }
 
-  // Enemies don't stack: overlapping pairs separate and trade a light bounce
-  // through the same decaying knockback a hit applies. Pairs come from the
+  // Enemies don't stack: overlapping pairs separate and trade a bounce through
+  // the same decaying knockback a hit applies. Both the separation and the
+  // bounce are mass-weighted — the lighter body gives way and flies further —
+  // and a pair closing hard enough (knockback-driven: flings, pops, dash
+  // bursts) trades force damage to both, the same curve a ball hit uses, so you
+  // can bowl heavies through a crowd. Kills are collected and popped after the
+  // pair pass to avoid mutating the list mid-iteration. Pairs come from the
   // broadphase (rebuilt just before this pass) instead of an O(N²) walk;
   // sorting candidates by _gi keeps resolution order identical to the
   // brute-force i<j loop — shifts accumulate, so order matters. The query
@@ -537,23 +544,62 @@ window.Tethered = window.Tethered || {};
   function resolveEnemyOverlaps(game) {
     const T = S.TUNING;
     const list = game.enemies;
+    let kills = null;
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
+      if (a.dead) continue;
       const candidates = S.grid.queryCircle(a.x, a.y, a.r + S.grid.maxR + T.GRID_CELL);
       pairScratch.length = 0;
       for (const b of candidates) if (b._gi > a._gi) pairScratch.push(b);
       pairScratch.sort((p, q) => p._gi - q._gi);
       for (const b of pairScratch) {
+        if (b.dead) continue;
         const hit = S.geom.circleOverlap(a.x, a.y, a.r, b.x, b.y, b.r);
         if (!hit) continue;
         const { nx, ny, overlap } = hit;
-        shiftEnemy(a, -nx * overlap / 2, -ny * overlap / 2);
-        shiftEnemy(b, nx * overlap / 2, ny * overlap / 2);
-        a.kx -= nx * T.ENEMY_BOUNCE;
-        a.ky -= ny * T.ENEMY_BOUNCE;
-        b.kx += nx * T.ENEMY_BOUNCE;
-        b.ky += ny * T.ENEMY_BOUNCE;
+        const ma = a.mass || 1;
+        const mb = b.mass || 1;
+        // Mass-weighted separation: each gives way inversely to its mass.
+        shiftEnemy(a, -nx * overlap * mb / (ma + mb), -ny * overlap * mb / (ma + mb));
+        shiftEnemy(b, nx * overlap * ma / (ma + mb), ny * overlap * ma / (ma + mb));
+        // Force damage to both when they're closing hard enough. Closing speed
+        // comes from the knockback velocities — gentle steering never reaches
+        // FORCE_MIN, only a fling/pop/dash does. A short cooldown plus the
+        // bounce keep one collision from multi-hitting; fresh split children
+        // (invuln) are exempt.
+        if (game.state === S.STATE.PLAYING && a.ehit <= 0 && b.ehit <= 0 &&
+            a.invuln <= 0 && b.invuln <= 0) {
+          const closing = (a.kx - b.kx) * nx + (a.ky - b.ky) * ny;
+          const force = closing > 0 ? S.impactForce(closing, ma, mb) : 0;
+          if (force >= T.FORCE_MIN) {
+            const dmg = S.forceToDamage(force);
+            const bigHit = force >= T.BIG_HIT_FORCE;
+            a.ehit = T.ENEMY_HIT_COOLDOWN;
+            b.ehit = T.ENEMY_HIT_COOLDOWN;
+            for (const e of [a, b]) {
+              e.hp -= dmg;
+              S.spawnDamagePop(game, e.x, e.y - e.r - 6, dmg);
+              if (e.hp <= 0 && !e.dead) {
+                e.dead = true;
+                (kills || (kills = [])).push({ e, bigHit });
+              }
+            }
+          }
+        }
+        // Mass-weighted bounce: an impulse, so it scales by 1/mass.
+        a.kx -= nx * T.ENEMY_BOUNCE / ma;
+        a.ky -= ny * T.ENEMY_BOUNCE / ma;
+        b.kx += nx * T.ENEMY_BOUNCE / mb;
+        b.ky += ny * T.ENEMY_BOUNCE / mb;
+        if (a.dead) break; // a is gone — stop pairing it
       }
+    }
+    // Pop the enemy-vs-enemy kills now the pair pass is done (popEnemy splits
+    // and pushes children / shockwaves, so it can't run mid-iteration), then
+    // sweep the corpses the main loop's filter already passed.
+    if (kills) {
+      for (const k of kills) popEnemy(game, k.e, k.bigHit, true);
+      game.enemies = game.enemies.filter((e) => !e.dead);
     }
   }
 
@@ -578,7 +624,7 @@ window.Tethered = window.Tethered || {};
     S.audio.play(bash ? 'bash' : 'smash');
     game.pops.push({ x: e.x, y: e.y, r: e.r, t: 0, bash });
     const push = T.ENEMY_POP_PUSH * (bash ? T.BASH_POP_PUSH : 1);
-    S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky');
+    S.geom.radialPush(game.enemies, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS, 'kx', 'ky', 'mass');
     S.geom.radialPush(game.pickups, e.x, e.y, push, T.ENEMY_POP_PUSH_RADIUS);
     if (e.splitCount) {
       splitEnemy(game, e, e.splitCount); // splitters split instead of dropping
@@ -588,65 +634,80 @@ window.Tethered = window.Tethered || {};
     if (bumpCombo) S.bumpCombo(game);
   }
 
-  // Would a hit dealing `dmg` bash this enemy? Shared by resolveSmash and the
-  // spiker's fast-contact exception in updateEnemies.
-  S.wouldBash = function (game, e, dmg) {
-    return dmg > e.maxHp * S.TUNING.BASH_HP_FACTOR;
+  // Impact force of two bodies closing at `relSpeed`: their reduced mass times
+  // that speed — a feather takes little force however hard you swing at it. Used
+  // for enemy-vs-enemy hits; a ball hit uses BALL_MASS × ball speed directly.
+  S.impactForce = function (relSpeed, mA, mB) {
+    return relSpeed * (mA * mB) / (mA + mB);
   };
 
-  // Resolve a fast body hit on an enemy. nx/ny is the unit normal from the
-  // enemy toward the contact point. The enemy takes the player's damage; the
-  // ball bounces off along the normal keeping most of its speed. Bashing —
-  // damage past BASH_HP_FACTOR × max HP — plows through instead (deflected but
-  // never bounced backwards) and pops with BASH_POP_PUSH × force. opts:
+  // Force → damage: nothing below the floor, then the base plus one point per
+  // FORCE_PER_DAMAGE of force above it (rounded). Force is in momentum units, so
+  // the same curve serves both ball→enemy and enemy→enemy hits.
+  S.forceToDamage = function (force) {
+    const T = S.TUNING;
+    if (force < T.FORCE_MIN) return 0;
+    return Math.max(1, Math.round(T.FORCE_DAMAGE_BASE + (force - T.FORCE_MIN) / T.FORCE_PER_DAMAGE));
+  };
+
+  // Spawn a floating damage number above an enemy's head; it rises and fades
+  // (advanced in updateEnemies, drawn in render.js).
+  S.spawnDamagePop = function (game, x, y, amount) {
+    const T = S.TUNING;
+    game.damagePops.push({
+      x, y, amount,
+      age: 0,
+      life: T.DAMAGE_POP_LIFE,
+      angle: (Math.random() * 2 - 1) * T.DAMAGE_POP_ANGLE * Math.PI / 180, // ±DAMAGE_POP_ANGLE°
+    });
+  };
+
+  // Resolve a ball hit on an enemy. nx/ny is the unit normal from the enemy
+  // toward the contact point. The enemy takes force-based damage (BALL_MASS ×
+  // ball speed → forceToDamage, floored at the base so a resolved hit always
+  // bites) and is knocked back — scaled by 1/mass, so light enemies fly. The
+  // ball ALWAYS bounces off along the contact normal, keeping most of its
+  // speed — a dying enemy rebounds it exactly like a live one, never a
+  // plow-through. A hit landed with BIG_HIT_FORCE+ plays the heavy pop. opts:
   //   ax/ay/ar  separation anchor a survivor is pushed flush against
-  //             (defaults to the ball; the body smash passes its contact point)
-  S.resolveSmash = function (game, e, nx, ny, opts = {}) {
+  //             (defaults to the ball; the body hit passes its contact point)
+  S.resolveBallHit = function (game, e, nx, ny, opts = {}) {
     const T = S.TUNING;
     const b = game.ball;
-    const dmg = T.PLAYER_DAMAGE;
-    const bash = S.wouldBash(game, e, dmg);
+    const force = T.BALL_MASS * S.ballSpeed(b);
+    const bigHit = force >= T.BIG_HIT_FORCE;
+    const dmg = Math.max(S.forceToDamage(force), T.FORCE_DAMAGE_BASE);
     // A type can guard hits (shieldbearer): its hook inspects the contact
-    // normal and refuses the damage — a bash breaks the guard open instead.
-    // The ball still bounces/deflects below either way, so a blocked smash
-    // reads as hitting a wall, not a whiff.
+    // normal and refuses the damage — a big hit breaks the guard open instead.
+    // The ball still bounces below either way, so a blocked hit reads as
+    // hitting a wall, not a whiff.
     const def = S.ENEMY_TYPES[e.type];
-    const guarded = def.guard && def.guard(game, e, nx, ny, bash);
-    if (!guarded) e.hp -= dmg;
-    const killed = e.hp <= 0;
-    if (killed) {
+    const guarded = def.guard && def.guard(game, e, nx, ny, bigHit);
+    if (!guarded) {
+      e.hp -= dmg;
+      S.spawnDamagePop(game, e.x, e.y - e.r - 6, dmg);
+    }
+    if (e.hp <= 0) {
       e.dead = true;
-      popEnemy(game, e, bash, true); // every kill builds combo
+      popEnemy(game, e, bigHit, true); // every kill builds combo
     } else {
-      // Armor (or a guard) absorbed the hit: knock the enemy back and
-      // separate so the next physics step doesn't land a second hit. No
-      // combo — that only counts kills. Guards glint instead of flashing.
+      // Survivor: knock it back and separate so the next physics step doesn't
+      // land a second hit. No combo — that only counts kills. Guards glint
+      // instead of flashing.
       const ax = opts.ax !== undefined ? opts.ax : b.x;
       const ay = opts.ay !== undefined ? opts.ay : b.y;
       const ar = opts.ar !== undefined ? opts.ar : b.r;
       if (!guarded) e.flash = T.HIT_FLASH_DURATION;
-      e.kx = -nx * T.KNOCKBACK_SPEED;
-      e.ky = -ny * T.KNOCKBACK_SPEED;
+      e.kx = -nx * T.KNOCKBACK_SPEED / (e.mass || 1);
+      e.ky = -ny * T.KNOCKBACK_SPEED / (e.mass || 1);
       e.x = ax - nx * (ar + e.r);
       e.y = ay - ny * (ar + e.r);
     }
-    // A bash plows through: it deflects toward the bounce normal but never
-    // backwards — clamped to BASH_DEFLECT_MAX off the incoming heading, so the
-    // ball always keeps forward momentum. Otherwise it bounces off along the
-    // normal.
+    // The ball bounces off along the contact normal, alive or dead, keeping
+    // most of its speed.
     const speed = S.ballSpeed(b) * T.KILL_SPEED_KEEP;
-    if (bash) {
-      const heading = Math.atan2(b.vy, b.vx);
-      let dev = Math.atan2(ny, nx) - heading;
-      dev = Math.atan2(Math.sin(dev), Math.cos(dev)); // wrap to ±180°
-      const max = T.BASH_DEFLECT_MAX * Math.PI / 180;
-      const out = heading + Math.max(-max, Math.min(max, dev));
-      b.vx = Math.cos(out) * speed;
-      b.vy = Math.sin(out) * speed;
-    } else {
-      b.vx = nx * speed;
-      b.vy = ny * speed;
-    }
+    b.vx = nx * speed;
+    b.vy = ny * speed;
   };
 
   // Projectiles (spitter shots): straight flight, expiring at the arena edge
@@ -683,6 +744,14 @@ window.Tethered = window.Tethered || {};
       if (p.t >= T.POP_DURATION) game.pops.splice(i, 1);
     }
 
+    // Advance floating damage numbers: rise (world space) and fade out.
+    for (let i = game.damagePops.length - 1; i >= 0; i--) {
+      const d = game.damagePops[i];
+      d.age += dt;
+      d.y -= T.DAMAGE_POP_RISE * dt;
+      if (d.age >= d.life) game.damagePops.splice(i, 1);
+    }
+
     updateProjectiles(game, dt);
 
     const b = game.ball;
@@ -695,6 +764,7 @@ window.Tethered = window.Tethered || {};
 
       if (e.flash > 0) e.flash -= dt;
       if (e.invuln > 0) e.invuln -= dt;
+      if (e.ehit > 0) e.ehit -= dt;
 
       // Per-type steering brain (default: seek the ball), plus decaying
       // knockback integrated by each brain.
@@ -724,26 +794,28 @@ window.Tethered = window.Tethered || {};
         ny = (game.tether.pby - e.y) / d;
       }
 
-      // Bumping an enemy snaps the tether. A fast ball smashes whether or not
-      // it was tethered; the kill builds combo either way (the rope is a
-      // scoring verb now).
+      // Bumping an enemy snaps the tether. A contact carrying enough force
+      // (ball at/above SPEED_THRESHOLD = FORCE_MIN) hurts the enemy and leaves
+      // the player safe whether or not it was tethered; the kill builds combo
+      // either way (the rope is a scoring verb now).
       const fast = S.ballSpeed(b) > T.SPEED_THRESHOLD;
       if (game.tether.active) S.releaseTether(game);
 
-      // Spikers invert the speed rule: a fast ball that can't bash through
-      // gets pricked (damageBall: damage plus the knockback's hard speed
-      // bleed) instead of smashing, while a slow touch is the safe hit.
-      // Bashes plow through spikes like anything else.
-      let smashes = fast;
+      // Spikers invert the rule: a force-carrying contact pricks the ball
+      // (damageBall: damage plus the knockback's hard speed bleed) instead of
+      // hurting the spiker, unless it carries enough to plow clean through
+      // (BIG_HIT_FORCE); a low-force touch is the safe kill.
+      let hits = fast;
       if (S.ENEMY_TYPES[e.type].punishesSpeed) {
-        smashes = !fast || S.wouldBash(game, e, T.PLAYER_DAMAGE);
+        const force = T.BALL_MASS * S.ballSpeed(b);
+        hits = !fast || force >= T.BIG_HIT_FORCE;
       }
 
-      if (smashes) {
+      if (hits) {
         // Anchor the resolution at the impact point along the sweep, so a
         // survivor separates (and the ball bounces) from where contact
         // actually happened, not from wherever the ball ended up.
-        S.resolveSmash(game, e, nx, ny, { ax: p.x, ay: p.y });
+        S.resolveBallHit(game, e, nx, ny, { ax: p.x, ay: p.y });
       } else if (b.iframes <= 0) {
         S.damageBall(game, e, nx, ny);
         if (game.state !== S.STATE.PLAYING) break; // dead — still sweep corpses below

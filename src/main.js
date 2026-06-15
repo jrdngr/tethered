@@ -51,6 +51,7 @@ window.Tethered = window.Tethered || {};
       wave: { number: 0, timer: 0 }, // timer: s until the next wave; updateWaves drives it
       enemies: [],
       pops: [],
+      damagePops: [], // floating damage numbers (enemies.js spawns/ages, render.js draws)
       projectiles: [],
       pickups: [],
       particles: [],
@@ -64,7 +65,6 @@ window.Tethered = window.Tethered || {};
       freeze: 0, // s of hit-stop left; physics pauses while it runs down
       shake: { x: 0, y: 0, mag: 0 }, // the frame loop jiggles/decays this every frame
       flash: 0, // s of bash screen flash left
-      keyAdjust: 0, // A/D rope-length nudge: -1 | 0 | +1
       state: S.STATE.PLAYING,
     };
     game.camera = S.createCamera(game);
@@ -115,16 +115,16 @@ window.Tethered = window.Tethered || {};
       return;
     }
     if (game.state !== S.STATE.PLAYING) return; // no grabbing the popped ball
-    S.tryGrab(game); // classic grab (A/D adjusts length while held)
+    S.tryGrab(game); // classic grab; the rope stays at full length while held
   });
   window.addEventListener('mouseup', () => {
     if (game.tether) S.releaseTether(game);
   });
   window.addEventListener('blur', () => { if (game.tether) S.releaseTether(game); });
 
-  // Keyboard: dev-panel toggle, plus the A/D rope-length keys. Closing the
-  // dev panel force-resumes so the game can't sit in an invisible pause;
-  // invincibility deliberately persists while hidden.
+  // Keyboard: dev-panel toggle only. Closing the dev panel force-resumes so
+  // the game can't sit in an invisible pause; invincibility deliberately
+  // persists while hidden.
   window.addEventListener('keydown', (e) => {
     if (e.code === S.TUNING.DEV_PANEL_TOGGLE) {
       S.dev.open = !S.dev.open;
@@ -132,12 +132,6 @@ window.Tethered = window.Tethered || {};
       applyArenaSize();
       return;
     }
-    if (e.code === 'KeyA') game.keyAdjust = -1; // shrink the rope
-    else if (e.code === 'KeyD') game.keyAdjust = 1; // grow the rope
-  });
-  window.addEventListener('keyup', (e) => {
-    if (e.code === 'KeyA' && game.keyAdjust < 0) game.keyAdjust = 0;
-    else if (e.code === 'KeyD' && game.keyAdjust > 0) game.keyAdjust = 0;
   });
 
   // ORDERING CONTRACT — the call order below (and within the callees) is

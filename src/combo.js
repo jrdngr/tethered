@@ -43,10 +43,12 @@ window.Tethered = window.Tethered || {};
     game.combo = 1;
     // Knock both apart — the ball harder than the enemy, so a hit throws
     // the player clear of a swarm instead of leaving it in chain-hit range.
+    // The enemy's shove is an impulse, so it scales by 1/mass (light enemies
+    // fly, heavy ones barely budge). Projectiles have no mass — guard with 1.
     b.vx = nx * T.PLAYER_KNOCKBACK_SPEED;
     b.vy = ny * T.PLAYER_KNOCKBACK_SPEED;
-    enemy.kx = -nx * T.KNOCKBACK_SPEED;
-    enemy.ky = -ny * T.KNOCKBACK_SPEED;
+    enemy.kx = -nx * T.KNOCKBACK_SPEED / (enemy.mass || 1);
+    enemy.ky = -ny * T.KNOCKBACK_SPEED / (enemy.mass || 1);
     if (b.hp <= 0) S.gameOver(game);
   };
 

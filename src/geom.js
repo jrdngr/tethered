@@ -22,16 +22,19 @@ window.Tethered = window.Tethered || {};
     // away, fading linearly with distance. Pass Infinity for a full-strength,
     // arena-wide blast (d/Infinity is 0, so Infinity → full force). vxKey/
     // vyKey name the velocity fields the shove lands on — pickups take it on
-    // their velocity, enemies through the decaying knockback (kx/ky).
-    radialPush(list, x, y, speed, radius, vxKey = 'vx', vyKey = 'vy') {
+    // their velocity, enemies through the decaying knockback (kx/ky). When
+    // massKey is given the shove is an impulse: it divides by each object's
+    // mass, so light bodies fly and heavy ones barely move.
+    radialPush(list, x, y, speed, radius, vxKey = 'vx', vyKey = 'vy', massKey) {
       for (const o of list) {
         const dx = o.x - x;
         const dy = o.y - y;
         const d = Math.hypot(dx, dy) || 1;
         if (d >= radius) continue;
         const fade = 1 - d / radius;
-        o[vxKey] += (dx / d) * speed * fade;
-        o[vyKey] += (dy / d) * speed * fade;
+        const m = massKey ? (o[massKey] || 1) : 1;
+        o[vxKey] += (dx / d) * speed * fade / m;
+        o[vyKey] += (dy / d) * speed * fade / m;
       }
     },
 

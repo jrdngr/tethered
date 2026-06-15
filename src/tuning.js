@@ -8,6 +8,7 @@ Tethered.TUNING = {
 
   // Ball
   BALL_RADIUS: 16,        // px
+  BALL_MASS: 1,           // mass unit — the standard chaser is 1 too; turns ball speed into impact force
   BALL_DRAG: 0.4,         // 1/s — exponential velocity decay (top-down friction)
   BALL_MAX_SPEED: 1000,   // px/s — speed cap
   WALL_RESTITUTION: 0.9,  // arena-border bounce energy retention
@@ -20,12 +21,6 @@ Tethered.TUNING = {
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
   WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
   SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
-
-  // Rope-length lever: A/D drive restLength — the rope's maximum length —
-  // between these bounds while the rope is held. ROPE_MAX_REST (above) is the
-  // lever's ceiling and every grab's starting length.
-  ROPE_MIN_REST: 64,      // px — the lever's floor (shortest the rope can be cinched)
-  ROPE_ADJUST_SPEED: 180, // px/s — A/D continuous length adjust rate
 
   // Edge wrapping: the rope hugs pivot circles with tangent lines + contact
   // arcs, so winding consumes rope and raises tension naturally — that's the
@@ -56,13 +51,28 @@ Tethered.TUNING = {
   // Enemies
   ENEMY_RADIUS: 14,       // px
   ENEMY_SPEED: 110,       // px/s chaser seek speed
-  ENEMY_HP: 4,            // basic enemies die to two base-damage hits
+  ENEMY_HP: 16,           // basic enemy HP
   ENEMY_DAMAGE: 10,       // HP the ball loses to a basic enemy touch
-  KILL_SPEED_KEEP: 0.95,  // fraction of speed kept when smashing an enemy
-  PLAYER_DAMAGE: 2,       // damage per smash
+  ENEMY_MASS: 1,          // the reference mass; every other enemy is relative to this
+  KILL_SPEED_KEEP: 0.95,  // fraction of speed the ball keeps when it hits an enemy
+
+  // Force-based damage: an impact's force drives the damage, continuously — no
+  // "smash" threshold. A ball hit's force is BALL_MASS × ball speed (the ball is
+  // the heavy driver); an enemy-vs-enemy hit's force is the pair's reduced-mass
+  // impulse (impactForce in enemies.js). Below FORCE_MIN nothing is damaged (the
+  // ball just bounces; the player takes a touch on a slow contact); at the floor
+  // a hit deals FORCE_DAMAGE_BASE, then +1 damage per FORCE_PER_DAMAGE above it.
+  // FORCE_MIN = BALL_MASS × SPEED_THRESHOLD, so a ball at the old smash speed
+  // hitting a standard enemy lands exactly on the floor (≈ the old flat damage).
+  FORCE_MIN: 420,
+  FORCE_DAMAGE_BASE: 2,    // damage at the force floor
+  FORCE_PER_DAMAGE: 115,   // force per +1 damage above the floor (a max-speed hit ≈ 7)
+  BIG_HIT_FORCE: 840,      // a kill landed with at least this force plays the heavy-pop juice
+
   HIT_FLASH_DURATION: 0.15, // s — enemy flashes white when a hit doesn't kill
-  ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (no stacking)
+  ENEMY_BOUNCE: 40,       // px/s — light shove when two enemies bump (impulse, scaled by 1/mass)
   ENEMY_KNOCKBACK_DECAY: 4, // 1/s — exponential decay of every shove (hits, splits, pops, bumps)
+  ENEMY_HIT_COOLDOWN: 0.12, // s an enemy is immune to further enemy-vs-enemy force hits (anti-spam)
 
   // Wave spawn mix: each type unlocks at its *_UNLOCK_DEPTH and claims its
   // CHANCE slice (weight) of every spawn roll; whatever's left is a basic
@@ -75,18 +85,20 @@ Tethered.TUNING = {
   MIX_SPECIAL_TOTAL_MAX: 0.7,  // ceiling on the specials' summed chance
 
   // Tanks: rarer armored enemies that take four base-damage hits
-  TANK_HP: 8,
+  TANK_HP: 32,
   TANK_DAMAGE: 25,        // HP the ball loses to a tank touch
   TANK_RADIUS: 18,        // px
-  TANK_SPEED: 80,         // px/s — slower than chasers
+  TANK_SPEED: 70,         // px/s — the slowest enemy
+  TANK_MASS: 3,           // heaviest single body — barely budges when hit, a rolling wall
   TANK_CHANCE: 0.04,      // fraction of spawns that are tanks, once unlocked — strongest, so rarest
   TANK_UNLOCK_DEPTH: 3,   // wave tanks start appearing
 
   // Splitters: tank-tough enemies that break into two basic chasers on death
-  SPLITTER_HP: 8,            // same starting HP as tanks
+  SPLITTER_HP: 32,           // same starting HP as tanks
   SPLITTER_DAMAGE: 15,
   SPLITTER_RADIUS: 17,       // px
-  SPLITTER_SPEED: 90,        // px/s
+  SPLITTER_SPEED: 100,       // px/s — out-paces tanks
+  SPLITTER_MASS: 2,          // weighs as much as two standard enemies
   SPLITTER_CHANCE: 0.06,
   SPLITTER_UNLOCK_DEPTH: 2,  // wave
   SPLIT_FLING: 600,          // px/s the children fling apart
@@ -94,19 +106,21 @@ Tethered.TUNING = {
 
   // Super-splitters: rarer, bigger splitters that break into two regular
   // splitters (four chasers once those die too)
-  SUPER_SPLITTER_HP: 12,
+  SUPER_SPLITTER_HP: 48,
   SUPER_SPLITTER_DAMAGE: 20,
   SUPER_SPLITTER_RADIUS: 21,      // px
   SUPER_SPLITTER_SPEED: 75,       // px/s
+  SUPER_SPLITTER_MASS: 3,         // heaviest tier, alongside tanks
   SUPER_SPLITTER_CHANCE: 0.02,    // a third the splitter rate — splitter children is a lot
   SUPER_SPLITTER_UNLOCK_DEPTH: 8, // wave
 
   // Orbiters: creep toward the ball while slowing; once stalled they spiral
   // out around the stall point to max radius, close back in, then creep again
-  ORBITER_HP: 4,              // basic HP — the trick is the movement
+  ORBITER_HP: 16,             // basic HP — the trick is the movement
   ORBITER_DAMAGE: 15,
   ORBITER_RADIUS: 12,         // px
   ORBITER_SPEED: 70,          // px/s at the start of each creep
+  ORBITER_MASS: 0.7,          // light and floaty
   ORBITER_DECEL: 0.3,         // 1/s — exponential creep-speed decay
   ORBITER_STOP_SPEED: 12,     // px/s — below this the creep stalls and the orbit starts
   ORBITER_MAX_RADIUS: 110,    // px — orbit radius at full spiral
@@ -119,10 +133,11 @@ Tethered.TUNING = {
   // close. A ball closing in at smash speed triggers a telegraphed panic dash
   // — an unpredictable burst whose contact stings — making the chase a real
   // pursuit, not a free pickup.
-  RUNNER_HP: 4,             // basic HP — the chase is the point, not the fight
+  RUNNER_HP: 16,            // basic HP — the chase is the point, not the fight
   RUNNER_DAMAGE: 5,
   RUNNER_RADIUS: 12,        // px
   RUNNER_SPEED: 220,        // px/s — 2× chaser speed
+  RUNNER_MASS: 0.5,         // the lightest enemy — rockets away when hit
   RUNNER_FLEE_RADIUS: 240,  // px from the ball where chasing flips to fleeing
   RUNNER_DASH_TRIGGER_DIST: 140, // px — a smash-speed ball this close triggers the panic dash
   RUNNER_DASH_WINDUP: 0.2,  // s of telegraphed freeze (white blink) before the burst
@@ -136,10 +151,11 @@ Tethered.TUNING = {
   // Spitters: zoners that hold a standoff band from the ball and lob slow
   // projectiles at it. The shots hit regardless of ball speed (only i-frames
   // protect), so pure "stay fast" play has to path around them.
-  SPITTER_HP: 4,
+  SPITTER_HP: 16,
   SPITTER_DAMAGE: 10,
   SPITTER_RADIUS: 13,         // px
   SPITTER_SPEED: 90,          // px/s
+  SPITTER_MASS: 0.9,          // light-ish zoner
   SPITTER_RANGE: 380,         // px standoff it tries to hold from the ball
   SPITTER_FIRE_INTERVAL: 2.5, // s between shots
   SPITTER_WINDUP: 0.4,        // s of telegraphed charge before a shot (the tell)
@@ -153,20 +169,22 @@ Tethered.TUNING = {
   // Spikers: slow drifting mines that locally invert speed=safety — fast
   // contact pricks the ball (damage plus the knockback's speed bleed) unless
   // the hit bashes through; a slow touch is the safe kill.
-  SPIKER_HP: 6,
+  SPIKER_HP: 24,
   SPIKER_DAMAGE: 15,
   SPIKER_RADIUS: 15,          // px (spike visuals overhang slightly)
   SPIKER_SPEED: 55,           // px/s — a hazard you steer around, not flee
+  SPIKER_MASS: 1.6,           // a dense, slow mine
   SPIKER_CHANCE: 0.05,
   SPIKER_UNLOCK_DEPTH: 7,     // wave
 
   // Shieldbearers: a frontal guard tracks the ball and refuses all damage;
   // vulnerable from behind, or from anywhere once a bash breaks the guard
   // open (stunned). Forces angle play — wraps and slingshots earn it.
-  SHIELD_HP: 6,
+  SHIELD_HP: 24,
   SHIELD_DAMAGE: 15,
   SHIELD_RADIUS: 16,          // px
   SHIELD_SPEED: 95,           // px/s
+  SHIELD_MASS: 1.8,           // armored, medium-heavy
   SHIELD_ARC: 150,            // ° of frontal coverage
   SHIELD_TURN_RATE: 90,       // °/s the guard tracks — a quick swing outflanks it
   SHIELD_STUN: 2.5,           // s a bash leaves the guard broken open
@@ -179,11 +197,16 @@ Tethered.TUNING = {
   ENEMY_POP_PUSH: 350,        // px/s — shove to nearby enemies/pickups when one dies...
   ENEMY_POP_PUSH_RADIUS: 120, // ...fading to 0 at this range
 
-  // Bashing: a smash dealing more than BASH_HP_FACTOR × the enemy's max HP
-  // plows through (deflected, never bounced back) and pops harder.
-  BASH_HP_FACTOR: 1.5,      // damage must exceed this × max HP
-  BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a bash pop
-  BASH_DEFLECT_MAX: 89,     // ° — bounce deflection clamp; <90 keeps forward momentum
+  // Damage popups: floating numbers over a hit enemy's head that drift up and
+  // fade. The tilt keeps a cluster of numbers from all reading as one column.
+  DAMAGE_POP_LIFE: 1.0,    // s — lifetime, fading out over it
+  DAMAGE_POP_RISE: 55,     // px/s the number floats up (world space)
+  DAMAGE_POP_ANGLE: 10,    // ° — max random tilt, ±this
+  DAMAGE_POP_FONT: 'bold 18px monospace',
+
+  // Heavy-hit pop: a kill landed with BIG_HIT_FORCE+ of force plows through and
+  // plays the bigger, hotter pop (slow-mo, screen flash, harder shockwave).
+  BASH_POP_PUSH: 2,         // × ENEMY_POP_PUSH on a heavy-hit pop
 
   // Juice: screen shake, hit-stop, and the bash screen flash, all scaled by
   // event weight (kill < bash < player hit). Shake accumulates (capped) and

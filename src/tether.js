@@ -10,12 +10,11 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
-  const clamp = (x, lo, hi) => Math.max(lo, Math.min(x, hi));
-
   // The tether's full shape: spring state plus the previous-step sweep
   // snapshot (pmx/pmy = mouse, pbx/pby = ball) that wrap detection compares
-  // against. restLength is the rope's maximum (slack) length — the A/D lever
-  // drives it, and the spring pulls only when the path stretches past it.
+  // against. restLength is the rope's maximum (slack) length — pinned to
+  // ROPE_MAX_REST every grab; the spring pulls only when the path stretches
+  // past it.
   S.createTether = function () {
     return {
       active: false, restLength: 0, stretch: 0, wraps: [],
@@ -34,9 +33,8 @@ window.Tethered = window.Tethered || {};
       // ball is still time pressure.
       const tether = game.tether;
       tether.active = true;
-      // Start at full length: the rope is slack within ROPE_MAX_REST and only
-      // pulls past it, so the ball swings free from the grab point. A/D cinch
-      // it shorter from here.
+      // Full, fixed length: the rope is slack within ROPE_MAX_REST and only
+      // pulls past it, so the ball swings free from the grab point.
       tether.restLength = T.ROPE_MAX_REST;
       tether.stretch = 0;
       tether.wraps.length = 0;
@@ -88,8 +86,7 @@ window.Tethered = window.Tethered || {};
   };
 
   // Control: classic grab/release (tryGrab on mousedown, releaseTether on
-  // mouseup), with A/D cinching the rope's maximum length in or out while
-  // held (the lever, applied in updateActiveTether).
+  // mouseup). The rope holds its full length (ROPE_MAX_REST) the whole grab.
 
   function cross(ax, ay, bx, by) {
     return ax * by - ay * bx;
@@ -225,15 +222,6 @@ window.Tethered = window.Tethered || {};
     const tether = game.tether;
     const wraps = tether.wraps;
     const b = game.ball;
-
-    // Rope-length lever (both modes): A/D cinch restLength — the rope's maximum
-    // length — in or out while held. The stretch/spring math below consumes the
-    // new restLength this same step; an idle lever (keyAdjust 0) skips it.
-    if (game.keyAdjust) {
-      tether.restLength = clamp(
-        tether.restLength + game.keyAdjust * T.ROPE_ADJUST_SPEED * dt,
-        T.ROPE_MIN_REST, T.ROPE_MAX_REST);
-    }
 
     // Drop pivots whose enemy died: the rope rejoins its neighbors straight.
     for (let i = wraps.length - 1; i >= 0; i--) {
