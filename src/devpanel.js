@@ -70,8 +70,12 @@ window.Tethered = window.Tethered || {};
       action: () => { S.dev.paused = !S.dev.paused; },
     });
     button({
+      label: 'MENU',
+      action: () => S.toMenu(),
+    });
+    button({
       label: 'HEAL',
-      action: () => { game.ball.hp = game.stats.maxHp; },
+      action: () => { if (game.ball) game.ball.hp = game.stats.maxHp; },
     });
     button({
       label: 'INVINCIBLE',
@@ -84,34 +88,38 @@ window.Tethered = window.Tethered || {};
       action: () => { S.dev.bruteForce = !S.dev.bruteForce; },
     });
 
-    header('SPAWN');
-    for (const type in S.ENEMY_TYPES) {
-      button({
-        label: type.toUpperCase(),
-        icon: (ctx, cx, cy) => drawMiniEnemy(ctx, type, cx, cy),
-        // Near the ball, not at a world edge — a dev spawn should be
-        // testable immediately, not after a 20-second walk into view.
-        action: () => {
-          const a = Math.random() * Math.PI * 2;
-          S.spawnEnemyAt(game, type,
-            game.ball.x + Math.cos(a) * 480,
-            game.ball.y + Math.sin(a) * 480);
-        },
-      });
-    }
+    // SPAWN/UPGRADES need a live run (a ball, stats, upgrade levels). Hidden on
+    // the start menu, where none of that exists yet.
+    if (game.ball) {
+      header('SPAWN');
+      for (const type in S.ENEMY_TYPES) {
+        button({
+          label: type.toUpperCase(),
+          icon: (ctx, cx, cy) => drawMiniEnemy(ctx, type, cx, cy),
+          // Near the ball, not at a world edge — a dev spawn should be
+          // testable immediately, not after a 20-second walk into view.
+          action: () => {
+            const a = Math.random() * Math.PI * 2;
+            S.spawnEnemyAt(game, type,
+              game.ball.x + Math.cos(a) * 480,
+              game.ball.y + Math.sin(a) * 480);
+          },
+        });
+      }
 
-    header('UPGRADES');
-    for (const u of S.UPGRADES) {
-      const lvl = S.upgradeLevel(game, u);
-      const maxed = lvl >= T.UPGRADE_LEVEL_MAX;
-      button({
-        label: u.name,
-        icon: (ctx, cx, cy) => u.icon(ctx, cx, cy, 18),
-        levelText: `${lvl}/${T.UPGRADE_LEVEL_MAX}`,
-        maxed,
-        disabled: maxed,
-        action: () => S.grantUpgrade(game, u),
-      });
+      header('UPGRADES');
+      for (const u of S.UPGRADES) {
+        const lvl = S.upgradeLevel(game, u);
+        const maxed = lvl >= T.UPGRADE_LEVEL_MAX;
+        button({
+          label: u.name,
+          icon: (ctx, cx, cy) => u.icon(ctx, cx, cy, 18),
+          levelText: `${lvl}/${T.UPGRADE_LEVEL_MAX}`,
+          maxed,
+          disabled: maxed,
+          action: () => S.grantUpgrade(game, u),
+        });
+      }
     }
     return items;
   };
@@ -188,12 +196,15 @@ window.Tethered = window.Tethered || {};
       ctx.globalAlpha = 1;
     });
 
-    // Live debug readouts at the column foot.
-    ctx.fillStyle = '#6b6f80';
-    ctx.textAlign = 'left';
-    let awake = 0;
-    for (const e of game.enemies) if (e.aggro && e.aggro !== 'dormant') awake++;
-    ctx.fillText(`shapes ${game.obstacles.length}`, px + PAD, ctx.canvas.height - 34);
-    ctx.fillText(`awake ${awake}/${game.enemies.length}`, px + PAD, ctx.canvas.height - 20);
+    // Live debug readouts at the column foot (only during a run — the menu has
+    // no enemies/obstacles yet).
+    if (game.enemies) {
+      ctx.fillStyle = '#6b6f80';
+      ctx.textAlign = 'left';
+      let awake = 0;
+      for (const e of game.enemies) if (e.aggro && e.aggro !== 'dormant') awake++;
+      ctx.fillText(`shapes ${(game.obstacles || []).length}`, px + PAD, ctx.canvas.height - 34);
+      ctx.fillText(`awake ${awake}/${game.enemies.length}`, px + PAD, ctx.canvas.height - 20);
+    }
   };
 })(Tethered);

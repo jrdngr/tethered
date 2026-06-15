@@ -6,6 +6,10 @@ window.Tethered = window.Tethered || {};
   const ctx = canvas.getContext('2d');
   let game;
 
+  // Run config chosen on the start menu. Module-scoped (not on game) so it
+  // survives the reset that rebuilds game; the menu writes it, beginRun reads it.
+  let config = { mode: 'arena', upgrades: false };
+
   // Two coordinate spaces. The WORLD (game.world, scrolled over by
   // game.camera) is where gameplay lives — ball, enemies, tether anchor.
   // The VIEWPORT (game.width/height: the canvas minus the HUD band and the
@@ -22,7 +26,7 @@ window.Tethered = window.Tethered || {};
   function applyArenaSize() {
     game.width = S.arenaWidth(canvas.width);
     game.height = playHeight();
-    S.updateCamera(game, 0); // pure re-clamp (dt 0): no drift while paused
+    if (game.camera && game.world) S.updateCamera(game, 0); // re-clamp; skipped on the menu (no world yet)
   }
 
   function resize() {
@@ -68,15 +72,34 @@ window.Tethered = window.Tethered || {};
     game.state = S.STATE.PLAYING;
   }
 
+  // Back to the start menu: a minimal game carrying only what the menu and the
+  // frame loop touch (no world/ball/camera/tether yet). Boot lands here.
   function reset() {
     const w = S.arenaWidth(canvas.width);
-    // A run starts at depth 1; death always restarts here (full-run stakes).
-    // Exposed as Tethered.game for debugging and tuning from the console.
     game = S.game = {
       width: w, // viewport — see the coordinate-spaces note above
       height: playHeight(),
+      mouseScreen: { x: w / 2, y: playHeight() / 2 },
+      config, // live reference: the menu draws and edits the current selections
+      time: 0,
+      timeScale: 1,
+      freeze: 0,
+      shake: { x: 0, y: 0, mag: 0 }, // the frame loop jiggles/decays this every frame
+      flash: 0,
+      state: S.STATE.MENU,
+    };
+  }
+
+  // Start a run with the menu's current config. Builds the run-persistent state
+  // (the old reset() body), then the chosen world. Death/victory calls this to
+  // relaunch the same mode. Exposed as Tethered.game for console tuning.
+  function beginRun() {
+    const w = S.arenaWidth(canvas.width);
+    game = S.game = {
+      width: w,
+      height: playHeight(),
       depth: 1,
-      ball: S.createBall(0, 0), // repositioned by setupMap
+      ball: S.createBall(0, 0), // repositioned by the world setup
       obstacles: [],
       mouseScreen: { x: w / 2, y: playHeight() / 2 },
       combo: 1,
@@ -93,10 +116,83 @@ window.Tethered = window.Tethered || {};
       freeze: 0, // s of hit-stop left; physics pauses while it runs down
       shake: { x: 0, y: 0, mag: 0 }, // screen-shake offset; decays on real time
       flash: 0, // s of bash screen flash left
+      config, // live reference to the menu's selections
+      mode: config.mode, // 'arena' | 'dungeon' — fixed for the run
+      upgradesEnabled: config.upgrades, // gates the level-up cards (both modes)
+      keyAdjust: 0, // A/D rope-length nudge: -1 | 0 | +1 (both modes)
       state: S.STATE.PLAYING,
     };
-    setupMap(1);
+    if (game.mode === 'arena') setupArena();
+    else setupMap(1);
   }
+
+  // Arena world: one big fixed rectangle with endless waves. Mirrors setupMap's
+  // transient resets but skips dungeon generation — the world-border bounce in
+  // ball.js gives the walls, and a lightweight map stub keeps the enemy brains
+  // (which read map.isWall/clearance) and the map-guarded collision sites happy.
+  function setupArena() {
+    const T = S.TUNING;
+    const ts = T.TILE_SIZE;
+    const tw = Math.ceil(T.ARENA_W / ts);
+    const th = Math.ceil(T.ARENA_H / ts);
+    game.depth = 0; // the first updateWaves bumps to wave 1 / depth 1
+    game.world = { w: T.ARENA_W, h: T.ARENA_H };
+    // Open-interior stub: isWall true only outside the tile grid (so LOS is
+    // always clear and orbits never clamp); segGrid:null makes collideCircleWalls
+    // a no-op; wallLoops:null makes drawWalls and the minimap skip.
+    game.map = {
+      w: T.ARENA_W, h: T.ARENA_H, tw, th, seed: 0,
+      isWall: (tx, ty) => tx < 0 || ty < 0 || tx >= tw || ty >= th,
+      clearance: new Int16Array(tw * th).fill(999), // never tight
+      tileToWorld: (tx, ty) => ({ x: (tx + 0.5) * ts, y: (ty + 0.5) * ts }),
+      spawn: { x: T.ARENA_W / 2, y: T.ARENA_H / 2 },
+      segGrid: null, wallLoops: null, chambers: [], corridorEdges: [],
+    };
+    game.flow = null; // open arena: straight-line LOS, no pathfinding
+    game.exit = null; // no exit-to-next-depth; waves are the progression
+    game.gates = []; // never sealed (no rooms)
+    game.wave = { number: 0, betweenTimer: 0 };
+
+    game.enemies = [];
+    game.pops = [];
+    game.projectiles = [];
+    game.coins = [];
+    game.particles = [];
+    game.floaters = [];
+    game.playerPop = null;
+    game.tether = S.createTether();
+    game.weaponState = { active: false, tailAngle: 0, tailVel: 0 };
+    game.combo = 1;
+    game.comboIdle = 0;
+    game.obstacles = []; // empty arena — no wrappable pillars
+    game.ball.x = game.map.spawn.x;
+    game.ball.y = game.map.spawn.y;
+    game.ball.vx = 0;
+    game.ball.vy = 0;
+    game.mouse = { x: game.map.spawn.x, y: game.map.spawn.y };
+    game.camera = S.createCamera(game);
+    game.state = S.STATE.PLAYING;
+  }
+
+  // Start-menu click: toggle the option under the cursor, or START the run.
+  S.menuClick = function (g) {
+    for (const wdg of S.menuWidgets(g)) {
+      if (wdg.disabled) continue;
+      if (g.mouseScreen.x >= wdg.x && g.mouseScreen.x <= wdg.x + wdg.w &&
+          g.mouseScreen.y >= wdg.y && g.mouseScreen.y <= wdg.y + wdg.h) {
+        if (wdg.id === 'mode') config.mode = wdg.value;
+        else if (wdg.id === 'upgrades') config.upgrades = !config.upgrades;
+        else if (wdg.id === 'start') beginRun();
+        return;
+      }
+    }
+  };
+
+  // Dev-panel actions (defined here, where config/beginRun/reset live).
+  S.toMenu = function () {
+    if (game.tether) S.releaseTether(game);
+    reset();
+  };
 
   // Reached the exit: bank leftover coins, then advance a depth (healing) or
   // win the run on the final depth. Persistent state rides along on `game`.
@@ -121,7 +217,7 @@ window.Tethered = window.Tethered || {};
     setupMap(game.depth + 1);
     const heal = game.stats.maxHp * S.TUNING.HEAL_ON_EXIT_FRACTION;
     game.ball.hp = Math.min(game.stats.maxHp, game.ball.hp + heal);
-    if (game.pendingLevelUps > 0) S.startLevelUp(game); // banked-coin picks
+    if (game.upgradesEnabled && game.pendingLevelUps > 0) S.startLevelUp(game); // banked-coin picks
   }
 
   // Raw canvas coordinates, for the dev panel (it sits outside the play area).
@@ -136,6 +232,7 @@ window.Tethered = window.Tethered || {};
     // panel) anchors the tether at the view's edge instead of inside the UI.
     game.mouseScreen.x = Math.max(Math.min(p.x, game.width), 0);
     game.mouseScreen.y = Math.max(p.y - S.TUNING.HUD_HEIGHT, 0);
+    if (!game.camera || !game.world) return; // menu: no world to anchor into
     // World anchor = camera + screen, captured NOW (event time) and clamped
     // into the world. Recomputing this per frame would make a parked cursor
     // drift with the camera — the anchor must stay planted.
@@ -167,8 +264,12 @@ window.Tethered = window.Tethered || {};
       return;
     }
     updateMouse(e);
+    if (game.state === S.STATE.MENU) {
+      S.menuClick(game);
+      return;
+    }
     if (game.state === S.STATE.GAMEOVER || game.state === S.STATE.VICTORY) {
-      reset();
+      beginRun(); // instant restart — same mode/upgrades
       return;
     }
     if (game.state === S.STATE.LEVELUP) {
@@ -178,18 +279,31 @@ window.Tethered = window.Tethered || {};
       return;
     }
     if (game.state !== S.STATE.PLAYING) return; // no grabbing the popped ball
-    S.tryGrab(game);
+    S.tryGrab(game); // both modes: classic grab (A/D adjusts length while held)
   });
-  window.addEventListener('mouseup', () => S.releaseTether(game));
-  window.addEventListener('blur', () => S.releaseTether(game));
+  window.addEventListener('mouseup', () => {
+    if (game.tether) S.releaseTether(game);
+  });
+  window.addEventListener('blur', () => { if (game.tether) S.releaseTether(game); });
 
-  // Dev panel toggle. Closing it force-resumes so the game can't sit in an
-  // invisible pause; invincibility deliberately persists while hidden.
+  // Keyboard: dev-panel toggle, plus the A/D rope-length keys (both modes).
+  // Closing the dev panel force-resumes so the game can't sit in an invisible
+  // pause; invincibility deliberately persists while hidden.
   window.addEventListener('keydown', (e) => {
-    if (e.code !== S.TUNING.DEV_PANEL_TOGGLE) return;
-    S.dev.open = !S.dev.open;
-    if (!S.dev.open) S.dev.paused = false;
-    applyArenaSize();
+    if (e.code === S.TUNING.DEV_PANEL_TOGGLE) {
+      S.dev.open = !S.dev.open;
+      if (!S.dev.open) S.dev.paused = false;
+      applyArenaSize();
+      return;
+    }
+    if (game.keyAdjust === undefined) return; // no active run (menu / end screens)
+    if (e.code === 'KeyA') game.keyAdjust = -1; // shrink the rope
+    else if (e.code === 'KeyD') game.keyAdjust = 1; // grow the rope
+  });
+  window.addEventListener('keyup', (e) => {
+    if (game.keyAdjust === undefined) return;
+    if (e.code === 'KeyA' && game.keyAdjust < 0) game.keyAdjust = 0;
+    else if (e.code === 'KeyD' && game.keyAdjust > 0) game.keyAdjust = 0;
   });
 
   // ORDERING CONTRACT — the call order below (and within the callees) is
@@ -240,7 +354,8 @@ window.Tethered = window.Tethered || {};
       if (updateExit(dt)) return; // channel completed → map transitioned this frame
     }
     S.updateEnemies(game, dt);
-    S.updateArena(game); // seal/clear rooms now that this step's kills are in
+    S.updateWaves(game, dt); // arena: spawn the next wave once the floor clears (no-op in dungeon)
+    S.updateArena(game); // seal/clear rooms now that this step's kills are in (no-op in arena)
     S.updateCoins(game, dt);
     S.updateCombo(game, dt);
     // Camera last, on this step's (scaled) time: render sees the settled

@@ -18,6 +18,8 @@ window.Tethered = window.Tethered || {};
   // Returns false while dormant (the caller skips it entirely this step).
   function updateAggro(game, e) {
     if (e.aggro === 'awake') return true;
+    // Arena has no garrison/explore loop — enemies chase from any distance.
+    if (game.mode === 'arena') { e.aggro = 'awake'; return true; }
     const d = Math.hypot(game.ball.x - e.x, game.ball.y - e.y);
     if (d <= S.TUNING.AGGRO_RADIUS) { e.aggro = 'awake'; return true; }
     return false;
@@ -441,6 +443,8 @@ window.Tethered = window.Tethered || {};
     }
     return 'chaser';
   }
+  // Arena waves roll the same depth-driven mix the dungeon places with.
+  S.rollTypeForDepth = rollTypeForDepth;
 
   function makeEnemy(game, type, x, y) {
     const T = S.TUNING;
@@ -647,6 +651,61 @@ window.Tethered = window.Tethered || {};
     game.enemies.push(e);
     S.grid.insert(e);
     return e;
+  };
+
+  // A random point just inside the arena wall, kept clear of the ball so a
+  // wave never materializes on top of the player.
+  function arenaEdgeSpawn(game) {
+    const T = S.TUNING;
+    const w = game.world.w;
+    const h = game.world.h;
+    const pad = 40; // just off the border
+    for (let tries = 0; tries < 12; tries++) {
+      let x;
+      let y;
+      if (Math.random() < 0.5) { // left/right edge
+        x = Math.random() < 0.5 ? pad : w - pad;
+        y = pad + Math.random() * (h - 2 * pad);
+      } else { // top/bottom edge
+        x = pad + Math.random() * (w - 2 * pad);
+        y = Math.random() < 0.5 ? pad : h - pad;
+      }
+      if (Math.hypot(x - game.ball.x, y - game.ball.y) >= T.WAVE_SPAWN_BALL_CLEARANCE) {
+        return { x, y };
+      }
+    }
+    // Fallback: the corner farthest from the ball.
+    return { x: game.ball.x > w / 2 ? pad : w - pad, y: game.ball.y > h / 2 ? pad : h - pad };
+  }
+
+  // Arena waves: once the floor is clear, wait WAVE_INTER_DELAY then spawn the
+  // next (larger) burst at the edges. Wave number drives game.depth, so the
+  // existing makeEnemy stat scaling and rollTypeForDepth unlocks ramp the
+  // difficulty for free. No-op outside Arena — the dungeon uses placeEnemies
+  // and room garrisons instead.
+  S.updateWaves = function (game, dt) {
+    if (game.mode !== 'arena' || game.state !== S.STATE.PLAYING) return;
+    const T = S.TUNING;
+    // Contain enemies inside the arena: there's no wall geometry here, so a
+    // knockback that would slide an enemy through a cave wall in the dungeon
+    // just parks it against the arena border instead.
+    for (const e of game.enemies) {
+      e.x = Math.max(e.r, Math.min(e.x, game.world.w - e.r));
+      e.y = Math.max(e.r, Math.min(e.y, game.world.h - e.r));
+    }
+    const wave = game.wave;
+    if (game.enemies.length > 0) return; // clear the current wave first
+    wave.betweenTimer -= dt;
+    if (wave.betweenTimer > 0) return; // inter-wave breather
+    wave.number += 1;
+    game.depth = wave.number; // shared difficulty knob (stat scaling + type unlocks)
+    wave.betweenTimer = T.WAVE_INTER_DELAY; // gap before the wave after this one
+    const count = Math.min(T.ENEMY_CAP, T.WAVE_COUNT_BASE + T.WAVE_COUNT_PER_WAVE * (wave.number - 1));
+    for (let i = 0; i < count; i++) {
+      const p = arenaEdgeSpawn(game);
+      const e = S.spawnEnemyAt(game, rollTypeForDepth(game.depth, null, null), p.x, p.y);
+      e.aggro = 'awake'; // arena enemies hunt at once — no dormant garrison
+    }
   };
 
   // A dead splitter breaks into its children (two chasers; a super-splitter

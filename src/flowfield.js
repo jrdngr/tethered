@@ -139,16 +139,21 @@ window.Tethered = window.Tethered || {};
       const d = Math.hypot(dx, dy) || 1;
       return { x: dx / d, y: dy / d };
     }
+    // Down the flow field when there is one (the dungeon). The open arena runs
+    // with no field (flow === null) — LOS covers the near ball and the
+    // straight-line fallback below covers the rest, so guard the deref.
     const f = game.flow;
-    const tx = Math.floor(e.x / T.TILE_SIZE);
-    const ty = Math.floor(e.y / T.TILE_SIZE);
-    const i = ty * f.tw + tx;
-    if (f && f.seen[i] === f.stamp) {
-      const dx = f.dirx[i];
-      const dy = f.diry[i];
-      if (dx || dy) {
-        const l = Math.hypot(dx, dy);
-        return { x: dx / l, y: dy / l };
+    if (f) {
+      const tx = Math.floor(e.x / T.TILE_SIZE);
+      const ty = Math.floor(e.y / T.TILE_SIZE);
+      const i = ty * f.tw + tx;
+      if (f.seen[i] === f.stamp) {
+        const dx = f.dirx[i];
+        const dy = f.diry[i];
+        if (dx || dy) {
+          const l = Math.hypot(dx, dy);
+          return { x: dx / l, y: dy / l };
+        }
       }
     }
     const dx = bx - e.x;

@@ -42,6 +42,20 @@ window.Tethered = window.Tethered || {};
     // Background (HUD band + viewport), then the HUD in its own band up top.
     ctx.fillStyle = '#0d0e14';
     ctx.fillRect(0, 0, game.width, T.HUD_HEIGHT + game.height);
+
+    // Start menu: no world/ball/camera exists yet, so draw only the menu (and
+    // the dev panel column) and bail before the HUD/world passes. Draw under
+    // the HUD-band translate, the same space mouseScreen is measured in, so the
+    // widget hit-tests line up with the cursor.
+    if (game.state === S.STATE.MENU) {
+      ctx.save();
+      ctx.translate(0, T.HUD_HEIGHT);
+      S.drawMenu(ctx, game);
+      ctx.restore();
+      S.drawDevPanel(ctx, game);
+      return;
+    }
+
     drawHud(ctx, game);
 
     // Everything below renders translated under the HUD and clipped to the
@@ -552,27 +566,31 @@ window.Tethered = window.Tethered || {};
     ctx.lineWidth = 1;
     ctx.strokeRect(15.5, 41.5, hpW + 1, hpH + 1);
 
-    // Level + coin progress bar, top center.
+    // Level + coin progress bar, top center — only when upgrades are on (it
+    // drives nothing otherwise, so an upgrades-off run hides it).
     const barW = 260;
     const barH = 8;
     const bx = (game.width - barW) / 2;
     const by = 18;
-    const need = S.coinsForLevel(game.level);
-    ctx.fillStyle = '#1c1f2a';
-    ctx.fillRect(bx, by, barW, barH);
-    ctx.fillStyle = '#ffc53d';
-    ctx.fillRect(bx, by, barW * Math.min(game.coinProgress / need, 1), barH);
-    ctx.strokeStyle = '#2a2d3a';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bx - 0.5, by - 0.5, barW + 1, barH + 1);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffc53d';
-    ctx.fillText(`LV ${game.level}`, bx - 10, 14);
+    if (game.upgradesEnabled) {
+      const need = S.coinsForLevel(game.level);
+      ctx.fillStyle = '#1c1f2a';
+      ctx.fillRect(bx, by, barW, barH);
+      ctx.fillStyle = '#ffc53d';
+      ctx.fillRect(bx, by, barW * Math.min(game.coinProgress / need, 1), barH);
+      ctx.strokeStyle = '#2a2d3a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx - 0.5, by - 0.5, barW + 1, barH + 1);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffc53d';
+      ctx.fillText(`LV ${game.level}`, bx - 10, 14);
+    }
 
-    // Depth, top-right (the progression readout — was survival time).
+    // Progression readout, top-right: depth in the dungeon, wave in the arena.
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`DEPTH ${game.depth}/${T.MAX_DEPTH}`, game.width - 16, 14);
+    const prog = game.mode === 'arena' ? `WAVE ${game.wave.number}` : `DEPTH ${game.depth}/${T.MAX_DEPTH}`;
+    ctx.fillText(prog, game.width - 16, 14);
 
     // Speed meter, top center just below the level bar: shows how close the
     // ball is to the invincibility threshold (the key feedback for learning
@@ -592,6 +610,31 @@ window.Tethered = window.Tethered || {};
     const tx = mx + meterW * (T.SPEED_THRESHOLD / maxShown);
     ctx.fillStyle = '#e8e8f0';
     ctx.fillRect(tx - 1, my - 3, 2, meterH + 6);
+
+    // Rope-length lever (both modes): a min→max track on the right with a tick
+    // at the current maximum length — shown whenever the tether is held.
+    if (game.tether.active) {
+      const rw = 160;
+      const rh = 8;
+      const rx = game.width - 16 - rw;
+      const ry = 42;
+      const frac = Math.min(Math.max(
+        (game.tether.restLength - T.ROPE_MIN_REST) / (T.ROPE_MAX_REST - T.ROPE_MIN_REST), 0), 1);
+      ctx.fillStyle = '#1c1f2a';
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.strokeStyle = '#2a2d3a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx - 0.5, ry - 0.5, rw + 1, rh + 1);
+      const tickX = rx + rw * frac;
+      ctx.fillStyle = '#ff641e';
+      ctx.fillRect(tickX - 2, ry - 3, 4, rh + 6);
+      ctx.fillStyle = '#6b6f80';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ROPE', rx - 8, ry + rh / 2);
+      ctx.textBaseline = 'top';
+    }
   }
 
   // Level-up pause: up to three upgrade cards, hover to highlight, click to
@@ -667,8 +710,11 @@ window.Tethered = window.Tethered || {};
 
     ctx.fillStyle = '#e8e8f0';
     ctx.font = '20px monospace';
-    ctx.fillText(`DEPTH ${game.depth}/${S.TUNING.MAX_DEPTH}`, cx, cy);
-    ctx.fillText(`${game.kills || 0} KILLS · LEVEL ${game.level}`, cx, cy + 32);
+    const head = game.mode === 'arena'
+      ? `WAVE ${game.wave.number}`
+      : `DEPTH ${game.depth}/${S.TUNING.MAX_DEPTH}`;
+    ctx.fillText(head, cx, cy);
+    ctx.fillText(`${game.kills || 0} KILLS${game.upgradesEnabled ? ` · LEVEL ${game.level}` : ''}`, cx, cy + 32);
 
     ctx.fillStyle = '#6b6f80';
     ctx.font = '16px monospace';
@@ -694,4 +740,95 @@ window.Tethered = window.Tethered || {};
     ctx.font = '16px monospace';
     ctx.fillText('click to play again', cx, cy + 80);
   }
+
+  // Start-menu widget layout (screen space, hit-tested against mouseScreen) —
+  // one source of truth shared by drawMenu and main.js's menuClick, the same
+  // pattern as upgradeCardRects/devItems. A segmented mode pair, an upgrades
+  // checkbox, and the START button. Control is one scheme for both modes
+  // (hold to swing, A/D adjust rope length), so there's no scheme picker.
+  S.menuWidgets = function (game) {
+    const cfg = game.config;
+    const cx = game.width / 2;
+    const cy = game.height / 2;
+    const segW = 150;
+    const segH = 40;
+    const gap = 8;
+    const rowGap = 64;
+    const left = cx - segW - gap / 2; // left edge of a centered two-segment row
+    const fullW = segW * 2 + gap;
+    const w = [];
+    let y = cy - 40;
+    [['dungeon', 'DUNGEON'], ['arena', 'ARENA']].forEach(([value, label], i) => {
+      w.push({ id: 'mode', value, label, caption: i === 0 ? 'MODE' : null,
+        x: left + i * (segW + gap), y, w: segW, h: segH, selected: cfg.mode === value });
+    });
+    y += rowGap;
+    w.push({ id: 'upgrades', label: 'UPGRADES', checkbox: true, checked: cfg.upgrades,
+      x: left, y, w: fullW, h: segH });
+    y += rowGap + 12;
+    w.push({ id: 'start', label: 'START', start: true, x: left, y, w: fullW, h: segH + 6 });
+    return w;
+  };
+
+  S.drawMenu = function (ctx, game) {
+    const cx = game.width / 2;
+    const cy = game.height / 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#56e8ff';
+    ctx.font = 'bold 56px monospace';
+    ctx.fillText('TETHERED', cx, cy - 150);
+    ctx.fillStyle = '#6b6f80';
+    ctx.font = '15px monospace';
+    ctx.fillText('swing the ball — smash everything', cx, cy - 112);
+    ctx.font = '12px monospace';
+    ctx.fillText('hold to grab & swing · A / D adjust rope length', cx, cy - 88);
+
+    for (const wdg of S.menuWidgets(game)) {
+      const hover = !wdg.disabled &&
+        game.mouseScreen.x >= wdg.x && game.mouseScreen.x <= wdg.x + wdg.w &&
+        game.mouseScreen.y >= wdg.y && game.mouseScreen.y <= wdg.y + wdg.h;
+      const on = wdg.selected || (wdg.checkbox && wdg.checked);
+      if (wdg.caption) {
+        ctx.fillStyle = wdg.disabled ? '#3a3f52' : '#6b6f80';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(wdg.caption, wdg.x, wdg.y - 8);
+      }
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = wdg.disabled ? 0.35 : 1;
+      ctx.fillStyle = wdg.start ? (hover ? '#1f6f4a' : '#17593b')
+        : on ? '#3a2f12' : hover ? '#242838' : '#1c1f2a';
+      ctx.fillRect(wdg.x, wdg.y, wdg.w, wdg.h);
+      ctx.strokeStyle = wdg.start ? '#5effa0' : (on || hover) ? '#ffc53d' : '#2a2d3a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(wdg.x + 1, wdg.y + 1, wdg.w - 2, wdg.h - 2);
+
+      let labelX = wdg.x + wdg.w / 2;
+      ctx.textAlign = 'center';
+      if (wdg.checkbox) {
+        const bs = 18;
+        const bx = wdg.x + 16;
+        const by = wdg.y + wdg.h / 2 - bs / 2;
+        ctx.strokeStyle = '#e8e8f0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bs, bs);
+        if (wdg.checked) { ctx.fillStyle = '#5effa0'; ctx.fillRect(bx + 3, by + 3, bs - 6, bs - 6); }
+        labelX = bx + bs + 12;
+        ctx.textAlign = 'left';
+      }
+      ctx.fillStyle = wdg.start ? '#aef4ff' : '#e8e8f0';
+      ctx.font = wdg.start ? 'bold 20px monospace' : '15px monospace';
+      ctx.fillText(wdg.checkbox ? `${wdg.label}  ${wdg.checked ? 'ON' : 'OFF'}` : wdg.label,
+        labelX, wdg.y + wdg.h / 2 + 1);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = '#6b6f80';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('`  toggles the dev panel', cx, game.height - 22);
+  };
 })(Tethered);

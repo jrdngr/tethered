@@ -16,10 +16,16 @@ Tethered.TUNING = {
   GRAB_RADIUS: 176,       // px beyond ball radius that still counts as a grab
   ROPE_K: 9,              // 1/s^2 — spring constant (accel per px of stretch)
   ROPE_DAMPING: 1.2,      // 1/s — along-rope damping
-  ROPE_MAX_REST: 192,     // px — max rest length at grab time; = BALL_RADIUS + GRAB_RADIUS, so no grab starts pre-stretched (a clamp below the grab reach yanks the ball at grab and starves wraps of rope)
+  ROPE_MAX_REST: 384,     // px — the rope's maximum (slack) length; tension only above it. Every grab seeds restLength here, so the ball swings free within this radius and the rope pulls only once stretched past it. Well above the grab reach (BALL_RADIUS + GRAB_RADIUS = 192), so no grab starts pre-stretched.
   ROPE_MIN_SEG: 8,        // px — segments shorter than this can't gain a pivot (anti-chatter)
   WRAP_CROSS_EPS: 0.05,   // crossings this close to a segment endpoint are pass-bys, not wraps
   SLINGSHOT_IMPULSE_K: 2.5,  // px/s of release-launch impulse per px of stretch (0 = no slingshot)
+
+  // Rope-length lever (both modes): A/D drive restLength — the rope's maximum
+  // length — between these bounds while the rope is held. ROPE_MAX_REST (above)
+  // is the lever's ceiling and every grab's starting length.
+  ROPE_MIN_REST: 64,      // px — the lever's floor (shortest the rope can be cinched)
+  ROPE_ADJUST_SPEED: 180, // px/s — A/D continuous length adjust rate
 
   // Edge wrapping: the rope hugs pivot circles with tangent lines + contact
   // arcs, so winding consumes rope and raises tension naturally — that's the
@@ -454,12 +460,25 @@ Tethered.TUNING = {
   DEV_PANEL_WIDTH: 150,          // px column when open
   DEV_PANEL_TOGGLE: 'Backquote', // KeyboardEvent.code that toggles it
 
+  // Arena mode (src/main.js setupArena): an alternative to the dungeon — one
+  // large fixed rectangle (camera follows, like the dungeon) with endless
+  // waves of enemies instead of sealed rooms. No corridors/exit/minimap. Wave
+  // number drives game.depth, so the existing enemy stat-scaling and type
+  // unlocks ramp the difficulty for free.
+  ARENA_W: 2600,                  // px — fixed arena width (bigger than the viewport)
+  ARENA_H: 1700,                  // px — fixed arena height
+  WAVE_COUNT_BASE: 6,             // enemies in wave 1...
+  WAVE_COUNT_PER_WAVE: 2,         // ...growing this many per wave (capped at ENEMY_CAP)
+  WAVE_INTER_DELAY: 2.0,          // s pause between a cleared wave and the next
+  WAVE_SPAWN_BALL_CLEARANCE: 320, // px around the ball kept spawn-free
+
   // Loop
   PHYSICS_HZ: 120,
 };
 
 // Game states, compared all over — the enum keeps a typo from failing silently.
 Tethered.STATE = Object.freeze({
+  MENU: 'menu', // start screen — pick mode, upgrades on/off
   PLAYING: 'playing',
   DYING: 'dying',
   LEVELUP: 'levelup',

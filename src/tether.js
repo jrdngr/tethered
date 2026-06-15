@@ -10,11 +10,17 @@
 window.Tethered = window.Tethered || {};
 
 (function (S) {
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(x, hi));
+
   // The tether's full shape: spring state plus the previous-step sweep
   // snapshot (pmx/pmy = mouse, pbx/pby = ball) that wrap detection compares
-  // against.
+  // against. restLength is the rope's maximum (slack) length — the A/D lever
+  // drives it, and the spring pulls only when the path stretches past it.
   S.createTether = function () {
-    return { active: false, restLength: 0, stretch: 0, wraps: [], pmx: 0, pmy: 0, pbx: 0, pby: 0 };
+    return {
+      active: false, restLength: 0, stretch: 0, wraps: [],
+      pmx: 0, pmy: 0, pbx: 0, pby: 0,
+    };
   };
 
   S.tryGrab = function (game) {
@@ -28,7 +34,10 @@ window.Tethered = window.Tethered || {};
       // ball is still time pressure.
       const tether = game.tether;
       tether.active = true;
-      tether.restLength = Math.min(d, T.ROPE_MAX_REST);
+      // Start at full length: the rope is slack within ROPE_MAX_REST and only
+      // pulls past it, so the ball swings free from the grab point. A/D cinch
+      // it shorter from here.
+      tether.restLength = T.ROPE_MAX_REST;
       tether.stretch = 0;
       tether.wraps.length = 0;
       // Seed the sweep snapshot so the first step compares against now.
@@ -51,6 +60,7 @@ window.Tethered = window.Tethered || {};
   S.releaseTether = function (game) {
     const T = S.TUNING;
     const tether = game.tether;
+    if (!tether) return; // no tether on the menu (no run yet)
     if (tether.active && tether.stretch > 0) {
       const b = game.ball;
       const wraps = tether.wraps;
@@ -79,6 +89,10 @@ window.Tethered = window.Tethered || {};
     tether.wraps.length = 0;
     S.triggerWeapons(game); // every release while fast (re)arms the weapons
   };
+
+  // Control is one scheme for both modes: classic grab/release (tryGrab on
+  // mousedown, releaseTether on mouseup), with A/D cinching the rope's maximum
+  // length in or out while held (the lever, applied in updateActiveTether).
 
   // Total accumulated contact angle over all pivots — the wrap-kill bonus
   // reads this in half-turn units. Fresh from this step's tether pass.
@@ -222,6 +236,15 @@ window.Tethered = window.Tethered || {};
     const tether = game.tether;
     const wraps = tether.wraps;
     const b = game.ball;
+
+    // Rope-length lever (both modes): A/D cinch restLength — the rope's maximum
+    // length — in or out while held. The stretch/spring math below consumes the
+    // new restLength this same step; an idle lever (keyAdjust 0) skips it.
+    if (game.keyAdjust) {
+      tether.restLength = clamp(
+        tether.restLength + game.keyAdjust * T.ROPE_ADJUST_SPEED * dt,
+        T.ROPE_MIN_REST, T.ROPE_MAX_REST);
+    }
 
     // Drop pivots whose enemy died: the rope rejoins its neighbors straight.
     // Obstacle pegs never die, so they hold until the rope unwinds.

@@ -46,7 +46,8 @@ window.Tethered = window.Tethered || {};
   S.drawMinimap = function (ctx, game) {
     const T = S.TUNING;
     const map = game.map;
-    if (!map || (game.state !== S.STATE.PLAYING && game.state !== S.STATE.DYING)) return;
+    // No minimap in the arena (single fixed rectangle, no wall layout to map).
+    if (!map || !map.wallLoops || (game.state !== S.STATE.PLAYING && game.state !== S.STATE.DYING)) return;
     if (!map._mini || map._mini.seed !== map.seed) map._mini = buildMini(map);
     const m = map._mini;
     const b = game.ball;

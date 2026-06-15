@@ -43,7 +43,7 @@ window.Tethered = window.Tethered || {};
           game.level += 1;
           game.pendingLevelUps += 1; // each level pauses for an upgrade pick
         }
-        if (game.pendingLevelUps > 0 && game.state === S.STATE.PLAYING) {
+        if (game.upgradesEnabled && game.pendingLevelUps > 0 && game.state === S.STATE.PLAYING) {
           S.startLevelUp(game);
         }
       },
